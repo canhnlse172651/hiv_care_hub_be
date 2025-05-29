@@ -1,19 +1,14 @@
-import { Module } from '@nestjs/common';
-import { AuthService } from './auth.service';
-import { AuthController } from './auth.controller';
-import { RolesService } from './role.service';
-import { AuthRepository } from './repositories/auth.repository';
-import { PrismaService } from 'src/shared/services/prisma.service';
-import { TokenService } from 'src/shared/services/token.service';
-import { HashingService } from 'src/shared/services/hashing.service';
+import { Module } from '@nestjs/common'
+import { AuthService } from './auth.service'
+import { AuthController } from './auth.controller'
+import { RolesService } from '../role/role.service'
+import { AuthRepository } from '../../repositories/auth.repository'
+import { RoleRepository } from '../../repositories/role.repository'
+import { PermissionRepository } from '../../repositories/permission.repository'
 
 @Module({
-  providers: [
-    AuthService,
-    RolesService,
-    AuthRepository,
-  ],
+  providers: [AuthService, RolesService, AuthRepository, RoleRepository, PermissionRepository],
   controllers: [AuthController],
-  exports: [AuthService]
+  exports: [AuthService, RolesService],
 })
 export class AuthModule {}

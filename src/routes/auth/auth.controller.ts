@@ -1,8 +1,8 @@
 import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common'
 import { ApiTags } from '@nestjs/swagger'
 import { AuthService } from './auth.service'
-import { LoginBodyType, RegisterBodyType } from './auth.model'
-import { ApiRegister, ApiLogin, ApiRefreshToken, ApiLogout } from './auth.swagger'
+import { ApiRegister, ApiLogin, ApiRefreshToken, ApiLogout } from '../../swagger/auth.swagger'
+import { RegisterDto, LoginDto, RefreshTokenDto, LogoutDto } from './auth.dto'
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -11,26 +11,30 @@ export class AuthController {
 
   @Post('register')
   @ApiRegister()
-  async register(@Body() body: RegisterBodyType) {
-    return await this.authService.register(body)
+  async register(@Body() body: unknown) {
+    const validatedData = RegisterDto.create(body);
+    return await this.authService.register(validatedData);
   }
 
   @Post('login')
   @ApiLogin()
-  async login(@Body() body: LoginBodyType) {
-    return this.authService.login(body)
+  async login(@Body() body: unknown) {
+    const validatedData = LoginDto.create(body);
+    return this.authService.login(validatedData);
   }
 
   @Post('refresh-token')
   @HttpCode(HttpStatus.OK)
   @ApiRefreshToken()
-  async refreshToken(@Body() body: { refreshToken: string }) {
-    return this.authService.refreshToken(body.refreshToken)
+  async refreshToken(@Body() body: unknown) {
+    const validatedData = RefreshTokenDto.create(body);
+    return this.authService.refreshToken(validatedData.refreshToken);
   }
 
   @Post('logout')
   @ApiLogout()
-  async logout(@Body() body: { refreshToken: string }) {
-    return this.authService.logout(body.refreshToken)
+  async logout(@Body() body: unknown) {
+    const validatedData = LogoutDto.create(body);
+    return this.authService.logout(validatedData.refreshToken);
   }
 }

@@ -1,23 +1,35 @@
 import { NestFactory } from '@nestjs/core';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { TransformInterceptor } from './shared/interceptor/transform.interceptor';
+import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  
+  // Enable CORS
+  app.enableCors();
+  
+  // Global pipes
+  app.useGlobalPipes(new ValidationPipe({
+    transform: true,
+    whitelist: true,
+    forbidNonWhitelisted: true,
+  }));
+  
+  // Global interceptors
+  app.useGlobalInterceptors(new TransformInterceptor());
 
-  // Cấu hình Swagger
+  // Swagger setup
   const config = new DocumentBuilder()
-    .setTitle('HIV Care Hub API Documentation') // Tiêu đề tài liệu
-    .setDescription('API documentation for the HIV Care Hub backend') // Mô tả tài liệu
-    .setVersion('1.0') // Phiên bản API
-    .addBearerAuth() // Thêm xác thực JWT (nếu cần)
+    .setTitle('HIV Care Hub API')
+    .setDescription('The HIV Care Hub API description')
+    .setVersion('1.0')
+    .addBearerAuth()
     .build();
   const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api', app, document);
 
-  // Đăng ký Swagger tại route /api-docs
-  SwaggerModule.setup('api-v1', app, document);
-
-  // Lắng nghe cổng từ biến môi trường hoặc 3000
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(3000);
 }
 bootstrap();

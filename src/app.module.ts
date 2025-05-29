@@ -1,20 +1,29 @@
-import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { SharedModule } from './shared/shared.module';
-import { AuthModule } from './routes/auth/auth.module';
-import { APP_FILTER, APP_PIPE } from '@nestjs/core';
-import { ZodValidationPipe } from 'nestjs-zod'
-import { CatchEverythingFilter } from './shared/fillters/catch-everything.fillter';
+import { Module } from '@nestjs/common'
+import { AppController } from './app.controller'
+import { AppService } from './app.service'
+import { SharedModule } from './shared/shared.module'
+import { AuthModule } from './routes/auth/auth.module'
+import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core'
+import { CatchEverythingFilter } from './shared/fillters/catch-everything.fillter'
+import { RoleModule } from './routes/role/role.module'
+import { PermissionModule } from './routes/permission/permission.module'
+import { ZodSerializerInterceptor } from 'nestjs-zod'
+import CustomZodValidationPipe from './common/custom-zod-validate'
+
 @Module({
-  imports: [SharedModule, AuthModule],
+  imports: [SharedModule, AuthModule, RoleModule, PermissionModule],
   controllers: [AppController],
-  providers: [AppService,{
-    provide: APP_PIPE,
-    useClass: ZodValidationPipe,
-  },{
-    provide: APP_FILTER,
-    useClass: CatchEverythingFilter,
-  }],
+  providers: [
+    AppService,
+    { provide: APP_INTERCEPTOR, useClass: ZodSerializerInterceptor },
+    {
+      provide: APP_PIPE,
+      useClass: CustomZodValidationPipe
+    },  
+    {
+      provide: APP_FILTER,
+      useClass: CatchEverythingFilter,
+    },
+  ],
 })
 export class AppModule {}
