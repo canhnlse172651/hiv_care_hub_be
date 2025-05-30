@@ -57,17 +57,19 @@ export const UpdatePermissionSchema = z.object({
   isActive: z.boolean().optional()
 })
 
-export const QueryPermissionSchema = z.object({
-  name: z.string().optional(),
-  path: z.string().optional(),
-  method: z.nativeEnum(HTTPMethod).optional()
-})
-
 export const UpdateUserPermissionsSchema = z.object({
   permissions: z.array(z.number())
 })
+export const QueryPermissionSchema = z.object({
+  name: z.string().optional(),
+  path: z.string().optional(),
+  method: z.nativeEnum(HTTPMethod).optional(),
+})
+
 
 export type CreatePermissionType = z.infer<typeof CreatePermissionSchema>
 export type UpdatePermissionType = z.infer<typeof UpdatePermissionSchema>
-export type QueryPermissionType = z.infer<typeof QueryPermissionSchema>
 export type UpdateUserPermissionsType = z.infer<typeof UpdateUserPermissionsSchema>
+
+
+export type QueryPermissionType = z.infer<typeof QueryPermissionSchema>

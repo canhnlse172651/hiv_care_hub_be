@@ -1,5 +1,5 @@
 import { applyDecorators } from '@nestjs/common'
-import { ApiOperation, ApiResponse, ApiBody, ApiParam, ApiBearerAuth } from '@nestjs/swagger'
+import { ApiOperation, ApiResponse, ApiBody, ApiParam, ApiBearerAuth, ApiQuery } from '@nestjs/swagger'
 import { HTTPMethod } from '@prisma/client'
 
 // Swagger schemas
@@ -91,23 +91,119 @@ export const UpdateUserRoleBodySchema = {
 // Decorators
 export const ApiGetAllRoles = () => {
   return applyDecorators(
-    ApiOperation({ summary: 'Get all roles' }),
-    ApiResponse({
-      status: 200,
-      description: 'Return all roles',
+    ApiOperation({ summary: 'Get all roles with pagination and search' }),
+    // Pagination parameters
+    ApiQuery({ 
+      name: 'page', 
+      required: false, 
+      type: Number, 
+      description: 'Page number (default: 1). Must be a number.',
+      example: 1,
+      schema: {
+        type: 'number',
+        minimum: 1,
+        default: 1
+      }
+    }),
+    ApiQuery({ 
+      name: 'limit', 
+      required: false, 
+      type: Number, 
+      description: 'Number of items per page (default: 10). Must be a number.',
+      example: 10,
+      schema: {
+        type: 'number',
+        minimum: 1,
+        maximum: 100,
+        default: 10
+      }
+    }),
+    ApiQuery({ 
+      name: 'sortBy', 
+      required: false, 
+      type: String, 
+      description: 'Field to sort by (e.g., name, createdAt)',
+      example: 'name',
+      schema: {
+        type: 'string',
+        enum: ['name', 'createdAt', 'updatedAt']
+      }
+    }),
+    ApiQuery({ 
+      name: 'sortOrder', 
+      required: false, 
+      enum: ['asc', 'desc'], 
+      description: 'Sort order (default: desc)',
+      example: 'asc',
+      schema: {
+        type: 'string',
+        enum: ['asc', 'desc'],
+        default: 'desc'
+      }
+    }),
+    // Search parameters
+    ApiQuery({ 
+      name: 'search', 
+      required: false, 
+      type: String, 
+      description: 'Search term to filter roles',
+      example: 'admin',
+      schema: {
+        type: 'string',
+        minLength: 1
+      }
+    }),
+    ApiQuery({ 
+      name: 'searchFields', 
+      required: false, 
+      type: [String], 
+      description: 'Fields to search in (default: ["name", "description"])',
+      example: ['name'],
       schema: {
         type: 'array',
         items: {
-          type: 'object',
-          properties: {
-            id: { type: 'number', example: 1 },
-            name: { type: 'string', example: 'Admin' },
-            description: { type: 'string', example: 'Administrator role' },
-            createdAt: { type: 'string', example: '2024-03-20T10:00:00Z' },
-            updatedAt: { type: 'string', example: '2024-03-20T10:00:00Z' }
+          type: 'string',
+          enum: ['name', 'description']
+        },
+        default: ['name', 'description']
+      }
+    }),
+    // Response documentation
+    ApiResponse({
+      status: 200,
+      description: 'Return paginated roles',
+      schema: {
+        type: 'object',
+        properties: {
+          data: {
+            type: 'array',
+            items: RoleResponseSchema
+          },
+          meta: {
+            type: 'object',
+            properties: {
+              total: { type: 'number', example: 25 },
+              page: { type: 'number', example: 1 },
+              limit: { type: 'number', example: 10 },
+              totalPages: { type: 'number', example: 3 },
+              hasNextPage: { type: 'boolean', example: true },
+              hasPreviousPage: { type: 'boolean', example: false }
+            }
           }
         }
       }
+    }),
+    ApiResponse({
+      status: 401,
+      description: 'Unauthorized'
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Forbidden - Insufficient permissions'
+    }),
+    ApiResponse({
+      status: 400,
+      description: 'Bad Request - Invalid query parameters'
     })
   )
 }
@@ -124,16 +220,19 @@ export const ApiGetRoleById = () => {
     ApiResponse({
       status: 200,
       description: 'Return role by ID',
-      schema: {
-        type: 'object',
-        properties: {
-          id: { type: 'number', example: 1 },
-          name: { type: 'string', example: 'Admin' },
-          description: { type: 'string', example: 'Administrator role' },
-          createdAt: { type: 'string', example: '2024-03-20T10:00:00Z' },
-          updatedAt: { type: 'string', example: '2024-03-20T10:00:00Z' }
-        }
-      }
+      schema: RoleResponseSchema
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'Role not found'
+    }),
+    ApiResponse({
+      status: 401,
+      description: 'Unauthorized'
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Forbidden - Insufficient permissions'
     })
   )
 }
@@ -178,6 +277,14 @@ export const ApiCreateRole = () => {
     ApiResponse({ 
       status: 400, 
       description: 'Invalid request body' 
+    }),
+    ApiResponse({
+      status: 401,
+      description: 'Unauthorized'
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Forbidden - Insufficient permissions'
     })
   )
 }
@@ -232,6 +339,14 @@ export const ApiUpdateRole = () => {
     ApiResponse({ 
       status: 400, 
       description: 'Invalid request body' 
+    }),
+    ApiResponse({
+      status: 401,
+      description: 'Unauthorized'
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Forbidden - Insufficient permissions'
     })
   )
 }
@@ -248,23 +363,26 @@ export const ApiDeleteRole = () => {
     ApiResponse({
       status: 200,
       description: 'Role deleted successfully',
-      schema: {
-        type: 'object',
-        properties: {
-          id: { type: 'number', example: 1 },
-          name: { type: 'string', example: 'Deleted Role' },
-          description: { type: 'string', example: 'Role description' },
-          createdAt: { type: 'string', example: '2024-03-20T10:00:00Z' },
-          updatedAt: { type: 'string', example: '2024-03-20T10:00:00Z' }
-        }
-      }
+      schema: RoleResponseSchema
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'Role not found'
+    }),
+    ApiResponse({
+      status: 401,
+      description: 'Unauthorized'
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Forbidden - Insufficient permissions'
     })
   )
 }
 
 export const ApiGetUserRoles = () => {
   return applyDecorators(
-    ApiOperation({ summary: 'Get user role' }),
+    ApiOperation({ summary: 'Get user roles' }),
     ApiParam({
       name: 'userId',
       type: 'number',
@@ -273,8 +391,23 @@ export const ApiGetUserRoles = () => {
     }),
     ApiResponse({
       status: 200,
-      description: 'Return user role',
-      schema: RoleResponseSchema
+      description: 'Return user roles',
+      schema: {
+        type: 'array',
+        items: RoleResponseSchema
+      }
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'User not found'
+    }),
+    ApiResponse({
+      status: 401,
+      description: 'Unauthorized'
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Forbidden - Insufficient permissions'
     })
   )
 }
@@ -288,6 +421,20 @@ export const ApiAddRolesToUser = () => {
       description: 'User ID',
       example: 1
     }),
+    ApiBody({
+      schema: {
+        type: 'object',
+        properties: {
+          roleIds: {
+            type: 'array',
+            items: { type: 'number' },
+            description: 'Array of role IDs to add',
+            example: [1, 2]
+          }
+        },
+        required: ['roleIds']
+      }
+    }),
     ApiResponse({
       status: 200,
       description: 'Roles added successfully',
@@ -298,17 +445,26 @@ export const ApiAddRolesToUser = () => {
           email: { type: 'string', example: 'user@example.com' },
           roles: {
             type: 'array',
-            items: {
-              type: 'object',
-              properties: {
-                id: { type: 'number', example: 1 },
-                name: { type: 'string', example: 'Admin' },
-                description: { type: 'string', example: 'Administrator role' }
-              }
-            }
+            items: RoleResponseSchema
           }
         }
       }
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'User or role not found'
+    }),
+    ApiResponse({
+      status: 400,
+      description: 'Invalid request body'
+    }),
+    ApiResponse({
+      status: 401,
+      description: 'Unauthorized'
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Forbidden - Insufficient permissions'
     })
   )
 }
@@ -322,6 +478,20 @@ export const ApiRemoveRolesFromUser = () => {
       description: 'User ID',
       example: 1
     }),
+    ApiBody({
+      schema: {
+        type: 'object',
+        properties: {
+          roleIds: {
+            type: 'array',
+            items: { type: 'number' },
+            description: 'Array of role IDs to remove',
+            example: [1, 2]
+          }
+        },
+        required: ['roleIds']
+      }
+    }),
     ApiResponse({
       status: 200,
       description: 'Roles removed successfully',
@@ -332,17 +502,26 @@ export const ApiRemoveRolesFromUser = () => {
           email: { type: 'string', example: 'user@example.com' },
           roles: {
             type: 'array',
-            items: {
-              type: 'object',
-              properties: {
-                id: { type: 'number', example: 1 },
-                name: { type: 'string', example: 'Admin' },
-                description: { type: 'string', example: 'Administrator role' }
-              }
-            }
+            items: RoleResponseSchema
           }
         }
       }
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'User or role not found'
+    }),
+    ApiResponse({
+      status: 400,
+      description: 'Invalid request body'
+    }),
+    ApiResponse({
+      status: 401,
+      description: 'Unauthorized'
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Forbidden - Insufficient permissions'
     })
   )
 }
@@ -350,14 +529,44 @@ export const ApiRemoveRolesFromUser = () => {
 export const ApiAddPermissionsToRole = () => {
   return applyDecorators(
     ApiOperation({ summary: 'Add permissions to role' }),
-    ApiParam({ name: 'id', description: 'Role ID' }),
-    ApiBody({ schema: UpdateRolePermissionsBodySchema }),
+    ApiParam({ 
+      name: 'id', 
+      type: 'number',
+      description: 'Role ID',
+      example: 1
+    }),
+    ApiBody({ 
+      schema: UpdateRolePermissionsBodySchema,
+      examples: {
+        example1: {
+          value: {
+            permissions: [1, 2, 3]
+          },
+          summary: 'Add multiple permissions'
+        }
+      }
+    }),
     ApiResponse({ 
       status: 200, 
       description: 'Permissions added successfully',
       schema: RoleResponseSchema
     }),
-    ApiResponse({ status: 404, description: 'Role not found' }),
+    ApiResponse({ 
+      status: 404, 
+      description: 'Role not found' 
+    }),
+    ApiResponse({
+      status: 400,
+      description: 'Invalid request body'
+    }),
+    ApiResponse({
+      status: 401,
+      description: 'Unauthorized'
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Forbidden - Insufficient permissions'
+    }),
     ApiBearerAuth()
   )
 }
@@ -365,14 +574,44 @@ export const ApiAddPermissionsToRole = () => {
 export const ApiRemovePermissionsFromRole = () => {
   return applyDecorators(
     ApiOperation({ summary: 'Remove permissions from role' }),
-    ApiParam({ name: 'id', description: 'Role ID' }),
-    ApiBody({ schema: UpdateRolePermissionsBodySchema }),
+    ApiParam({ 
+      name: 'id', 
+      type: 'number',
+      description: 'Role ID',
+      example: 1
+    }),
+    ApiBody({ 
+      schema: UpdateRolePermissionsBodySchema,
+      examples: {
+        example1: {
+          value: {
+            permissions: [1, 2, 3]
+          },
+          summary: 'Remove multiple permissions'
+        }
+      }
+    }),
     ApiResponse({ 
       status: 200, 
       description: 'Permissions removed successfully',
       schema: RoleResponseSchema
     }),
-    ApiResponse({ status: 404, description: 'Role not found' }),
+    ApiResponse({ 
+      status: 404, 
+      description: 'Role not found' 
+    }),
+    ApiResponse({
+      status: 400,
+      description: 'Invalid request body'
+    }),
+    ApiResponse({
+      status: 401,
+      description: 'Unauthorized'
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Forbidden - Insufficient permissions'
+    }),
     ApiBearerAuth()
   )
 }
@@ -415,6 +654,14 @@ export const ApiUpdateUserRole = () => {
     ApiResponse({ 
       status: 400, 
       description: 'Invalid request body' 
+    }),
+    ApiResponse({
+      status: 401,
+      description: 'Unauthorized'
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Forbidden - Insufficient permissions'
     })
   )
 }
@@ -428,9 +675,37 @@ export const RoleSwagger = {
         status: 200, 
         description: 'Returns all roles',
         schema: {
-          type: 'array',
-          items: RoleResponseSchema
+          type: 'object',
+          properties: {
+            data: {
+              type: 'array',
+              items: RoleResponseSchema
+            },
+            meta: {
+              type: 'object',
+              properties: {
+                total: { type: 'number', example: 25 },
+                page: { type: 'number', example: 1 },
+                limit: { type: 'number', example: 10 },
+                totalPages: { type: 'number', example: 3 },
+                hasNextPage: { type: 'boolean', example: true },
+                hasPreviousPage: { type: 'boolean', example: false }
+              }
+            }
+          }
         }
+      }),
+      ApiResponse({
+        status: 401,
+        description: 'Unauthorized'
+      }),
+      ApiResponse({
+        status: 403,
+        description: 'Forbidden - Insufficient permissions'
+      }),
+      ApiResponse({
+        status: 400,
+        description: 'Bad Request - Invalid query parameters'
       })
     ]
   },
@@ -442,7 +717,18 @@ export const RoleSwagger = {
         description: 'Returns the role',
         schema: RoleResponseSchema
       }),
-      ApiResponse({ status: 404, description: 'Role not found' })
+      ApiResponse({ 
+        status: 404, 
+        description: 'Role not found' 
+      }),
+      ApiResponse({
+        status: 401,
+        description: 'Unauthorized'
+      }),
+      ApiResponse({
+        status: 403,
+        description: 'Forbidden - Insufficient permissions'
+      })
     ]
   },
   create: {
@@ -453,7 +739,22 @@ export const RoleSwagger = {
         description: 'Role created successfully',
         schema: RoleResponseSchema
       }),
-      ApiResponse({ status: 409, description: 'Role name already exists' })
+      ApiResponse({ 
+        status: 409, 
+        description: 'Role name already exists' 
+      }),
+      ApiResponse({ 
+        status: 400, 
+        description: 'Invalid request body' 
+      }),
+      ApiResponse({
+        status: 401,
+        description: 'Unauthorized'
+      }),
+      ApiResponse({
+        status: 403,
+        description: 'Forbidden - Insufficient permissions'
+      })
     ]
   },
   update: {
@@ -464,8 +765,26 @@ export const RoleSwagger = {
         description: 'Role updated successfully',
         schema: RoleResponseSchema
       }),
-      ApiResponse({ status: 404, description: 'Role not found' }),
-      ApiResponse({ status: 409, description: 'Role name already exists' })
+      ApiResponse({ 
+        status: 404, 
+        description: 'Role not found' 
+      }),
+      ApiResponse({ 
+        status: 409, 
+        description: 'Role name already exists' 
+      }),
+      ApiResponse({ 
+        status: 400, 
+        description: 'Invalid request body' 
+      }),
+      ApiResponse({
+        status: 401,
+        description: 'Unauthorized'
+      }),
+      ApiResponse({
+        status: 403,
+        description: 'Forbidden - Insufficient permissions'
+      })
     ]
   },
   delete: {
@@ -476,7 +795,18 @@ export const RoleSwagger = {
         description: 'Role deleted successfully',
         schema: RoleResponseSchema
       }),
-      ApiResponse({ status: 404, description: 'Role not found' })
+      ApiResponse({ 
+        status: 404, 
+        description: 'Role not found' 
+      }),
+      ApiResponse({
+        status: 401,
+        description: 'Unauthorized'
+      }),
+      ApiResponse({
+        status: 403,
+        description: 'Forbidden - Insufficient permissions'
+      })
     ]
   },
   addPermissions: {
@@ -487,7 +817,22 @@ export const RoleSwagger = {
         description: 'Permissions added successfully',
         schema: RoleResponseSchema
       }),
-      ApiResponse({ status: 404, description: 'Role not found' })
+      ApiResponse({ 
+        status: 404, 
+        description: 'Role not found' 
+      }),
+      ApiResponse({
+        status: 400,
+        description: 'Invalid request body'
+      }),
+      ApiResponse({
+        status: 401,
+        description: 'Unauthorized'
+      }),
+      ApiResponse({
+        status: 403,
+        description: 'Forbidden - Insufficient permissions'
+      })
     ]
   },
   removePermissions: {
@@ -498,7 +843,22 @@ export const RoleSwagger = {
         description: 'Permissions removed successfully',
         schema: RoleResponseSchema
       }),
-      ApiResponse({ status: 404, description: 'Role not found' })
+      ApiResponse({ 
+        status: 404, 
+        description: 'Role not found' 
+      }),
+      ApiResponse({
+        status: 400,
+        description: 'Invalid request body'
+      }),
+      ApiResponse({
+        status: 401,
+        description: 'Unauthorized'
+      }),
+      ApiResponse({
+        status: 403,
+        description: 'Forbidden - Insufficient permissions'
+      })
     ]
   }
 }

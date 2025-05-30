@@ -148,4 +148,8 @@ export class PermissionRepository {
 
     return this.getUserPermissions(userId)
   }
+
+  getPermissionModel() {
+    return this.prisma.permission;
+  }
 } 

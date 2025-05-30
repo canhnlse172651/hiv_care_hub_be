@@ -3,7 +3,7 @@ import {
   CreatePermissionSchema, 
   UpdateUserPermissionsSchema,
   UpdatePermissionSchema,
-  QueryPermissionSchema
+  QueryPermissionSchema,
 } from './permission.model';
 
 // Create Permission DTO

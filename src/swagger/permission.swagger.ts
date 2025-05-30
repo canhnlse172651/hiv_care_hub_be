@@ -1,25 +1,105 @@
 import { applyDecorators } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiParam, ApiQuery, ApiBody } from '@nestjs/swagger';
-import { Permission } from '@prisma/client';
+import {  HTTPMethod } from '@prisma/client';
+import { PermissionResponseSchema } from './role.swagger'
 
 export const ApiGetAllPermissions = () => {
   return applyDecorators(
-    ApiOperation({ summary: 'Get all permissions' }),
+    ApiOperation({ summary: 'Get all permissions with pagination and search' }),
+    // Pagination parameters
+    ApiQuery({ 
+      name: 'page', 
+      required: false, 
+      type: Number, 
+      description: 'Page number (default: 1)',
+      example: 1,
+      schema: {
+        type: 'number',
+        minimum: 1,
+        default: 1
+      }
+    }),
+    ApiQuery({ 
+      name: 'limit', 
+      required: false, 
+      type: Number, 
+      description: 'Number of items per page (default: 10)',
+      example: 10,
+      schema: {
+        type: 'number',
+        minimum: 1,
+        maximum: 100,
+        default: 10
+      }
+    }),
+    ApiQuery({ 
+      name: 'sortBy', 
+      required: false, 
+      type: String, 
+      description: 'Field to sort by (e.g., name, createdAt)',
+      example: 'createdAt',
+      schema: {
+        type: 'string',
+        enum: ['name', 'path', 'method', 'createdAt', 'updatedAt']
+      }
+    }),
+    ApiQuery({ 
+      name: 'sortOrder', 
+      required: false, 
+      enum: ['asc', 'desc'], 
+      description: 'Sort order (default: desc)',
+      example: 'desc',
+      schema: {
+        type: 'string',
+        enum: ['asc', 'desc'],
+        default: 'desc'
+      }
+    }),
+    // Search parameters
+    ApiQuery({ 
+      name: 'search', 
+      required: false, 
+      type: String, 
+      description: 'Search term to filter permissions by name',
+      example: 'user',
+      schema: {
+        type: 'string',
+        minLength: 1
+      }
+    }),
+    // Filter parameters
+    ApiQuery({ 
+      name: 'method', 
+      required: false, 
+      enum: Object.values(HTTPMethod), 
+      description: 'Filter by HTTP method',
+      example: 'GET',
+      schema: {
+        type: 'string',
+        enum: Object.values(HTTPMethod)
+      }
+    }),
+    // Response documentation
     ApiResponse({
       status: 200,
-      description: 'Return all permissions',
+      description: 'Successfully retrieved permissions',
       schema: {
-        type: 'array',
-        items: {
-          type: 'object',
-          properties: {
-            id: { type: 'number', example: 1 },
-            name: { type: 'string', example: 'Create User' },
-            description: { type: 'string', example: 'Permission to create new user' },
-            resource: { type: 'string', example: '/users' },
-            action: { type: 'string', example: 'POST' },
-            createdAt: { type: 'string', example: '2024-03-20T10:00:00Z' },
-            updatedAt: { type: 'string', example: '2024-03-20T10:00:00Z' }
+        type: 'object',
+        properties: {
+          data: {
+            type: 'array',
+            items: PermissionResponseSchema
+          },
+          meta: {
+            type: 'object',
+            properties: {
+              total: { type: 'number', example: 25 },
+              page: { type: 'number', example: 1 },
+              limit: { type: 'number', example: 10 },
+              totalPages: { type: 'number', example: 3 },
+              hasNextPage: { type: 'boolean', example: true },
+              hasPreviousPage: { type: 'boolean', example: false }
+            }
           }
         }
       }
@@ -31,6 +111,10 @@ export const ApiGetAllPermissions = () => {
     ApiResponse({
       status: 403,
       description: 'Forbidden - Insufficient permissions'
+    }),
+    ApiResponse({
+      status: 400,
+      description: 'Bad Request - Invalid query parameters'
     })
   );
 };

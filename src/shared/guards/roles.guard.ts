@@ -1,4 +1,11 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException, Logger, UnauthorizedException } from '@nestjs/common'
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
 import { ROLES_KEY } from '../decorators/roles.decorator'
 import { PrismaService } from '../services/prisma.service'
@@ -11,14 +18,14 @@ export class RolesGuard implements CanActivate {
 
   constructor(
     private reflector: Reflector,
-    private prismaService: PrismaService
+    private prismaService: PrismaService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     try {
       const requiredRoles = this.reflector.getAllAndOverride<Role[]>(ROLES_KEY, [
         context.getHandler(),
-        context.getClass()
+        context.getClass(),
       ])
 
       this.logger.debug('Required roles:', requiredRoles)
@@ -46,11 +53,9 @@ export class RolesGuard implements CanActivate {
       const userWithRole = await this.prismaService.user.findUnique({
         where: { id: user.userId },
         include: {
-          role: true
-        }
+          role: true,
+        },
       })
-
-      this.logger.debug('User with role:', userWithRole)
 
       if (!userWithRole || !userWithRole.role) {
         throw new ForbiddenException('User has no role')
@@ -58,14 +63,8 @@ export class RolesGuard implements CanActivate {
 
       // Convert requiredRoles to array if it's not already
       const rolesArray = Array.isArray(requiredRoles) ? requiredRoles : [requiredRoles]
-      
-      const hasRole = rolesArray.some((role) => 
-        userWithRole.role.name === role
-      )
-      
-      this.logger.debug('Has role:', hasRole)
-      this.logger.debug('User role:', userWithRole.role.name)
-      this.logger.debug('Required roles:', rolesArray)
+
+      const hasRole = rolesArray.some((role) => userWithRole.role.name === role)
 
       if (!hasRole) {
         throw new ForbiddenException('User does not have required role')
@@ -77,4 +76,4 @@ export class RolesGuard implements CanActivate {
       throw error
     }
   }
-} 
+}

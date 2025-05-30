@@ -1,13 +1,13 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query, ParseIntPipe } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
-import { RolesService } from './role.service';
-import { CreateRoleDto, QueryRoleDto, UpdateRolePermissionsDto, UpdateUserRolesDto, UpdateUserRoleDto } from './role.dto';
-import { Permissions } from '../../shared/decorators/permissions.decorator';
-import { HTTPMethod } from '@prisma/client';
-import { Auth } from 'src/shared/decorators/auth.decorator';
-import { AuthType } from 'src/shared/constants/auth.constant';
-import { Roles } from '../../shared/decorators/roles.decorator';
-import { Role } from 'src/shared/constants/role.constant';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, ParseIntPipe } from '@nestjs/common'
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger'
+import { RolesService } from './role.service'
+import { CreateRoleDto, UpdateRolePermissionsDto, UpdateUserRoleDto } from './role.dto'
+import { Permissions } from '../../shared/decorators/permissions.decorator'
+import { HTTPMethod } from '@prisma/client'
+import { Auth } from 'src/shared/decorators/auth.decorator'
+import { AuthType } from 'src/shared/constants/auth.constant'
+import { Roles } from '../../shared/decorators/roles.decorator'
+import { Role } from 'src/shared/constants/role.constant'
 import {
   ApiGetAllRoles,
   ApiGetRoleById,
@@ -15,28 +15,28 @@ import {
   ApiUpdateRole,
   ApiDeleteRole,
   ApiGetUserRoles,
-  ApiAddRolesToUser,
-  ApiRemoveRolesFromUser,
-  ApiUpdateUserRole
-} from '../../swagger/role.swagger';
+  ApiUpdateUserRole,
+} from '../../swagger/role.swagger'
 
 @ApiTags('Roles')
 @ApiBearerAuth()
 @Controller('roles')
 @Auth([AuthType.Bearer])
 export class RoleController {
-  constructor(private readonly roleService: RolesService) {}
+  constructor(
+    private readonly roleService: RolesService,
+   
+  ) {}
 
   @Get()
   @ApiGetAllRoles()
   @Roles(Role.Admin)
   @Permissions({
     path: '/roles',
-    method: HTTPMethod.GET
+    method: HTTPMethod.GET,
   })
   async getAllRoles(@Query() query: unknown) {
-    const validatedData = QueryRoleDto.create(query);
-    return this.roleService.getAllRoles(validatedData);
+    return this.roleService.getAllRoles(query);
   }
 
   @Get(':id')
@@ -44,10 +44,10 @@ export class RoleController {
   @Roles(Role.Admin)
   @Permissions({
     path: '/roles/:id',
-    method: HTTPMethod.GET
+    method: HTTPMethod.GET,
   })
   async getRoleById(@Param('id', ParseIntPipe) id: number) {
-    return this.roleService.getRoleById(id);
+    return this.roleService.getRoleById(id)
   }
 
   @Post()
@@ -55,11 +55,11 @@ export class RoleController {
   @Roles(Role.Admin)
   @Permissions({
     path: '/roles',
-    method: HTTPMethod.POST
+    method: HTTPMethod.POST,
   })
   async createRole(@Body() body: unknown) {
-    const validatedData = CreateRoleDto.create(body);
-    return this.roleService.createRole(validatedData);
+    const validatedData = CreateRoleDto.create(body)
+    return this.roleService.createRole(validatedData)
   }
 
   @Put(':id')
@@ -67,11 +67,11 @@ export class RoleController {
   @Roles(Role.Admin)
   @Permissions({
     path: '/roles/:id',
-    method: HTTPMethod.PUT
+    method: HTTPMethod.PUT,
   })
   async updateRole(@Param('id') id: number, @Body() body: unknown) {
-    const validatedData = UpdateRolePermissionsDto.create(body);
-    return this.roleService.updateRole(id, validatedData);
+    const validatedData = UpdateRolePermissionsDto.create(body)
+    return this.roleService.updateRole(id, validatedData)
   }
 
   @Delete(':id')
@@ -79,18 +79,10 @@ export class RoleController {
   @Roles(Role.Admin)
   @Permissions({
     path: '/roles/:id',
-    method: HTTPMethod.DELETE
+    method: HTTPMethod.DELETE,
   })
   async deleteRole(@Param('id', ParseIntPipe) id: number) {
-    try {
-      console.log('Deleting role with ID:', id);
-      const result = await this.roleService.deleteRole(id);
-      console.log('Delete result:', result);
-      return result;
-    } catch (error) {
-      console.error('Error in deleteRole:', error);
-      throw error;
-    }
+    return await this.roleService.deleteRole(id)
   }
 
   @Get('user/:userId')
@@ -98,18 +90,10 @@ export class RoleController {
   @Roles(Role.Admin)
   @Permissions({
     path: '/roles/user/:userId',
-    method: HTTPMethod.GET
+    method: HTTPMethod.GET,
   })
-  async getUserRole(@Param('userId', ParseIntPipe) userId: number) {
-    try {
-      console.log('Requested userId:', userId, typeof userId); // Debug log
-      const result = await this.roleService.getUserRole(userId);
-      console.log('Result:', result); // Debug log
-      return result;
-    } catch (error) {
-      console.error('Error in getUserRole:', error);
-      throw error;
-    }
+  async getUserRole(@Param('userId', ParseIntPipe) userId: number, @Query() query: unknown) {
+    return await this.roleService.getUserRole(userId)
   }
 
   @Put('user/:userId/roles')
@@ -117,13 +101,10 @@ export class RoleController {
   @Roles(Role.Admin)
   @Permissions({
     path: '/roles/user/:userId',
-    method: HTTPMethod.PUT
+    method: HTTPMethod.PUT,
   })
-  async updateUserRoles(
-    @Param('userId') userId: string,
-    @Body() body: unknown
-  ) {
-    const validatedData = UpdateUserRoleDto.create(body);
-    return this.roleService.updateUserRole(+userId, validatedData);
+  async updateUserRoles(@Param('userId') userId: string, @Body() body: unknown) {
+    const validatedData = UpdateUserRoleDto.create(body)
+    return this.roleService.updateUserRole(+userId, validatedData)
   }
 }

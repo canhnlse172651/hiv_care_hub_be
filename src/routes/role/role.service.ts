@@ -3,13 +3,17 @@ import { RoleRepository } from '../../repositories/role.repository'
 import { PermissionRepository } from '../../repositories/permission.repository'
 import { CreateRoleType, UpdateRoleType, RoleResType, QueryRoleType, UpdateUserRolesType, UpdateUserRoleType } from './role.model'
 import { AuthRepository } from 'src/repositories/auth.repository'
+import { PaginationService } from '../../shared/services/pagination.service'
+import { createPaginationSchema, PaginatedResponse } from '../../shared/schemas/pagination.schema'
+import { z } from 'zod'
 
 @Injectable()
 export class RolesService {
   constructor(
     private readonly roleRepository: RoleRepository,
     private readonly permissionRepository: PermissionRepository,
-    private readonly authRepository: AuthRepository
+    private readonly authRepository: AuthRepository,
+    private readonly paginationService: PaginationService
   ) {}
 
   async createRole(data: CreateRoleType): Promise<RoleResType> {
@@ -77,8 +81,36 @@ export class RolesService {
     }
   }
 
-  async getAllRoles(query: QueryRoleType): Promise<RoleResType[]> {
-    return this.roleRepository.getAllRoles(query)
+  async getAllRoles(query: unknown): Promise<PaginatedResponse<RoleResType>> {
+    // Parse pagination options
+    const paginationOptions = createPaginationSchema(z.any()).parse(query);
+    
+    // Build where condition for search
+    const where: any = {
+      deletedAt: null
+    };
+
+    // Add search conditions if search term is provided
+    if (paginationOptions.search) {
+      const searchConditions = paginationOptions.searchFields.map(field => ({
+        [field]: {
+          contains: paginationOptions.search,
+          mode: 'insensitive'
+        }
+      }));
+
+      where.OR = searchConditions;
+    }
+
+    // Get paginated data using Prisma model
+    return this.paginationService.paginate(
+      this.roleRepository.getRoleModel(),
+      paginationOptions,
+      where,
+      {
+        permissions: true
+      }
+    );
   }
 
   async getClientRoleId(): Promise<number> {
@@ -169,11 +201,10 @@ export class RolesService {
 
   async updateUserRole(userId: number, data: UpdateUserRoleType): Promise<RoleResType | null> {
     try {
-      console.log('Service: Starting update user role. UserId:', userId, 'Data:', data);
 
       // Check if user exists
       const user = await this.authRepository.findUserById(userId);
-      console.log('Service: Found user:', user);
+     
       
       if (!user) {
         console.log('Service: User not found with ID:', userId);
@@ -182,16 +213,16 @@ export class RolesService {
 
       // Verify role exists
       const role = await this.roleRepository.findRoleById(data.roleId);
-      console.log('Service: Found role:', role);
+     
       
       if (!role) {
         console.log('Service: Role not found with ID:', data.roleId);
         throw new NotFoundException(`Role with ID ${data.roleId} not found`);
       }
 
-      console.log('Service: Proceeding with role update');
+    
       const result = await this.roleRepository.updateUserRole(userId, data.roleId);
-      console.log('Service: Update result:', result);
+    
       
       return result;
     } catch (error) {

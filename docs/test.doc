@@ -1,0 +1,191 @@
+=== DỮ LIỆU MẪU HIV CARE HUB (3 RECORDS/TABLE) ===
+
+1. ROLES (Vai trò):
+- ADMIN: Quản trị viên hệ thống
+- DOCTOR: Bác sĩ chuyên khoa HIV
+- PATIENT: Bệnh nhân
+
+2. USERS (Người dùng):
+- Admin: admin@hivcarehub.com / Admin@123
+- Doctor: doctor@hivcarehub.com / Doctor@123
+- Patient: patient@hivcarehub.com / Patient@123
+
+3. DOCTORS (Bác sĩ):
+- Dr. Nguyễn Văn A
+  + Chuyên khoa: HIV/AIDS
+  + Chứng chỉ: HIV Treatment, Infectious Disease
+  + Lịch làm việc: Thứ 2-6, 8:00-17:00
+
+- Dr. Trần Thị B
+  + Chuyên khoa: HIV/AIDS
+  + Chứng chỉ: HIV Treatment, Internal Medicine
+  + Lịch làm việc: Thứ 2-6, 13:00-21:00
+
+- Dr. Lê Văn C
+  + Chuyên khoa: HIV/AIDS
+  + Chứng chỉ: HIV Treatment, Pediatrics
+  + Lịch làm việc: Thứ 2-6, 8:00-17:00
+
+4. SERVICES (Dịch vụ):
+- Xét nghiệm HIV cơ bản: 500,000đ
+- Xét nghiệm CD4: 800,000đ
+- Tư vấn HIV: 300,000đ
+
+5. MEDICINES (Thuốc):
+- ARV 1: 100,000đ/viên
+  + Liều dùng: 1 viên/ngày
+  + Thời gian: 30 ngày
+
+- ARV 2: 150,000đ/viên
+  + Liều dùng: 2 viên/ngày
+  + Thời gian: 30 ngày
+
+- ARV 3: 200,000đ/viên
+  + Liều dùng: 1 viên/ngày
+  + Thời gian: 60 ngày
+
+6. TREATMENT PROTOCOLS (Phác đồ điều trị):
+- Phác đồ 1: HIV giai đoạn 1
+  + Thuốc: ARV 1
+  + Liều lượng: 1 viên/ngày
+  + Thời gian: 30 ngày
+
+- Phác đồ 2: HIV giai đoạn 2
+  + Thuốc: ARV 2
+  + Liều lượng: 2 viên/ngày
+  + Thời gian: 30 ngày
+
+- Phác đồ 3: HIV giai đoạn 3
+  + Thuốc: ARV 3
+  + Liều lượng: 1 viên/ngày
+  + Thời gian: 60 ngày
+
+7. MEDICAL RECORDS (Hồ sơ bệnh án):
+- Bệnh nhân: Nguyễn Văn B
+  + Chẩn đoán: HIV giai đoạn 1
+  + Ghi chú: Cần theo dõi thường xuyên
+  + Bác sĩ phụ trách: Dr. Nguyễn Văn A
+
+- Bệnh nhân: Trần Thị C
+  + Chẩn đoán: HIV giai đoạn 2
+  + Ghi chú: Đang điều trị tích cực
+  + Bác sĩ phụ trách: Dr. Trần Thị B
+
+- Bệnh nhân: Lê Văn D
+  + Chẩn đoán: HIV giai đoạn 3
+  + Ghi chú: Cần điều trị khẩn cấp
+  + Bác sĩ phụ trách: Dr. Lê Văn C
+
+8. TEST RESULTS (Kết quả xét nghiệm):
+- Bệnh nhân: Nguyễn Văn B
+  + Loại xét nghiệm: CD4
+  + Kết quả: 500 cells/mm3
+  + Ngày xét nghiệm: 01/01/2024
+
+- Bệnh nhân: Trần Thị C
+  + Loại xét nghiệm: CD4
+  + Kết quả: 300 cells/mm3
+  + Ngày xét nghiệm: 02/01/2024
+
+- Bệnh nhân: Lê Văn D
+  + Loại xét nghiệm: CD4
+  + Kết quả: 200 cells/mm3
+  + Ngày xét nghiệm: 03/01/2024
+
+9. APPOINTMENTS (Lịch hẹn):
+- Bệnh nhân: Nguyễn Văn B
+  + Dịch vụ: Xét nghiệm HIV
+  + Thời gian: 09:00 01/01/2024
+  + Bác sĩ: Dr. Nguyễn Văn A
+  + Trạng thái: Đang chờ
+
+- Bệnh nhân: Trần Thị C
+  + Dịch vụ: Tư vấn HIV
+  + Thời gian: 14:00 02/01/2024
+  + Bác sĩ: Dr. Trần Thị B
+  + Trạng thái: Đã xác nhận
+
+- Bệnh nhân: Lê Văn D
+  + Dịch vụ: Xét nghiệm CD4
+  + Thời gian: 10:00 03/01/2024
+  + Bác sĩ: Dr. Lê Văn C
+  + Trạng thái: Đã hoàn thành
+
+10. REMINDERS (Nhắc nhở):
+- Bệnh nhân: Nguyễn Văn B
+  + Loại: Nhắc uống thuốc
+  + Nội dung: Nhớ uống thuốc ARV 1
+  + Thời gian: 08:00 01/01/2024
+
+- Bệnh nhân: Trần Thị C
+  + Loại: Nhắc uống thuốc
+  + Nội dung: Nhớ uống thuốc ARV 2
+  + Thời gian: 08:00 02/01/2024
+
+- Bệnh nhân: Lê Văn D
+  + Loại: Nhắc uống thuốc
+  + Nội dung: Nhớ uống thuốc ARV 3
+  + Thời gian: 08:00 03/01/2024
+
+11. BLOG POSTS (Bài viết):
+- Tiêu đề: Hiểu về HIV
+- Tác giả: Dr. Nguyễn Văn A
+- Nội dung: Bài viết về HIV
+- Trạng thái: Đã xuất bản
+
+- Tiêu đề: Phòng tránh HIV
+- Tác giả: Dr. Trần Thị B
+- Nội dung: Bài viết về phòng tránh HIV
+- Trạng thái: Đã xuất bản
+
+- Tiêu đề: Điều trị HIV
+- Tác giả: Dr. Lê Văn C
+- Nội dung: Bài viết về điều trị HIV
+- Trạng thái: Đã xuất bản
+
+12. EDUCATION MATERIALS (Tài liệu giáo dục):
+- Tiêu đề: Tài liệu về HIV
+- Tags: HIV, Sức khỏe
+- Nội dung: Tài liệu giáo dục về HIV
+- Trạng thái: Công khai
+
+- Tiêu đề: Tài liệu về phòng tránh HIV
+- Tags: HIV, Phòng tránh
+- Nội dung: Tài liệu về phòng tránh HIV
+- Trạng thái: Công khai
+
+- Tiêu đề: Tài liệu về điều trị HIV
+- Tags: HIV, Điều trị
+- Nội dung: Tài liệu về điều trị HIV
+- Trạng thái: Công khai
+
+13. MESSAGES (Tin nhắn):
+- Từ: Dr. Nguyễn Văn A
+- Đến: Nguyễn Văn B
+- Nội dung: Xin chào, đây là tin nhắn từ bác sĩ
+- Thời gian: 01/01/2024
+
+- Từ: Dr. Trần Thị B
+- Đến: Trần Thị C
+- Nội dung: Xin chào, đây là tin nhắn từ bác sĩ
+- Thời gian: 02/01/2024
+
+- Từ: Dr. Lê Văn C
+- Đến: Lê Văn D
+- Nội dung: Xin chào, đây là tin nhắn từ bác sĩ
+- Thời gian: 03/01/2024
+
+=== QUAN HỆ GIỮA CÁC BẢNG ===
+
+1. User - Role: Một User thuộc về một Role
+2. User - Doctor: Một User có thể là một Doctor
+3. User - MedicalRecord: Một User có nhiều MedicalRecord
+4. User - Appointment: Một User có nhiều Appointment
+5. User - Message: Một User có thể gửi/nhận nhiều Message
+6. User - Reminder: Một User có nhiều Reminder
+7. Doctor - MedicalRecord: Một Doctor có thể tạo nhiều MedicalRecord
+8. Doctor - Appointment: Một Doctor có thể có nhiều Appointment
+9. Service - Appointment: Một Service có thể được đặt trong nhiều Appointment
+10. Medicine - TreatmentProtocol: Một Medicine có thể được sử dụng trong nhiều TreatmentProtocol
+11. TreatmentProtocol - PatientTreatment: Một TreatmentProtocol có thể được áp dụng cho nhiều PatientTreatment
+12. MedicalRecord - PatientTreatment: Một MedicalRecord có thể có nhiều PatientTreatment

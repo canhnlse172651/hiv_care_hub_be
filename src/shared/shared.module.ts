@@ -9,8 +9,8 @@ import { RolesGuard } from './guards/roles.guard'
 import { PermissionsGuard } from './guards/permissions.guard'
 import { AccessTokenGuard } from './guards/access-token.guard'
 import { APIKeyGuard } from './guards/api-key.guard'
-
-const sharedServices = [PrismaService, HashingService, TokenService]
+import { PaginationService } from './services/pagination.service'
+const sharedServices = [PrismaService, HashingService, TokenService, PaginationService]
 const sharedGuards = [AccessTokenGuard, APIKeyGuard]
 
 @Global()

@@ -6,6 +6,11 @@ import { CreateRoleType, UpdateRoleType, RoleResType, QueryRoleType } from '../r
 export class RoleRepository {
   constructor(private readonly prismaService: PrismaService) {}
 
+  // Add method to get Prisma role model
+  getRoleModel() {
+    return this.prismaService.role;
+  }
+
   async createRole(data: CreateRoleType): Promise<RoleResType> {
     return this.prismaService.role.create({
       data: {
