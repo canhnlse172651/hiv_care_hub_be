@@ -20,7 +20,6 @@ export class PermissionsGuard implements CanActivate {
         context.getClass(),
       ])
 
-      this.logger.debug('Required permission:', JSON.stringify(requiredPermission))
 
       // Nếu không có yêu cầu permission nào, cho phép truy cập
       if (!requiredPermission) {
@@ -69,15 +68,13 @@ export class PermissionsGuard implements CanActivate {
         const pathPattern = requiredPermission.path.replace(/:[^/]+/g, '[^/]+')
         const pathRegex = new RegExp(`^${pathPattern}$`)
 
-        this.logger.debug('Path pattern:', pathPattern)
-        this.logger.debug('Path regex:', pathRegex)
+    
 
         // Check both role permissions and user-specific permissions
         const rolePermissions = userWithPermissions.role.permissions || []
         const userPermissions = userWithPermissions.permissions || []
 
-        this.logger.debug('Role permissions:', JSON.stringify(rolePermissions))
-        this.logger.debug('User permissions:', JSON.stringify(userPermissions))
+    
 
         const hasPermission = 
           // Check role permissions

@@ -41,7 +41,7 @@ export type UserResType = z.infer<typeof UserResSchema>
 
 // Create Permission Schema
 export const CreatePermissionSchema = z.object({
-  name: z.string().min(1),
+  name: z.string().min(1).optional(),
   description: z.string().optional(),
   path: z.string().min(1),
   method: z.nativeEnum(HTTPMethod)

@@ -77,6 +77,10 @@ export class AuthService {
       expiresAt: new Date(decodedRefreshToken.exp * 1000),
     })
 
+    if (!storedToken) {
+      throw new UnauthorizedException('Failed to store refresh token')
+    }
+
     return { accessToken, refreshToken }
   }
 

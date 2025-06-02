@@ -3,5 +3,5 @@ export enum Role {
   Client = 'CLIENT',
   Doctor = 'DOCTOR',
   Staff = 'STAFF',
- 
+  Patient = 'PATIENT'
 } 
