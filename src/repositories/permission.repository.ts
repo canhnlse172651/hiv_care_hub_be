@@ -14,7 +14,7 @@ export class PermissionRepository {
   async createPermission(data: CreatePermissionType): Promise<PermissionResType> {
     return this.prisma.permission.create({
       data: {
-        name: data.name,
+        name: data.name || '',
         description: data.description || '',
         path: data.path,
         method: data.method,
