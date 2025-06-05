@@ -22,7 +22,9 @@ export const UserSchema = z.object({
 // Types derived from schemas
 export type UserType = z.infer<typeof UserSchema>
 
-export type UserResType = z.infer<typeof UserSchema>
+export type UserResType = z.infer<typeof RegisterResSchema>
+
+export type UserWithPasswordType = z.infer<typeof UserSchema>
 
 // Register Schema
 export const RegisterBodySchema = z.object({

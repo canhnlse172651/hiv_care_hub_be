@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { createFilterSchema } from './filter.schema';
 
 // Schema cho options phân trang
 export const createPaginationSchema = <T extends z.ZodType>(filterSchema: T) => {
@@ -20,14 +19,9 @@ export const createPaginationSchema = <T extends z.ZodType>(filterSchema: T) => 
     
     // Search options
     search: z.string().optional(),
-    searchFields: z.string()
-      .transform((val) => {
-        if (!val) return ['name', 'description'];
-        return val.split(',').map(field => field.trim());
-      })
-      .pipe(z.array(z.enum(['name', 'description'])))
+    searchFields: z.array(z.string())
       .optional()
-      .default('name,description'),
+      .default(['name', 'description']),
 
     // Filter options
     filters: z.string()
@@ -61,6 +55,8 @@ export const paginatedResponseSchema = <T extends z.ZodType>(dataSchema: T) =>
   });
 
 // Types từ schema
-export type PaginationOptions<T> = z.infer<ReturnType<typeof createPaginationSchema<z.ZodType<T>>>>;
+export type PaginationOptions<T> = Omit<z.infer<ReturnType<typeof createPaginationSchema<z.ZodType<T>>>>, 'searchFields'> & {
+  searchFields?: string[];
+};
 export type PaginationMeta = z.infer<typeof paginationMetaSchema>;
 export type PaginatedResponse<T> = z.infer<ReturnType<typeof paginatedResponseSchema<z.ZodType<T>>>>; 

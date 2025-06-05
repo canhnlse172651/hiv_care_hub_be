@@ -2,7 +2,7 @@ import { Injectable, ConflictException, NotFoundException } from '@nestjs/common
 import { RoleRepository } from '../../repositories/role.repository'
 import { PermissionRepository } from '../../repositories/permission.repository'
 import { CreateRoleType, UpdateRoleType, RoleResType, QueryRoleType, UpdateUserRolesType, UpdateUserRoleType } from './role.model'
-import { AuthRepository } from 'src/repositories/auth.repository'
+import { AuthRepository } from 'src/repositories/user.repository'
 import { PaginationService } from '../../shared/services/pagination.service'
 import { createPaginationSchema, PaginatedResponse } from '../../shared/schemas/pagination.schema'
 import { z } from 'zod'
