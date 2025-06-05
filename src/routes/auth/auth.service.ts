@@ -3,7 +3,7 @@ import { RolesService } from '../role/role.service'
 import { TokenService } from 'src/shared/services/token.service'
 import { HashingService } from 'src/shared/services/hashing.service'
 import { isNotFoundPrismaError, isUniqueConstraintPrismaError } from 'src/shared/helpers'
-import { AuthRepository } from '../../repositories/auth.repository'
+import { AuthRepository } from '../../repositories/user.repository'
 import { LoginBodyType, RegisterBodyType } from './auth.model'
 
 @Injectable()
@@ -99,6 +99,8 @@ export class AuthService {
 
       // Delete old token first
       const deletedToken = await this.authRepository.deleteRefreshToken(refreshToken)
+
+      
 
       // Generate new tokens
       const newTokens = await this.generateTokens({ userId: decodedToken.userId })

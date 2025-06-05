@@ -33,7 +33,6 @@ enum UserRole {
 enum Shift {
   MORNING
   AFTERNOON
-  FULL_DAY
 }
 
 enum AppointmentType {

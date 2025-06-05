@@ -70,6 +70,4 @@ export const QueryPermissionSchema = z.object({
 export type CreatePermissionType = z.infer<typeof CreatePermissionSchema>
 export type UpdatePermissionType = z.infer<typeof UpdatePermissionSchema>
 export type UpdateUserPermissionsType = z.infer<typeof UpdateUserPermissionsSchema>
-
-
 export type QueryPermissionType = z.infer<typeof QueryPermissionSchema>

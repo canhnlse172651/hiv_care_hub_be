@@ -2,7 +2,7 @@ import { Injectable, ConflictException, NotFoundException } from '@nestjs/common
 import { PermissionRepository } from '../../repositories/permission.repository'
 import { HTTPMethod } from '@prisma/client'
 import { CreatePermissionType, UpdatePermissionType, PermissionResType } from './permission.model'
-import { AuthRepository } from '../../repositories/auth.repository'
+import { AuthRepository } from '../../repositories/user.repository'
 import { PrismaService } from '../../shared/services/prisma.service'
 import { PaginationService } from '../../shared/services/pagination.service'
 import { createPaginationSchema, PaginatedResponse } from '../../shared/schemas/pagination.schema'
@@ -111,40 +111,35 @@ export class PermissionService {
   async getAllPermissions(query: unknown): Promise<PaginatedResponse<PermissionResType>> {
     try {
       // Parse pagination options
-      const paginationOptions = createPaginationSchema(z.any()).parse(query);
-      const queryOptions = QueryPermissionDto.create(query);
-      
+      const paginationOptions = createPaginationSchema(z.any()).parse(query)
+      const queryOptions = QueryPermissionDto.create(query)
+
       // Build where condition
       const where: any = {
-        deletedAt: null
-      };
+        deletedAt: null,
+      }
 
       // Add filter conditions
       if (queryOptions?.method) {
-        where.method = queryOptions.method;
+        where.method = queryOptions.method
       }
 
       // Add search conditions if search term is provided
       if (paginationOptions.search) {
         where.name = {
           contains: paginationOptions.search,
-          mode: 'insensitive'
-        };
+          mode: 'insensitive',
+        }
       }
 
       // Get paginated data using Prisma model
-      return this.paginationService.paginate(
-        this.permissionRepository.getPermissionModel(),
-        paginationOptions,
-        where,
-        {
-          createdBy: true,
-          updatedBy: true
-        }
-      );
+      return this.paginationService.paginate(this.permissionRepository.getPermissionModel(), paginationOptions, where, {
+        createdBy: true,
+        updatedBy: true,
+      })
     } catch (error) {
-      console.error('Service: Error in getAllPermissions:', error);
-      throw error;
+      console.error('Service: Error in getAllPermissions:', error)
+      throw error
     }
   }
 
