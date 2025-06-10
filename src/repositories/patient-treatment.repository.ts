@@ -9,7 +9,7 @@ export interface CreatePatientTreatmentData {
   patientId: number
   protocolId: number
   doctorId: number
-  customMedications?: any // JSON data for custom medications
+  customMedications?: any // data for custom medications
   notes?: string
   startDate: Date
   endDate?: Date
@@ -308,13 +308,13 @@ export class PatientTreatmentRepository extends BaseRepository<
     }
 
     // Get protocol usage
-    const protocolCount = treatments.reduce(
-      (acc, t) => {
-        acc[t.protocolId] = (acc[t.protocolId] || 0) + 1
-        return acc
-      },
-      {} as Record<number, number>,
-    )
+    // const protocolCount = treatments.reduce(
+    //   (acc, t) => {
+    //     acc[t.protocolId] = (acc[t.protocolId] || 0) + 1
+    //     return acc
+    //   },
+    //   {} as Record<number, number>,
+    // )
 
     return stats
   }
@@ -375,8 +375,6 @@ export class PatientTreatmentRepository extends BaseRepository<
     const treatment = await this.getTreatmentWithDetails(treatmentId)
     if (!treatment) return null
 
-    // This would typically involve checking medication adherence, test results, etc.
-    // For now, we'll return basic information
     const daysSinceStart = Math.ceil((new Date().getTime() - treatment.startDate.getTime()) / (1000 * 60 * 60 * 24))
 
     const expectedDuration = treatment.endDate

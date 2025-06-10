@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 import { Injectable } from '@nestjs/common'
-import { TreatmentProtocol, ProtocolMedicine, MedicationSchedule } from '@prisma/client'
+import { MedicationSchedule, ProtocolMedicine, TreatmentProtocol } from '@prisma/client'
 import { PrismaService } from '../shared/services/prisma.service'
 import { BaseRepository } from './base.repository'
 
@@ -51,6 +51,15 @@ interface ProtocolFilters {
   targetDisease?: string
   createdById?: number
   name?: string
+}
+
+// Clone medicine data type
+interface CloneMedicineData {
+  protocolId: number
+  medicineId: number
+  dosage: string
+  duration: MedicationSchedule
+  notes?: string | null
 }
 
 @Injectable()
@@ -330,13 +339,15 @@ export class TreatmentProtocolRepository extends BaseRepository<
       // Copy medicines
       if (originalProtocol.medicines.length > 0) {
         await tx.protocolMedicine.createMany({
-          data: originalProtocol.medicines.map((med) => ({
-            protocolId: newProtocol.id,
-            medicineId: med.medicineId,
-            dosage: med.dosage,
-            duration: med.duration,
-            notes: med.notes,
-          })),
+          data: originalProtocol.medicines.map(
+            (med): CloneMedicineData => ({
+              protocolId: newProtocol.id,
+              medicineId: med.medicineId,
+              dosage: med.dosage,
+              duration: med.duration,
+              notes: med.notes,
+            }),
+          ),
         })
       }
 
