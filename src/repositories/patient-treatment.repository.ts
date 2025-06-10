@@ -9,7 +9,7 @@ export interface CreatePatientTreatmentData {
   patientId: number
   protocolId: number
   doctorId: number
-  customMedications?: any // data for custom medications
+  customMedications?: CustomMedicationsData
   notes?: string
   startDate: Date
   endDate?: Date
@@ -17,11 +17,46 @@ export interface CreatePatientTreatmentData {
 }
 
 export interface UpdatePatientTreatmentData {
-  customMedications?: any
+  customMedications?: CustomMedicationsData
   notes?: string
   startDate?: Date
   endDate?: Date
   total?: number
+}
+
+// Custom medications structure
+export interface CustomMedicationsData {
+  additionalMedications?: AdditionalMedication[]
+  modifications?: MedicationModification[]
+  removedMedications?: RemovedMedication[]
+}
+
+export interface AdditionalMedication {
+  id: number
+  medicineId: number
+  dosage: string
+  frequency: string
+  duration: string
+  instructions?: string
+  addedBy: number
+  addedAt: Date
+}
+
+export interface MedicationModification {
+  medicineId: number
+  dosage?: string
+  frequency?: string
+  duration?: string
+  instructions?: string
+  modifiedBy: number
+  modifiedAt: Date
+}
+
+export interface RemovedMedication {
+  medicineId: number
+  removedBy: number
+  removedAt: Date
+  reason?: string
 }
 
 export interface PatientTreatmentWithDetails extends PatientTreatment {
@@ -226,6 +261,73 @@ export class PatientTreatmentRepository extends BaseRepository<
       include: {
         ...this.getDefaultInclude(),
         testResults: {
+          orderBy: {
+            resultDate: 'desc',
+          },
+        },
+      },
+    })) as PatientTreatmentWithDetails | null
+  }
+
+  /**
+   * Get patient treatment with detailed medication information
+   */
+  async getPatientTreatmentWithMedications(treatmentId: number): Promise<PatientTreatmentWithDetails | null> {
+    return (await this.model.findUnique({
+      where: { id: treatmentId },
+      include: {
+        patient: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phoneNumber: true,
+          },
+        },
+        protocol: {
+          include: {
+            medicines: {
+              include: {
+                medicine: {
+                  select: {
+                    id: true,
+                    name: true,
+                    description: true,
+                    unit: true,
+                    dose: true,
+                    price: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        doctor: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
+        createdBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        testResults: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            result: true,
+            resultDate: true,
+          },
           orderBy: {
             resultDate: 'desc',
           },

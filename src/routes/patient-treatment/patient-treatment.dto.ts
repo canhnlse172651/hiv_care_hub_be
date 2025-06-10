@@ -1,19 +1,27 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 import {
-  CreatePatientTreatmentSchema,
-  UpdatePatientTreatmentSchema,
-  QueryPatientTreatmentSchema,
-  UpdateTreatmentStatusSchema,
-  RecordAdherenceSchema,
-  BulkUpdateStatusSchema,
-  CreatePatientTreatmentType,
-  UpdatePatientTreatmentType,
-  QueryPatientTreatmentType,
-  UpdateTreatmentStatusType,
-  RecordAdherenceType,
-  BulkUpdateStatusType,
-  TreatmentStatusType,
+  AddAdditionalMedicationSchema,
+  AddAdditionalMedicationType,
   AdherenceType,
+  BulkUpdateStatusSchema,
+  BulkUpdateStatusType,
+  CreatePatientTreatmentSchema,
+  CreatePatientTreatmentType,
+  CustomizeMedicationsSchema,
+  CustomizeMedicationsType,
+  QueryPatientTreatmentSchema,
+  QueryPatientTreatmentType,
+  RecordAdherenceSchema,
+  RecordAdherenceType,
+  RemoveMedicationSchema,
+  RemoveMedicationType,
+  TreatmentStatusType,
+  UpdateMedicationSchema,
+  UpdateMedicationType,
+  UpdatePatientTreatmentSchema,
+  UpdatePatientTreatmentType,
+  UpdateTreatmentStatusSchema,
+  UpdateTreatmentStatusType,
 } from './patient-treatment.model'
 
 // Create Patient Treatment DTO Class
@@ -248,6 +256,218 @@ export class BulkUpdateStatusDtoClass {
   notes?: string
 }
 
+// Additional Medication DTO Class
+export class AdditionalMedicationDtoClass {
+  @ApiProperty({
+    description: 'Medicine ID',
+    example: 1,
+    type: 'integer',
+  })
+  medicineId!: number
+
+  @ApiProperty({
+    description: 'Dosage of the medication',
+    example: '200mg',
+  })
+  dosage!: string
+
+  @ApiProperty({
+    description: 'Frequency of the medication',
+    example: 'Twice daily',
+  })
+  frequency!: string
+
+  @ApiPropertyOptional({
+    description: 'Duration of the medication',
+    example: '30 days',
+  })
+  duration?: string
+
+  @ApiPropertyOptional({
+    description: 'Special instructions for the medication',
+    example: 'Take with food',
+  })
+  instructions?: string
+
+  @ApiPropertyOptional({
+    description: 'Additional notes about the medication',
+    example: 'Monitor for side effects',
+    maxLength: 500,
+  })
+  notes?: string
+}
+
+// Medication Modification DTO Class
+export class MedicationModificationDtoClass {
+  @ApiProperty({
+    description: 'Medicine ID to modify',
+    example: 1,
+    type: 'integer',
+  })
+  medicineId!: number
+
+  @ApiPropertyOptional({
+    description: 'New dosage of the medication',
+    example: '400mg',
+  })
+  dosage?: string
+
+  @ApiPropertyOptional({
+    description: 'New frequency of the medication',
+    example: 'Once daily',
+  })
+  frequency?: string
+
+  @ApiPropertyOptional({
+    description: 'New duration of the medication',
+    example: '60 days',
+  })
+  duration?: string
+
+  @ApiPropertyOptional({
+    description: 'New instructions for the medication',
+    example: 'Take on empty stomach',
+  })
+  instructions?: string
+
+  @ApiPropertyOptional({
+    description: 'Notes about the modification',
+    example: 'Reduced dose due to side effects',
+    maxLength: 500,
+  })
+  notes?: string
+}
+
+// Removed Medication DTO Class
+export class RemovedMedicationDtoClass {
+  @ApiProperty({
+    description: 'Medicine ID to remove',
+    example: 1,
+    type: 'integer',
+  })
+  medicineId!: number
+
+  @ApiProperty({
+    description: 'Reason for removing the medication',
+    example: 'Severe side effects',
+  })
+  reason!: string
+}
+
+// Custom Medications Data DTO Class
+export class CustomMedicationsDataDtoClass {
+  @ApiPropertyOptional({
+    description: 'Additional medications to add',
+    type: [AdditionalMedicationDtoClass],
+  })
+  additionalMedications?: AdditionalMedicationDtoClass[]
+
+  @ApiPropertyOptional({
+    description: 'Modifications to existing medications',
+    type: [MedicationModificationDtoClass],
+  })
+  modifications?: MedicationModificationDtoClass[]
+
+  @ApiPropertyOptional({
+    description: 'Medications to remove',
+    type: [RemovedMedicationDtoClass],
+  })
+  removedMedications?: RemovedMedicationDtoClass[]
+}
+
+// Customize Medications DTO Class
+export class CustomizeMedicationsDtoClass {
+  @ApiProperty({
+    description: 'Custom medications data',
+    type: CustomMedicationsDataDtoClass,
+  })
+  customMedications!: CustomMedicationsDataDtoClass
+}
+
+// Add Additional Medication DTO Class
+export class AddAdditionalMedicationDtoClass {
+  @ApiProperty({
+    description: 'Medicine ID',
+    example: 1,
+    type: 'integer',
+  })
+  medicineId!: number
+
+  @ApiProperty({
+    description: 'Dosage of the medication',
+    example: '200mg',
+  })
+  dosage!: string
+
+  @ApiProperty({
+    description: 'Frequency of the medication',
+    example: 'Twice daily',
+  })
+  frequency!: string
+
+  @ApiPropertyOptional({
+    description: 'Duration of the medication',
+    example: '30 days',
+  })
+  duration?: string
+
+  @ApiPropertyOptional({
+    description: 'Special instructions for the medication',
+    example: 'Take with food',
+  })
+  instructions?: string
+
+  @ApiPropertyOptional({
+    description: 'Additional notes about the medication',
+    example: 'Monitor for side effects',
+    maxLength: 500,
+  })
+  notes?: string
+}
+
+// Update Medication DTO Class
+export class UpdateMedicationDtoClass {
+  @ApiPropertyOptional({
+    description: 'New dosage of the medication',
+    example: '400mg',
+  })
+  dosage?: string
+
+  @ApiPropertyOptional({
+    description: 'New frequency of the medication',
+    example: 'Once daily',
+  })
+  frequency?: string
+
+  @ApiPropertyOptional({
+    description: 'New duration of the medication',
+    example: '60 days',
+  })
+  duration?: string
+
+  @ApiPropertyOptional({
+    description: 'New instructions for the medication',
+    example: 'Take on empty stomach',
+  })
+  instructions?: string
+
+  @ApiPropertyOptional({
+    description: 'Notes about the update',
+    example: 'Adjusted dose based on patient response',
+    maxLength: 500,
+  })
+  notes?: string
+}
+
+// Remove Medication DTO Class
+export class RemoveMedicationDtoClass {
+  @ApiProperty({
+    description: 'Reason for removing the medication',
+    example: 'Severe side effects',
+  })
+  reason!: string
+}
+
 // Export schemas for validation
 export const CreatePatientTreatmentDto = CreatePatientTreatmentSchema
 export const UpdatePatientTreatmentDto = UpdatePatientTreatmentSchema
@@ -256,6 +476,12 @@ export const UpdateTreatmentStatusDto = UpdateTreatmentStatusSchema
 export const RecordAdherenceDto = RecordAdherenceSchema
 export const BulkUpdateStatusDto = BulkUpdateStatusSchema
 
+// Export medication customization schemas
+export const CustomizeMedicationsDto = CustomizeMedicationsSchema
+export const AddAdditionalMedicationDto = AddAdditionalMedicationSchema
+export const UpdateMedicationDto = UpdateMedicationSchema
+export const RemoveMedicationDto = RemoveMedicationSchema
+
 // Export types
 export type CreatePatientTreatmentDtoType = CreatePatientTreatmentType
 export type UpdatePatientTreatmentDtoType = UpdatePatientTreatmentType
@@ -263,3 +489,9 @@ export type QueryPatientTreatmentDtoType = QueryPatientTreatmentType
 export type UpdateTreatmentStatusDtoType = UpdateTreatmentStatusType
 export type RecordAdherenceDtoType = RecordAdherenceType
 export type BulkUpdateStatusDtoType = BulkUpdateStatusType
+
+// Export medication customization types
+export type CustomizeMedicationsDtoType = CustomizeMedicationsType
+export type AddAdditionalMedicationDtoType = AddAdditionalMedicationType
+export type UpdateMedicationDtoType = UpdateMedicationType
+export type RemoveMedicationDtoType = RemoveMedicationType

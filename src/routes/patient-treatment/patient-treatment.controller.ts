@@ -1,26 +1,34 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, ParseIntPipe, Patch } from '@nestjs/common'
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger'
-import { PatientTreatmentService } from './patient-treatment.service'
-import {
-  CreatePatientTreatmentDto,
-  UpdatePatientTreatmentDto,
-  QueryPatientTreatmentDto,
-  UpdateTreatmentStatusDto,
-  RecordAdherenceDto,
-  BulkUpdateStatusDto,
-  CreatePatientTreatmentDtoType,
-  UpdatePatientTreatmentDtoType,
-  QueryPatientTreatmentDtoType,
-  UpdateTreatmentStatusDtoType,
-  RecordAdherenceDtoType,
-  BulkUpdateStatusDtoType,
-} from './patient-treatment.dto'
+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Put, Query } from '@nestjs/common'
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger'
 import CustomZodValidationPipe from '../../common/custom-zod-validate'
-import { Auth } from '../../shared/decorators/auth.decorator'
 import { AuthType } from '../../shared/constants/auth.constant'
-import { Roles } from '../../shared/decorators/roles.decorator'
 import { Role } from '../../shared/constants/role.constant'
 import { ActiveUser } from '../../shared/decorators/active-user.decorator'
+import { Auth } from '../../shared/decorators/auth.decorator'
+import { Roles } from '../../shared/decorators/roles.decorator'
+import {
+  AddAdditionalMedicationDto,
+  AddAdditionalMedicationDtoType,
+  BulkUpdateStatusDto,
+  BulkUpdateStatusDtoType,
+  CreatePatientTreatmentDto,
+  CreatePatientTreatmentDtoType,
+  CustomizeMedicationsDto,
+  CustomizeMedicationsDtoType,
+  QueryPatientTreatmentDto,
+  QueryPatientTreatmentDtoType,
+  RecordAdherenceDto,
+  RecordAdherenceDtoType,
+  RemoveMedicationDto,
+  RemoveMedicationDtoType,
+  UpdateMedicationDto,
+  UpdateMedicationDtoType,
+  UpdatePatientTreatmentDto,
+  UpdatePatientTreatmentDtoType,
+  UpdateTreatmentStatusDto,
+  UpdateTreatmentStatusDtoType,
+} from './patient-treatment.dto'
+import { PatientTreatmentService } from './patient-treatment.service'
 
 @ApiTags('Patient Treatments')
 @ApiBearerAuth()
@@ -166,5 +174,63 @@ export class PatientTreatmentController {
   @ApiResponse({ status: 404, description: 'Patient treatment not found' })
   async deleteTreatment(@Param('id', ParseIntPipe) id: number) {
     return await this.patientTreatmentService.deleteTreatment(id)
+  }
+
+  @Patch(':id/medications')
+  @Roles(Role.Admin, Role.Doctor)
+  @ApiOperation({ summary: 'Customize medications for patient treatment' })
+  @ApiResponse({ status: 200, description: 'Medications customized successfully' })
+  async customizeMedications(
+    @Param('id', ParseIntPipe) id: number,
+    @Body(new CustomZodValidationPipe(CustomizeMedicationsDto)) data: CustomizeMedicationsDtoType,
+    @ActiveUser('sub') userId: number,
+  ) {
+    return await this.patientTreatmentService.customizeMedications(id, data.customMedications, userId)
+  }
+
+  @Get(':id/medications')
+  @Roles(Role.Admin, Role.Doctor, Role.Staff, Role.Patient)
+  @ApiOperation({ summary: 'Get customized medications for patient treatment' })
+  @ApiResponse({ status: 200, description: 'Customized medications retrieved successfully' })
+  async getCustomizedMedications(@Param('id', ParseIntPipe) id: number) {
+    return await this.patientTreatmentService.getCustomizedMedications(id)
+  }
+
+  @Post(':id/medications/add')
+  @Roles(Role.Admin, Role.Doctor)
+  @ApiOperation({ summary: 'Add additional medication to patient treatment' })
+  @ApiResponse({ status: 201, description: 'Additional medication added successfully' })
+  async addAdditionalMedication(
+    @Param('id', ParseIntPipe) id: number,
+    @Body(new CustomZodValidationPipe(AddAdditionalMedicationDto)) data: AddAdditionalMedicationDtoType,
+    @ActiveUser('sub') userId: number,
+  ) {
+    return await this.patientTreatmentService.addAdditionalMedication(id, data, userId)
+  }
+
+  @Patch(':id/medications/:medicineId')
+  @Roles(Role.Admin, Role.Doctor)
+  @ApiOperation({ summary: 'Update specific medication in patient treatment' })
+  @ApiResponse({ status: 200, description: 'Medication updated successfully' })
+  async updateMedicationInTreatment(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('medicineId', ParseIntPipe) medicineId: number,
+    @Body(new CustomZodValidationPipe(UpdateMedicationDto)) data: UpdateMedicationDtoType,
+    @ActiveUser('sub') userId: number,
+  ) {
+    return await this.patientTreatmentService.updateMedicationInTreatment(id, medicineId, data, userId)
+  }
+
+  @Delete(':id/medications/:medicineId')
+  @Roles(Role.Admin, Role.Doctor)
+  @ApiOperation({ summary: 'Remove medication from patient treatment' })
+  @ApiResponse({ status: 200, description: 'Medication removed successfully' })
+  async removeMedicationFromTreatment(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('medicineId', ParseIntPipe) medicineId: number,
+    @Body(new CustomZodValidationPipe(RemoveMedicationDto)) data: RemoveMedicationDtoType,
+    @ActiveUser('sub') userId: number,
+  ) {
+    return await this.patientTreatmentService.removeMedicationFromTreatment(id, medicineId, data.reason, userId)
   }
 }

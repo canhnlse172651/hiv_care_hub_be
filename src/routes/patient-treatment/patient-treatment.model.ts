@@ -140,6 +140,92 @@ export const BulkUpdateStatusSchema = z.object({
   notes: z.string().max(1000).optional(),
 })
 
+// Additional Medication Schema
+export const AdditionalMedicationSchema = z.object({
+  medicineId: z.number().int().positive({
+    message: 'Medicine ID must be a positive integer',
+  }),
+  dosage: z.string().min(1, {
+    message: 'Dosage is required',
+  }),
+  frequency: z.string().min(1, {
+    message: 'Frequency is required',
+  }),
+  duration: z.string().optional(),
+  instructions: z.string().optional(),
+  notes: z.string().max(500).optional(),
+})
+
+// Medication Modification Schema
+export const MedicationModificationSchema = z.object({
+  medicineId: z.number().int().positive({
+    message: 'Medicine ID must be a positive integer',
+  }),
+  dosage: z.string().optional(),
+  frequency: z.string().optional(),
+  duration: z.string().optional(),
+  instructions: z.string().optional(),
+  notes: z.string().max(500).optional(),
+  modifiedBy: z.number().int().positive().optional(),
+  modifiedAt: z.date().optional(),
+})
+
+// Removed Medication Schema
+export const RemovedMedicationSchema = z.object({
+  medicineId: z.number().int().positive({
+    message: 'Medicine ID must be a positive integer',
+  }),
+  reason: z.string().min(1, {
+    message: 'Reason for removal is required',
+  }),
+  removedBy: z.number().int().positive().optional(),
+  removedAt: z.date().optional(),
+})
+
+// Custom Medications Data Schema
+export const CustomMedicationsDataSchema = z.object({
+  additionalMedications: z.array(AdditionalMedicationSchema).optional(),
+  modifications: z.array(MedicationModificationSchema).optional(),
+  removedMedications: z.array(RemovedMedicationSchema).optional(),
+})
+
+// Customize Medications Schema
+export const CustomizeMedicationsSchema = z.object({
+  customMedications: CustomMedicationsDataSchema,
+})
+
+// Add Additional Medication Schema
+export const AddAdditionalMedicationSchema = z.object({
+  medicineId: z.number().int().positive({
+    message: 'Medicine ID must be a positive integer',
+  }),
+  dosage: z.string().min(1, {
+    message: 'Dosage is required',
+  }),
+  frequency: z.string().min(1, {
+    message: 'Frequency is required',
+  }),
+  duration: z.string().optional(),
+  instructions: z.string().optional(),
+  notes: z.string().max(500).optional(),
+})
+
+// Update Medication Schema
+export const UpdateMedicationSchema = z.object({
+  dosage: z.string().optional(),
+  frequency: z.string().optional(),
+  duration: z.string().optional(),
+  instructions: z.string().optional(),
+  notes: z.string().max(500).optional(),
+})
+
+// Remove Medication Schema
+export const RemoveMedicationSchema = z.object({
+  reason: z.string().min(1, {
+    message: 'Reason for removal is required',
+  }),
+})
+
 // Export type definitions
 export type PatientTreatmentType = z.infer<typeof PatientTreatmentSchema>
 export type CreatePatientTreatmentType = z.infer<typeof CreatePatientTreatmentSchema>
@@ -150,3 +236,13 @@ export type RecordAdherenceType = z.infer<typeof RecordAdherenceSchema>
 export type BulkUpdateStatusType = z.infer<typeof BulkUpdateStatusSchema>
 export type TreatmentStatusType = z.infer<typeof TreatmentStatusEnum>
 export type AdherenceType = z.infer<typeof AdherenceEnum>
+
+// Medication customization types
+export type AdditionalMedicationType = z.infer<typeof AdditionalMedicationSchema>
+export type MedicationModificationType = z.infer<typeof MedicationModificationSchema>
+export type RemovedMedicationType = z.infer<typeof RemovedMedicationSchema>
+export type CustomMedicationsDataType = z.infer<typeof CustomMedicationsDataSchema>
+export type CustomizeMedicationsType = z.infer<typeof CustomizeMedicationsSchema>
+export type AddAdditionalMedicationType = z.infer<typeof AddAdditionalMedicationSchema>
+export type UpdateMedicationType = z.infer<typeof UpdateMedicationSchema>
+export type RemoveMedicationType = z.infer<typeof RemoveMedicationSchema>

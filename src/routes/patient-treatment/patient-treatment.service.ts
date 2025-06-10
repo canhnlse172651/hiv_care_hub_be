@@ -1,12 +1,12 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common'
-import { PatientTreatmentRepository } from '../../repositories/patient-treatment.repository'
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
+import { PatientTreatmentRepository, CustomMedicationsData } from '../../repositories/patient-treatment.repository'
 import {
-  CreatePatientTreatmentDtoType,
-  UpdatePatientTreatmentDtoType,
-  QueryPatientTreatmentDtoType,
-  UpdateTreatmentStatusDtoType,
-  RecordAdherenceDtoType,
   BulkUpdateStatusDtoType,
+  CreatePatientTreatmentDtoType,
+  QueryPatientTreatmentDtoType,
+  RecordAdherenceDtoType,
+  UpdatePatientTreatmentDtoType,
+  UpdateTreatmentStatusDtoType,
 } from './patient-treatment.dto'
 
 @Injectable()
@@ -25,7 +25,7 @@ export class PatientTreatmentService {
         startDate: data.startDate,
         endDate: data.endDate,
         total: 0, // Will be calculated based on protocol medicines
-        customMedications: null,
+        customMedications: undefined,
       }
 
       const treatment = await this.patientTreatmentRepository.createPatientTreatment(treatmentData, userId)
@@ -324,5 +324,239 @@ export class PatientTreatmentService {
       }
       throw new BadRequestException('Failed to restore patient treatment')
     }
+  }
+
+  // Customize medications for specific patient treatment
+  async customizeMedications(treatmentId: number, customMedications: any, userId: number) {
+    try {
+      const existingTreatment = await this.patientTreatmentRepository.findById(treatmentId)
+      if (!existingTreatment) {
+        throw new NotFoundException('Patient treatment not found')
+      }
+
+      const updatedTreatment = await this.patientTreatmentRepository.updateTreatmentMedications(
+        treatmentId,
+        customMedications,
+        userId,
+      )
+
+      return {
+        success: true,
+        data: updatedTreatment,
+        message: 'Medications customized successfully',
+      }
+    } catch (error) {
+      if (error instanceof NotFoundException) throw error
+      throw new BadRequestException('Failed to customize medications')
+    }
+  }
+
+  // Get customized medications for patient treatment
+  async getCustomizedMedications(treatmentId: number) {
+    try {
+      const treatment = await this.patientTreatmentRepository.getPatientTreatmentWithMedications(treatmentId)
+      if (!treatment) {
+        throw new NotFoundException('Patient treatment not found')
+      }
+
+      return {
+        success: true,
+        data: {
+          treatmentId: treatment.id,
+          protocolMedications: treatment.protocol.medicines,
+          customMedications: treatment.customMedications,
+          combinedMedications: this.combineProtocolAndCustomMedications(
+            treatment.protocol.medicines,
+            treatment.customMedications as CustomMedicationsData | null,
+          ),
+        },
+        message: 'Customized medications retrieved successfully',
+      }
+    } catch (error) {
+      if (error instanceof NotFoundException) throw error
+      throw new BadRequestException('Failed to retrieve customized medications')
+    }
+  }
+
+  // Add additional medication to patient treatment
+  async addAdditionalMedication(treatmentId: number, medicationData: any, userId: number) {
+    try {
+      const treatment = await this.patientTreatmentRepository.findById(treatmentId)
+      if (!treatment) {
+        throw new NotFoundException('Patient treatment not found')
+      }
+
+      const currentCustomMedications = (treatment.customMedications as CustomMedicationsData) || {
+        additionalMedications: [],
+        modifications: [],
+        removedMedications: [],
+      }
+
+      // Add new medication to additional medications
+      const newMedication = {
+        id: Date.now(), // Simple ID generation
+        medicineId: medicationData.medicineId,
+        dosage: medicationData.dosage,
+        frequency: medicationData.frequency,
+        duration: medicationData.duration,
+        instructions: medicationData.instructions,
+        addedBy: userId,
+        addedAt: new Date(),
+      }
+
+      if (!currentCustomMedications.additionalMedications) {
+        currentCustomMedications.additionalMedications = []
+      }
+      currentCustomMedications.additionalMedications.push(newMedication)
+
+      const updatedTreatment = await this.patientTreatmentRepository.updateTreatmentMedications(
+        treatmentId,
+        currentCustomMedications,
+        userId,
+      )
+
+      return {
+        success: true,
+        data: updatedTreatment,
+        message: 'Additional medication added successfully',
+      }
+    } catch (error) {
+      if (error instanceof NotFoundException) throw error
+      throw new BadRequestException('Failed to add additional medication')
+    }
+  }
+
+  // Update specific medication in patient treatment
+  async updateMedicationInTreatment(treatmentId: number, medicineId: number, updateData: any, userId: number) {
+    try {
+      const treatment = await this.patientTreatmentRepository.findById(treatmentId)
+      if (!treatment) {
+        throw new NotFoundException('Patient treatment not found')
+      }
+
+      const currentCustomMedications = (treatment.customMedications as CustomMedicationsData) || {
+        additionalMedications: [],
+        modifications: [],
+        removedMedications: [],
+      }
+
+      // Find and update modification for this medicine
+      if (!currentCustomMedications.modifications) {
+        currentCustomMedications.modifications = []
+      }
+
+      const existingModificationIndex = currentCustomMedications.modifications.findIndex(
+        (mod: any) => mod.medicineId === medicineId,
+      )
+
+      const modification = {
+        medicineId,
+        dosage: updateData.dosage,
+        frequency: updateData.frequency,
+        duration: updateData.duration,
+        instructions: updateData.instructions,
+        modifiedBy: userId,
+        modifiedAt: new Date(),
+      }
+
+      if (existingModificationIndex >= 0) {
+        currentCustomMedications.modifications[existingModificationIndex] = modification
+      } else {
+        currentCustomMedications.modifications.push(modification)
+      }
+
+      const updatedTreatment = await this.patientTreatmentRepository.updateTreatmentMedications(
+        treatmentId,
+        currentCustomMedications,
+        userId,
+      )
+
+      return {
+        success: true,
+        data: updatedTreatment,
+        message: 'Medication updated successfully',
+      }
+    } catch (error) {
+      if (error instanceof NotFoundException) throw error
+      throw new BadRequestException('Failed to update medication')
+    }
+  }
+
+  // Remove medication from patient treatment
+  async removeMedicationFromTreatment(treatmentId: number, medicineId: number, reason: string, userId: number) {
+    try {
+      const treatment = await this.patientTreatmentRepository.findById(treatmentId)
+      if (!treatment) {
+        throw new NotFoundException('Patient treatment not found')
+      }
+
+      const currentCustomMedications = (treatment.customMedications as CustomMedicationsData) || {
+        additionalMedications: [],
+        modifications: [],
+        removedMedications: [],
+      }
+
+      // Mark medication as removed
+      if (!currentCustomMedications.removedMedications) {
+        currentCustomMedications.removedMedications = []
+      }
+
+      const removal = {
+        medicineId,
+        removedBy: userId,
+        removedAt: new Date(),
+        reason: reason,
+      }
+
+      currentCustomMedications.removedMedications.push(removal)
+
+      const updatedTreatment = await this.patientTreatmentRepository.updateTreatmentMedications(
+        treatmentId,
+        currentCustomMedications,
+        userId,
+      )
+
+      return {
+        success: true,
+        data: updatedTreatment,
+        message: 'Medication removed successfully',
+      }
+    } catch (error) {
+      if (error instanceof NotFoundException) throw error
+      throw new BadRequestException('Failed to remove medication')
+    }
+  }
+
+  // Helper method to combine protocol and custom medications
+  private combineProtocolAndCustomMedications(
+    protocolMedications: any[],
+    customMedications: CustomMedicationsData | null,
+  ): any[] {
+    if (!customMedications) return protocolMedications
+
+    let combinedMedications = [...protocolMedications]
+
+    // Apply modifications
+    if (customMedications.modifications) {
+      customMedications.modifications.forEach((mod: any) => {
+        const index = combinedMedications.findIndex((med: any) => med.medicineId === mod.medicineId)
+        if (index >= 0) {
+          combinedMedications[index] = { ...combinedMedications[index], ...mod }
+        }
+      })
+    }
+
+    // Remove medications marked for removal
+    if (customMedications.removedMedications) {
+      const removedIds = customMedications.removedMedications.map((rem: any) => rem.medicineId as number)
+      combinedMedications = combinedMedications.filter((med: any) => !removedIds.includes(med.medicineId as number))
+    }
+
+    // Add additional medications
+    if (customMedications.additionalMedications) {
+      combinedMedications.push(...customMedications.additionalMedications)
+    }
+
+    return combinedMedications
   }
 }
