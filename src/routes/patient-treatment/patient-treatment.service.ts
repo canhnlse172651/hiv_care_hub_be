@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { PatientTreatmentRepository } from '../../repositories/patient-treatment.repository'
+import { PrismaService } from '../../shared/services/prisma.service'
 import {
   AddMedicationData,
   CombinedMedication,
@@ -21,20 +22,32 @@ import {
 
 @Injectable()
 export class PatientTreatmentService {
-  constructor(private readonly patientTreatmentRepository: PatientTreatmentRepository) {}
+  constructor(
+    private readonly patientTreatmentRepository: PatientTreatmentRepository,
+    private readonly prisma: PrismaService,
+  ) {}
 
   // Create new patient treatment
   async createTreatment(data: CreatePatientTreatmentDtoType, userId: number) {
     try {
+      // Validate that the user is a doctor and get doctor ID
+      const doctor = await this.prisma.doctor.findUnique({
+        where: { userId },
+      })
+
+      if (!doctor) {
+        throw new BadRequestException('Only doctors can create patient treatments')
+      }
+
       // Create treatment data with required fields from repository
       const treatmentData = {
         patientId: data.patientId,
         protocolId: data.protocolId,
-        doctorId: userId, // Assuming the creating user is the doctor
+        doctorId: doctor.id, // Use actual doctor ID from database
         notes: data.notes,
-        startDate: data.startDate,
-        endDate: data.endDate,
-        total: 0, // Will be calculated based on protocol medicines
+        startDate: new Date(data.startDate),
+        endDate: data.endDate ? new Date(data.endDate) : undefined,
+        total: 0,
         customMedications: undefined,
       }
 
@@ -45,6 +58,9 @@ export class PatientTreatmentService {
         message: 'Patient treatment created successfully',
       }
     } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error
+      }
       if (error instanceof Error && error.message.includes('not found')) {
         throw new BadRequestException(error.message)
       }
@@ -156,7 +172,7 @@ export class PatientTreatmentService {
 
       const updateData = {
         notes: data.notes,
-        endDate: data.endDate,
+        endDate: data.endDate ? new Date(data.endDate) : undefined,
       }
 
       const treatment = await this.patientTreatmentRepository.update(id, updateData, userId)
@@ -246,7 +262,7 @@ export class PatientTreatmentService {
   }
 
   // Get treatment statistics
-  async getTreatmentStatistics(patientId?: number, protocolId?: number) {
+  async getTreatmentStatistics(patientId?: number, _protocolId?: number) {
     try {
       if (patientId) {
         const stats = await this.patientTreatmentRepository.getPatientTreatmentStats(patientId)

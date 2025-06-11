@@ -46,13 +46,8 @@ export class TreatmentProtocolService {
 
       const result = await this.treatmentProtocolRepository.findWithAdvancedFiltering(paginationOptions, filters)
 
-      // Get full protocol details for each item in the result
-      const protocolsWithDetails = await Promise.all(
-        result.data.map((protocol) => this.treatmentProtocolRepository.getProtocolWithDetails(protocol.id)),
-      )
-
       return {
-        data: protocolsWithDetails.filter(Boolean) as TreatmentProtocolResponseType[],
+        data: result.data as TreatmentProtocolResponseType[],
         meta: {
           page: result.meta.page,
           limit: result.meta.limit,

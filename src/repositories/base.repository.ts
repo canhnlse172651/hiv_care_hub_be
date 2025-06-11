@@ -164,10 +164,16 @@ export abstract class BaseRepository<T extends BaseEntity, CreateData, UpdateDat
 
     const skip = (page - 1) * limit
 
-    // Build where clause
+    // Build base where clause
     let where: any = { ...additionalWhere }
 
-    // Add search functionality
+    // Add soft delete filter if model supports it
+    const modelFields = await this.getModelFields()
+    if (modelFields.includes('deletedAt')) {
+      where.deletedAt = null
+    }
+
+    // Add search functionality if search term is provided
     if (search && this.searchFields.length > 0) {
       const searchConditions = this.searchFields.map((field) => ({
         [field]: {
@@ -176,16 +182,27 @@ export abstract class BaseRepository<T extends BaseEntity, CreateData, UpdateDat
         },
       }))
 
-      where = {
-        ...where,
-        OR: searchConditions,
-      }
-    }
+      // Check if we have other conditions besides deletedAt
+      const whereKeys = Object.keys(where as Record<string, any>)
+      const hasOtherConditions = whereKeys.some((key) => key !== 'deletedAt')
 
-    // Add soft delete filter if model supports it
-    const modelFields = await this.getModelFields()
-    if (modelFields.includes('deletedAt')) {
-      where.deletedAt = null
+      if (hasOtherConditions) {
+        // We have other conditions, combine them properly with AND
+        where = {
+          AND: [
+            where,
+            {
+              OR: searchConditions,
+            },
+          ],
+        }
+      } else {
+        // Only deletedAt filter (or no filters), can safely add OR conditions
+        where = {
+          ...where,
+          OR: searchConditions,
+        }
+      }
     }
 
     // Build order by
@@ -282,17 +299,28 @@ export abstract class BaseRepository<T extends BaseEntity, CreateData, UpdateDat
     return {}
   }
 
+  private _cachedModelFields: string[] | null = null
+
   /**
    * Get model field names (for checking if soft delete is supported)
    */
   private async getModelFields(): Promise<string[]> {
+    // Return cached fields if available
+    if (this._cachedModelFields !== null) {
+      return this._cachedModelFields
+    }
+
     try {
       // This is a simplified approach - in a real implementation,
       // you might want to use Prisma's introspection capabilities
-      const sampleRecord = await this.model.findFirst()
-      return sampleRecord ? Object.keys(sampleRecord as Record<string, any>) : []
-    } catch {
-      return []
+      const sampleRecord = await this.model.findFirst({})
+      this._cachedModelFields = sampleRecord ? Object.keys(sampleRecord as Record<string, any>) : []
+      return this._cachedModelFields
+    } catch (error) {
+      // If we can't get a sample record, use a fallback based on common fields
+      console.warn('Unable to introspect model fields, using fallback approach:', error)
+      this._cachedModelFields = ['id', 'createdAt', 'updatedAt'] // Basic fields that most models have
+      return this._cachedModelFields
     }
   }
 
