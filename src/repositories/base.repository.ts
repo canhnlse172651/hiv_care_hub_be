@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { Injectable } from '@nestjs/common'
 import { PrismaService } from '../shared/services/prisma.service'
 
@@ -223,9 +222,7 @@ export abstract class BaseRepository<T extends BaseEntity, CreateData, UpdateDat
    * Bulk create entities
    */
   async createMany(data: CreateData[], userId?: number): Promise<{ count: number }> {
-    const createData: any[] = userId
-      ? data.map((item) => ({ ...(item as any), createdById: userId, updatedById: userId }))
-      : (data as any[])
+    const createData = userId ? data.map((item) => ({ ...item, createdById: userId, updatedById: userId })) : data
 
     return (await this.model.createMany({
       data: createData,
