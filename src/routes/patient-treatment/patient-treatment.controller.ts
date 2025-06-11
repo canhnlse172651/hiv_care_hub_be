@@ -1,11 +1,25 @@
 import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Put, Query } from '@nestjs/common'
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger'
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger'
 import CustomZodValidationPipe from '../../common/custom-zod-validate'
 import { AuthType } from '../../shared/constants/auth.constant'
 import { Role } from '../../shared/constants/role.constant'
 import { ActiveUser } from '../../shared/decorators/active-user.decorator'
 import { Auth } from '../../shared/decorators/auth.decorator'
 import { Roles } from '../../shared/decorators/roles.decorator'
+import {
+  ApiCreatePatientTreatment,
+  ApiGetAllPatientTreatments,
+  ApiGetPatientTreatmentById,
+  ApiGetTreatmentsByPatient,
+  ApiGetAdherenceReports,
+  ApiUpdatePatientTreatment,
+  ApiUpdateTreatmentStatus,
+  ApiRecordAdherence,
+  ApiCustomizeMedications,
+  ApiBulkUpdateStatus,
+  ApiDeletePatientTreatment,
+  ApiRestorePatientTreatment,
+} from '../../swagger/patient-treatment.swagger'
 import {
   AddAdditionalMedicationDto,
   AddAdditionalMedicationDtoType,
@@ -39,8 +53,7 @@ export class PatientTreatmentController {
 
   @Post()
   @Roles(Role.Admin, Role.Doctor)
-  @ApiOperation({ summary: 'Create a new patient treatment' })
-  @ApiResponse({ status: 201, description: 'Patient treatment created successfully' })
+  @ApiCreatePatientTreatment()
   async createTreatment(
     @Body(new CustomZodValidationPipe(CreatePatientTreatmentDto)) data: CreatePatientTreatmentDtoType,
     @ActiveUser('sub') userId: number,
@@ -50,8 +63,7 @@ export class PatientTreatmentController {
 
   @Get()
   @Roles(Role.Admin, Role.Doctor, Role.Staff)
-  @ApiOperation({ summary: 'Get all patient treatments with filtering and pagination' })
-  @ApiResponse({ status: 200, description: 'Patient treatments retrieved successfully' })
+  @ApiGetAllPatientTreatments()
   async getAllTreatments(
     @Query(new CustomZodValidationPipe(QueryPatientTreatmentDto)) query: QueryPatientTreatmentDtoType,
   ) {
@@ -60,32 +72,28 @@ export class PatientTreatmentController {
 
   @Get('patient/:patientId')
   @Roles(Role.Admin, Role.Doctor, Role.Staff, Role.Patient)
-  @ApiOperation({ summary: 'Get treatments by patient ID' })
-  @ApiResponse({ status: 200, description: 'Patient treatments retrieved successfully' })
+  @ApiGetTreatmentsByPatient()
   async getTreatmentsByPatient(@Param('patientId', ParseIntPipe) patientId: number) {
     return await this.patientTreatmentService.getTreatmentsByPatient(patientId)
   }
 
   @Get('patient/:patientId/active')
   @Roles(Role.Admin, Role.Doctor, Role.Staff, Role.Patient)
-  @ApiOperation({ summary: 'Get active treatments by patient ID' })
-  @ApiResponse({ status: 200, description: 'Active patient treatments retrieved successfully' })
+  @ApiGetTreatmentsByPatient()
   async getActiveTreatmentsByPatient(@Param('patientId', ParseIntPipe) patientId: number) {
     return await this.patientTreatmentService.getActiveTreatmentsByPatient(patientId)
   }
 
   @Get('protocol/:protocolId')
   @Roles(Role.Admin, Role.Doctor, Role.Staff)
-  @ApiOperation({ summary: 'Get treatments by protocol ID' })
-  @ApiResponse({ status: 200, description: 'Protocol treatments retrieved successfully' })
+  @ApiGetTreatmentsByPatient()
   async getTreatmentsByProtocol(@Param('protocolId', ParseIntPipe) protocolId: number) {
     return await this.patientTreatmentService.getTreatmentsByProtocol(protocolId)
   }
 
   @Get('adherence-reports')
   @Roles(Role.Admin, Role.Doctor)
-  @ApiOperation({ summary: 'Get adherence reports' })
-  @ApiResponse({ status: 200, description: 'Adherence reports retrieved successfully' })
+  @ApiGetAdherenceReports()
   async getAdherenceReports(@Query('patientId') patientId?: string, @Query('protocolId') protocolId?: string) {
     const patientIdNum = patientId ? parseInt(patientId) : undefined
     const protocolIdNum = protocolId ? parseInt(protocolId) : undefined
@@ -94,8 +102,7 @@ export class PatientTreatmentController {
 
   @Get('statistics')
   @Roles(Role.Admin, Role.Doctor)
-  @ApiOperation({ summary: 'Get treatment statistics' })
-  @ApiResponse({ status: 200, description: 'Treatment statistics retrieved successfully' })
+  @ApiGetAdherenceReports()
   async getTreatmentStatistics(@Query('patientId') patientId?: string, @Query('protocolId') protocolId?: string) {
     const patientIdNum = patientId ? parseInt(patientId) : undefined
     const protocolIdNum = protocolId ? parseInt(protocolId) : undefined
@@ -104,18 +111,14 @@ export class PatientTreatmentController {
 
   @Get(':id')
   @Roles(Role.Admin, Role.Doctor, Role.Staff, Role.Patient)
-  @ApiOperation({ summary: 'Get patient treatment by ID' })
-  @ApiResponse({ status: 200, description: 'Patient treatment retrieved successfully' })
-  @ApiResponse({ status: 404, description: 'Patient treatment not found' })
+  @ApiGetPatientTreatmentById()
   async getTreatmentById(@Param('id', ParseIntPipe) id: number) {
     return await this.patientTreatmentService.getTreatmentById(id)
   }
 
   @Put(':id')
   @Roles(Role.Admin, Role.Doctor)
-  @ApiOperation({ summary: 'Update patient treatment' })
-  @ApiResponse({ status: 200, description: 'Patient treatment updated successfully' })
-  @ApiResponse({ status: 404, description: 'Patient treatment not found' })
+  @ApiUpdatePatientTreatment()
   async updateTreatment(
     @Param('id', ParseIntPipe) id: number,
     @Body(new CustomZodValidationPipe(UpdatePatientTreatmentDto)) data: UpdatePatientTreatmentDtoType,
@@ -126,8 +129,7 @@ export class PatientTreatmentController {
 
   @Patch(':id/status')
   @Roles(Role.Admin, Role.Doctor)
-  @ApiOperation({ summary: 'Update treatment status' })
-  @ApiResponse({ status: 200, description: 'Treatment status updated successfully' })
+  @ApiUpdateTreatmentStatus()
   async updateTreatmentStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body(new CustomZodValidationPipe(UpdateTreatmentStatusDto)) data: UpdateTreatmentStatusDtoType,
@@ -138,8 +140,7 @@ export class PatientTreatmentController {
 
   @Patch(':id/adherence')
   @Roles(Role.Admin, Role.Doctor, Role.Staff)
-  @ApiOperation({ summary: 'Record patient adherence' })
-  @ApiResponse({ status: 200, description: 'Adherence recorded successfully' })
+  @ApiRecordAdherence()
   async recordAdherence(
     @Param('id', ParseIntPipe) id: number,
     @Body(new CustomZodValidationPipe(RecordAdherenceDto)) data: RecordAdherenceDtoType,
@@ -150,8 +151,7 @@ export class PatientTreatmentController {
 
   @Patch('bulk-update-status')
   @Roles(Role.Admin, Role.Doctor)
-  @ApiOperation({ summary: 'Bulk update treatment status' })
-  @ApiResponse({ status: 200, description: 'Treatment statuses updated successfully' })
+  @ApiBulkUpdateStatus()
   async bulkUpdateStatus(
     @Body(new CustomZodValidationPipe(BulkUpdateStatusDto)) data: BulkUpdateStatusDtoType,
     @ActiveUser('sub') userId: number,
@@ -161,25 +161,21 @@ export class PatientTreatmentController {
 
   @Patch(':id/restore')
   @Roles(Role.Admin)
-  @ApiOperation({ summary: 'Restore deleted patient treatment' })
-  @ApiResponse({ status: 200, description: 'Patient treatment restored successfully' })
+  @ApiRestorePatientTreatment()
   async restoreTreatment(@Param('id', ParseIntPipe) id: number) {
     return await this.patientTreatmentService.restoreTreatment(id)
   }
 
   @Delete(':id')
   @Roles(Role.Admin, Role.Doctor)
-  @ApiOperation({ summary: 'Delete patient treatment' })
-  @ApiResponse({ status: 200, description: 'Patient treatment deleted successfully' })
-  @ApiResponse({ status: 404, description: 'Patient treatment not found' })
+  @ApiDeletePatientTreatment()
   async deleteTreatment(@Param('id', ParseIntPipe) id: number) {
     return await this.patientTreatmentService.deleteTreatment(id)
   }
 
   @Patch(':id/medications')
   @Roles(Role.Admin, Role.Doctor)
-  @ApiOperation({ summary: 'Customize medications for patient treatment' })
-  @ApiResponse({ status: 200, description: 'Medications customized successfully' })
+  @ApiCustomizeMedications()
   async customizeMedications(
     @Param('id', ParseIntPipe) id: number,
     @Body(new CustomZodValidationPipe(CustomizeMedicationsDto)) data: CustomizeMedicationsDtoType,
@@ -190,16 +186,14 @@ export class PatientTreatmentController {
 
   @Get(':id/medications')
   @Roles(Role.Admin, Role.Doctor, Role.Staff, Role.Patient)
-  @ApiOperation({ summary: 'Get customized medications for patient treatment' })
-  @ApiResponse({ status: 200, description: 'Customized medications retrieved successfully' })
+  @ApiCustomizeMedications()
   async getCustomizedMedications(@Param('id', ParseIntPipe) id: number) {
     return await this.patientTreatmentService.getCustomizedMedications(id)
   }
 
   @Post(':id/medications/add')
   @Roles(Role.Admin, Role.Doctor)
-  @ApiOperation({ summary: 'Add additional medication to patient treatment' })
-  @ApiResponse({ status: 201, description: 'Additional medication added successfully' })
+  @ApiCustomizeMedications()
   async addAdditionalMedication(
     @Param('id', ParseIntPipe) id: number,
     @Body(new CustomZodValidationPipe(AddAdditionalMedicationDto)) data: AddAdditionalMedicationDtoType,
@@ -210,8 +204,7 @@ export class PatientTreatmentController {
 
   @Patch(':id/medications/:medicineId')
   @Roles(Role.Admin, Role.Doctor)
-  @ApiOperation({ summary: 'Update specific medication in patient treatment' })
-  @ApiResponse({ status: 200, description: 'Medication updated successfully' })
+  @ApiCustomizeMedications()
   async updateMedicationInTreatment(
     @Param('id', ParseIntPipe) id: number,
     @Param('medicineId', ParseIntPipe) medicineId: number,
@@ -223,8 +216,7 @@ export class PatientTreatmentController {
 
   @Delete(':id/medications/:medicineId')
   @Roles(Role.Admin, Role.Doctor)
-  @ApiOperation({ summary: 'Remove medication from patient treatment' })
-  @ApiResponse({ status: 200, description: 'Medication removed successfully' })
+  @ApiCustomizeMedications()
   async removeMedicationFromTreatment(
     @Param('id', ParseIntPipe) id: number,
     @Param('medicineId', ParseIntPipe) medicineId: number,

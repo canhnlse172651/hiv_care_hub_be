@@ -1,66 +1,20 @@
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import { Injectable } from '@nestjs/common'
-import { MedicationSchedule, ProtocolMedicine, TreatmentProtocol } from '@prisma/client'
+import { ProtocolMedicine, TreatmentProtocol } from '@prisma/client'
 import { PrismaService } from '../shared/services/prisma.service'
-import { BaseRepository } from './base.repository'
-
-// Types for TreatmentProtocol
-interface CreateTreatmentProtocolData {
-  name: string
-  description?: string
-  targetDisease: string
-  medicines?: {
-    medicineId: number
-    dosage: string
-    duration: MedicationSchedule
-    notes?: string
-  }[]
-}
-
-interface UpdateTreatmentProtocolData {
-  name?: string
-  description?: string
-  targetDisease?: string
-}
-
-interface TreatmentProtocolWithMedicines extends TreatmentProtocol {
-  medicines: (ProtocolMedicine & {
-    medicine: {
-      id: number
-      name: string
-      description: string | null
-      unit: string
-      dose: string
-      price: number
-    }
-  })[]
-  createdBy: {
-    id: number
-    name: string
-    email: string
-  }
-  updatedBy: {
-    id: number
-    name: string
-    email: string
-  }
-}
-
-interface ProtocolFilters {
-  targetDisease?: string
-  createdById?: number
-  name?: string
-}
-
-// Clone medicine data type
-interface CloneMedicineData {
-  protocolId: number
-  medicineId: number
-  dosage: string
-  duration: MedicationSchedule
-  notes?: string | null
-}
+import {
+  AddMedicineToProtocolData,
+  CloneMedicineData,
+  CreateTreatmentProtocolData,
+  PopularProtocol,
+  ProtocolFilters,
+  ProtocolMedicineWithDetails,
+  ProtocolUsageStats,
+  ProtocolWhereInput,
+  TreatmentProtocolWithMedicines,
+  UpdateMedicineInProtocolData,
+  UpdateTreatmentProtocolData,
+} from '../shared/types'
+import { BaseRepository, PaginationOptions, PaginationResult } from './base.repository'
 
 @Injectable()
 export class TreatmentProtocolRepository extends BaseRepository<
@@ -147,14 +101,9 @@ export class TreatmentProtocolRepository extends BaseRepository<
    */
   async addMedicineToProtocol(
     protocolId: number,
-    medicineData: {
-      medicineId: number
-      dosage: string
-      duration: MedicationSchedule
-      notes?: string
-    },
-  ) {
-    return await this.prisma.protocolMedicine.create({
+    medicineData: AddMedicineToProtocolData,
+  ): Promise<ProtocolMedicineWithDetails> {
+    return (await this.prisma.protocolMedicine.create({
       data: {
         protocolId,
         ...medicineData,
@@ -163,13 +112,13 @@ export class TreatmentProtocolRepository extends BaseRepository<
         medicine: true,
         protocol: true,
       },
-    })
+    })) as ProtocolMedicineWithDetails
   }
 
   /**
    * Remove medicine from protocol
    */
-  async removeMedicineFromProtocol(protocolId: number, medicineId: number) {
+  async removeMedicineFromProtocol(protocolId: number, medicineId: number): Promise<ProtocolMedicine> {
     return await this.prisma.protocolMedicine.delete({
       where: {
         protocolId_medicineId: {
@@ -186,13 +135,9 @@ export class TreatmentProtocolRepository extends BaseRepository<
   async updateMedicineInProtocol(
     protocolId: number,
     medicineId: number,
-    updateData: {
-      dosage?: string
-      duration?: MedicationSchedule
-      notes?: string
-    },
-  ) {
-    return await this.prisma.protocolMedicine.update({
+    updateData: UpdateMedicineInProtocolData,
+  ): Promise<ProtocolMedicineWithDetails> {
+    return (await this.prisma.protocolMedicine.update({
       where: {
         protocolId_medicineId: {
           protocolId,
@@ -204,7 +149,7 @@ export class TreatmentProtocolRepository extends BaseRepository<
         medicine: true,
         protocol: true,
       },
-    })
+    })) as ProtocolMedicineWithDetails
   }
 
   /**
@@ -274,8 +219,11 @@ export class TreatmentProtocolRepository extends BaseRepository<
   /**
    * Get protocols with advanced filtering
    */
-  async findWithAdvancedFiltering(options: any, filters: ProtocolFilters = {}) {
-    const additionalWhere: any = {}
+  async findWithAdvancedFiltering(
+    options: PaginationOptions,
+    filters: ProtocolFilters = {},
+  ): Promise<PaginationResult<TreatmentProtocol>> {
+    const additionalWhere: ProtocolWhereInput = {}
 
     // Target disease filtering
     if (filters.targetDisease) {
@@ -362,7 +310,7 @@ export class TreatmentProtocolRepository extends BaseRepository<
   /**
    * Get protocol usage statistics
    */
-  async getProtocolUsageStats(protocolId: number) {
+  async getProtocolUsageStats(protocolId: number): Promise<ProtocolUsageStats | null> {
     const protocol = await this.model.findUnique({
       where: { id: protocolId },
       include: {
@@ -417,7 +365,8 @@ export class TreatmentProtocolRepository extends BaseRepository<
   /**
    * Get most popular protocols
    */
-  async getMostPopularProtocols(limit = 10) {
+  async getMostPopularProtocols(limit = 10): Promise<PopularProtocol[]> {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return await this.executeRaw(
       `
       SELECT 

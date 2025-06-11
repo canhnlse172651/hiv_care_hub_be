@@ -1,5 +1,5 @@
 import { Global, Module } from '@nestjs/common'
-import { PrismaService } from 'src/shared/services/prisma.service'
+import { PrismaService } from './services/prisma.service'
 import { HashingService } from './services/hashing.service'
 import { TokenService } from './services/token.service'
 import { JwtModule } from '@nestjs/jwt'
@@ -29,7 +29,7 @@ const sharedGuards = [AccessTokenGuard, APIKeyGuard]
     {
       provide: APP_GUARD,
       useClass: PermissionsGuard,
-    }
+    },
   ],
   exports: [...sharedServices, ...sharedGuards],
   imports: [JwtModule],

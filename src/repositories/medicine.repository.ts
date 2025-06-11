@@ -1,33 +1,16 @@
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { Injectable } from '@nestjs/common'
 import { Medicine } from '@prisma/client'
 import { PrismaService } from '../shared/services/prisma.service'
-import { BaseRepository } from './base.repository'
-
-// Types for Medicine
-interface CreateMedicineData {
-  name: string
-  description?: string
-  unit: string
-  dose: string
-  price: number
-}
-
-interface UpdateMedicineData {
-  name?: string
-  description?: string
-  unit?: string
-  dose?: string
-  price?: number
-}
-
-interface MedicineFilters {
-  name?: string
-  unit?: string
-  priceMin?: number
-  priceMax?: number
-}
+import {
+  CreateMedicineData,
+  MedicineBulkUpdate,
+  MedicineFilters,
+  MedicineUsageStats,
+  MedicineWhereInput,
+  MostUsedMedicine,
+  UpdateMedicineData,
+} from '../shared/types'
+import { BaseRepository, PaginationOptions, PaginationResult } from './base.repository'
 
 @Injectable()
 export class MedicineRepository extends BaseRepository<Medicine, CreateMedicineData, UpdateMedicineData> {
@@ -39,10 +22,19 @@ export class MedicineRepository extends BaseRepository<Medicine, CreateMedicineD
   }
 
   /**
+   * Helper method to convert Decimal to number safely
+   */
+  private convertDecimalToNumber(value: any): number {
+    if (typeof value === 'number') return value
+    if (value && typeof value.toNumber === 'function') return Number(value.toNumber())
+    return 0
+  }
+
+  /**
    * Find medicines with price filtering
    */
   async findWithPriceRange(minPrice?: number, maxPrice?: number): Promise<Medicine[]> {
-    const where: any = {}
+    const where: MedicineWhereInput = {}
 
     if (minPrice !== undefined) {
       where.price = { ...where.price, gte: minPrice }
@@ -77,8 +69,11 @@ export class MedicineRepository extends BaseRepository<Medicine, CreateMedicineD
   /**
    * Get medicines with pagination and advanced filtering
    */
-  async findWithAdvancedFiltering(options: any, filters: MedicineFilters = {}) {
-    const additionalWhere: any = {}
+  async findWithAdvancedFiltering(
+    options: PaginationOptions,
+    filters: MedicineFilters = {},
+  ): Promise<PaginationResult<Medicine>> {
+    const additionalWhere: MedicineWhereInput = {}
 
     // Price range filtering
     if (filters.priceMin !== undefined || filters.priceMax !== undefined) {
@@ -107,7 +102,7 @@ export class MedicineRepository extends BaseRepository<Medicine, CreateMedicineD
   /**
    * Get medicine usage statistics (how many protocols use this medicine)
    */
-  async getMedicineUsageStats(medicineId: number) {
+  async getMedicineUsageStats(medicineId: number): Promise<MedicineUsageStats | null> {
     const medicine = await this.model.findUnique({
       where: { id: medicineId },
       include: {
@@ -134,7 +129,7 @@ export class MedicineRepository extends BaseRepository<Medicine, CreateMedicineD
         description: medicine.description,
         unit: medicine.unit,
         dose: medicine.dose,
-        price: medicine.price,
+        price: this.convertDecimalToNumber(medicine.price),
       },
       usageCount: medicine.protocols.length,
       usedInProtocols: medicine.protocols.map((p) => ({
@@ -150,7 +145,8 @@ export class MedicineRepository extends BaseRepository<Medicine, CreateMedicineD
   /**
    * Get most frequently used medicines
    */
-  async getMostUsedMedicines(limit = 10) {
+  async getMostUsedMedicines(limit = 10): Promise<MostUsedMedicine[]> {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return await this.executeRaw(
       `
       SELECT 
@@ -169,7 +165,7 @@ export class MedicineRepository extends BaseRepository<Medicine, CreateMedicineD
   /**
    * Bulk update medicine prices
    */
-  async bulkUpdatePrices(updates: { id: number; price: number }[], userId: number) {
+  async bulkUpdatePrices(updates: MedicineBulkUpdate[], _userId: number): Promise<Medicine[]> {
     return await this.transaction(async (tx) => {
       const results: Medicine[] = []
       for (const update of updates) {
@@ -177,7 +173,7 @@ export class MedicineRepository extends BaseRepository<Medicine, CreateMedicineD
           where: { id: update.id },
           data: { price: update.price },
         })
-        results.push(result)
+        results.push(result as Medicine)
       }
       return results
     })

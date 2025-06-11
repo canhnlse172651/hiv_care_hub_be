@@ -1,122 +1,18 @@
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import { Injectable } from '@nestjs/common'
 import { PatientTreatment } from '@prisma/client'
 import { PrismaService } from '../shared/services/prisma.service'
-import { BaseRepository } from './base.repository'
-
-// Types for PatientTreatment
-export interface CreatePatientTreatmentData {
-  patientId: number
-  protocolId: number
-  doctorId: number
-  customMedications?: CustomMedicationsData
-  notes?: string
-  startDate: Date
-  endDate?: Date
-  total: number
-}
-
-export interface UpdatePatientTreatmentData {
-  customMedications?: CustomMedicationsData
-  notes?: string
-  startDate?: Date
-  endDate?: Date
-  total?: number
-}
-
-// Custom medications structure
-export interface CustomMedicationsData {
-  additionalMedications?: AdditionalMedication[]
-  modifications?: MedicationModification[]
-  removedMedications?: RemovedMedication[]
-}
-
-export interface AdditionalMedication {
-  id: number
-  medicineId: number
-  dosage: string
-  frequency: string
-  duration: string
-  instructions?: string
-  addedBy: number
-  addedAt: Date
-}
-
-export interface MedicationModification {
-  medicineId: number
-  dosage?: string
-  frequency?: string
-  duration?: string
-  instructions?: string
-  modifiedBy: number
-  modifiedAt: Date
-}
-
-export interface RemovedMedication {
-  medicineId: number
-  removedBy: number
-  removedAt: Date
-  reason?: string
-}
-
-export interface PatientTreatmentWithDetails extends PatientTreatment {
-  patient: {
-    id: number
-    name: string
-    email: string
-    phoneNumber: string
-  }
-  protocol: {
-    id: number
-    name: string
-    description: string | null
-    targetDisease: string
-    medicines: {
-      id: number
-      medicineId: number
-      dosage: string
-      duration: string
-      notes: string | null
-      medicine: {
-        id: number
-        name: string
-        unit: string
-        dose: string
-        price: number
-      }
-    }[]
-  }
-  doctor: {
-    id: number
-    specialization: string
-    user: {
-      id: number
-      name: string
-      email: string
-    }
-  }
-  createdBy: {
-    id: number
-    name: string
-    email: string
-  }
-  testResults: {
-    id: number
-    name: string
-    type: string
-    result: string
-    resultDate: Date
-  }[]
-}
-
-export interface TreatmentFilters {
-  patientId?: number
-  doctorId?: number
-  protocolId?: number
-  isActive?: boolean
-  startDateFrom?: Date
-  startDateTo?: Date
-}
+import {
+  CreatePatientTreatmentData,
+  CustomMedicationsData,
+  DoctorTreatmentStats,
+  PatientTreatmentStats,
+  PatientTreatmentWithDetails,
+  TreatmentAdherenceReport,
+  TreatmentFilters,
+  TreatmentWhereInput,
+  UpdatePatientTreatmentData,
+} from '../shared/types'
+import { BaseRepository, PaginationOptions, PaginationResult } from './base.repository'
 
 @Injectable()
 export class PatientTreatmentRepository extends BaseRepository<
@@ -129,6 +25,15 @@ export class PatientTreatmentRepository extends BaseRepository<
 
   constructor(prisma: PrismaService) {
     super(prisma)
+  }
+
+  /**
+   * Helper method to convert Decimal to number safely
+   */
+  private convertDecimalToNumber(value: any): number {
+    if (typeof value === 'number') return value
+    if (value && typeof value.toNumber === 'function') return Number(value.toNumber())
+    return 0
   }
 
   /**
@@ -339,8 +244,11 @@ export class PatientTreatmentRepository extends BaseRepository<
   /**
    * Find treatments with advanced filtering
    */
-  async findWithAdvancedFiltering(options: any, filters: TreatmentFilters = {}) {
-    const additionalWhere: any = {}
+  async findWithAdvancedFiltering(
+    options: PaginationOptions,
+    filters: TreatmentFilters = {},
+  ): Promise<PaginationResult<PatientTreatment>> {
+    const additionalWhere: TreatmentWhereInput = {}
 
     // Patient filtering
     if (filters.patientId) {
@@ -383,16 +291,16 @@ export class PatientTreatmentRepository extends BaseRepository<
   /**
    * Get treatment statistics for a patient
    */
-  async getPatientTreatmentStats(patientId: number) {
+  async getPatientTreatmentStats(patientId: number): Promise<PatientTreatmentStats> {
     const treatments = await this.findMany({ patientId })
 
-    const stats = {
+    const stats: PatientTreatmentStats = {
       totalTreatments: treatments.length,
       activeTreatments: treatments.filter((t) => !t.endDate).length,
       completedTreatments: treatments.filter((t) => t.endDate).length,
-      totalCost: treatments.reduce((sum, t) => sum + t.total, 0),
+      totalCost: treatments.reduce((sum, t) => sum + this.convertDecimalToNumber(t.total), 0),
       averageDuration: 0,
-      mostUsedProtocols: [] as any[],
+      mostUsedProtocols: [],
     }
 
     // Calculate average duration for completed treatments
@@ -409,32 +317,24 @@ export class PatientTreatmentRepository extends BaseRepository<
       )
     }
 
-    // Get protocol usage
-    // const protocolCount = treatments.reduce(
-    //   (acc, t) => {
-    //     acc[t.protocolId] = (acc[t.protocolId] || 0) + 1
-    //     return acc
-    //   },
-    //   {} as Record<number, number>,
-    // )
-
     return stats
   }
 
   /**
    * Get doctor's treatment statistics
    */
-  async getDoctorTreatmentStats(doctorId: number) {
+  async getDoctorTreatmentStats(doctorId: number): Promise<DoctorTreatmentStats> {
     const treatments = await this.findMany({ doctorId })
+
+    const totalRevenue = treatments.reduce((sum, t) => sum + this.convertDecimalToNumber(t.total), 0)
 
     return {
       totalTreatments: treatments.length,
       activeTreatments: treatments.filter((t) => !t.endDate).length,
       completedTreatments: treatments.filter((t) => t.endDate).length,
-      totalRevenue: treatments.reduce((sum, t) => sum + t.total, 0),
+      totalRevenue,
       uniquePatients: new Set(treatments.map((t) => t.patientId)).size,
-      averageTreatmentCost:
-        treatments.length > 0 ? treatments.reduce((sum, t) => sum + t.total, 0) / treatments.length : 0,
+      averageTreatmentCost: treatments.length > 0 ? totalRevenue / treatments.length : 0,
     }
   }
 
@@ -443,7 +343,7 @@ export class PatientTreatmentRepository extends BaseRepository<
    */
   async updateTreatmentMedications(
     treatmentId: number,
-    customMedications: any,
+    customMedications: CustomMedicationsData,
     userId: number,
   ): Promise<PatientTreatmentWithDetails> {
     return (await this.update(
@@ -473,7 +373,7 @@ export class PatientTreatmentRepository extends BaseRepository<
   /**
    * Get treatment adherence report
    */
-  async getTreatmentAdherenceReport(treatmentId: number) {
+  async getTreatmentAdherenceReport(treatmentId: number): Promise<TreatmentAdherenceReport | null> {
     const treatment = await this.getTreatmentWithDetails(treatmentId)
     if (!treatment) return null
 

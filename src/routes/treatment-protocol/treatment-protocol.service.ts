@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { TreatmentProtocolRepository } from '../../repositories/treatment-protocol.repository'
 import { PaginatedResponse } from '../../shared/schemas/pagination.schema'
+import { PopularProtocol } from '../../shared/types'
 import {
   AddMedicineToProtocolDtoType,
   CloneProtocolDtoType,
@@ -215,9 +216,9 @@ export class TreatmentProtocolService {
     }
   }
 
-  async getMostPopularProtocols(limit = 10): Promise<TreatmentProtocolResponseType[]> {
+  async getMostPopularProtocols(limit = 10): Promise<PopularProtocol[]> {
     try {
-      return (await this.treatmentProtocolRepository.getMostPopularProtocols(limit)) as TreatmentProtocolResponseType[]
+      return await this.treatmentProtocolRepository.getMostPopularProtocols(limit)
     } catch (error) {
       throw new BadRequestException('Failed to get most popular protocols')
     }

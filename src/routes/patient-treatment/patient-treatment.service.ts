@@ -1,5 +1,15 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
-import { PatientTreatmentRepository, CustomMedicationsData } from '../../repositories/patient-treatment.repository'
+import { PatientTreatmentRepository } from '../../repositories/patient-treatment.repository'
+import {
+  AddMedicationData,
+  CombinedMedication,
+  CustomMedicationsData,
+  CustomMedicationsDataDto,
+  MedicationModification,
+  ProtocolMedication,
+  RemovedMedication,
+  UpdateMedicationData,
+} from '../../shared/types'
 import {
   BulkUpdateStatusDtoType,
   CreatePatientTreatmentDtoType,
@@ -214,7 +224,7 @@ export class PatientTreatmentService {
   }
 
   // Get adherence reports
-  async getAdherenceReports(patientId?: number, protocolId?: number) {
+  async getAdherenceReports(patientId?: number, _protocolId?: number) {
     try {
       if (patientId) {
         const stats = await this.patientTreatmentRepository.getPatientTreatmentStats(patientId)
@@ -327,12 +337,15 @@ export class PatientTreatmentService {
   }
 
   // Customize medications for specific patient treatment
-  async customizeMedications(treatmentId: number, customMedications: any, userId: number) {
+  async customizeMedications(treatmentId: number, customMedicationsDto: CustomMedicationsDataDto, userId: number) {
     try {
       const existingTreatment = await this.patientTreatmentRepository.findById(treatmentId)
       if (!existingTreatment) {
         throw new NotFoundException('Patient treatment not found')
       }
+
+      // Convert DTO to internal format
+      const customMedications = this.convertDtoToCustomMedications(customMedicationsDto, userId)
 
       const updatedTreatment = await this.patientTreatmentRepository.updateTreatmentMedications(
         treatmentId,
@@ -379,7 +392,7 @@ export class PatientTreatmentService {
   }
 
   // Add additional medication to patient treatment
-  async addAdditionalMedication(treatmentId: number, medicationData: any, userId: number) {
+  async addAdditionalMedication(treatmentId: number, medicationData: AddMedicationData, userId: number) {
     try {
       const treatment = await this.patientTreatmentRepository.findById(treatmentId)
       if (!treatment) {
@@ -427,7 +440,12 @@ export class PatientTreatmentService {
   }
 
   // Update specific medication in patient treatment
-  async updateMedicationInTreatment(treatmentId: number, medicineId: number, updateData: any, userId: number) {
+  async updateMedicationInTreatment(
+    treatmentId: number,
+    medicineId: number,
+    updateData: UpdateMedicationData,
+    userId: number,
+  ) {
     try {
       const treatment = await this.patientTreatmentRepository.findById(treatmentId)
       if (!treatment) {
@@ -446,7 +464,7 @@ export class PatientTreatmentService {
       }
 
       const existingModificationIndex = currentCustomMedications.modifications.findIndex(
-        (mod: any) => mod.medicineId === medicineId,
+        (mod: MedicationModification) => mod.medicineId === medicineId,
       )
 
       const modification = {
@@ -527,19 +545,82 @@ export class PatientTreatmentService {
     }
   }
 
+  // Helper method to convert DTO to internal CustomMedicationsData format
+  private convertDtoToCustomMedications(dto: CustomMedicationsDataDto, userId: number): CustomMedicationsData {
+    const result: CustomMedicationsData = {
+      additionalMedications: [],
+      modifications: [],
+      removedMedications: [],
+    }
+
+    // Convert additional medications
+    if (dto.additionalMedications) {
+      result.additionalMedications = dto.additionalMedications.map((med, index) => ({
+        id: Date.now() + index, // Simple ID generation
+        medicineId: med.medicineId,
+        dosage: med.dosage,
+        frequency: med.frequency,
+        duration: med.duration,
+        instructions: med.instructions,
+        addedBy: userId,
+        addedAt: new Date(),
+      }))
+    }
+
+    // Convert modifications
+    if (dto.modifications) {
+      result.modifications = dto.modifications.map((mod) => ({
+        medicineId: mod.medicineId,
+        dosage: mod.dosage,
+        frequency: mod.frequency,
+        duration: mod.duration,
+        instructions: mod.instructions,
+        modifiedBy: userId,
+        modifiedAt: new Date(),
+      }))
+    }
+
+    // Convert removed medications
+    if (dto.removedMedications) {
+      result.removedMedications = dto.removedMedications.map((rem) => ({
+        medicineId: rem.medicineId,
+        removedBy: userId,
+        removedAt: new Date(),
+        reason: rem.reason,
+      }))
+    }
+
+    return result
+  }
+
   // Helper method to combine protocol and custom medications
   private combineProtocolAndCustomMedications(
-    protocolMedications: any[],
+    protocolMedications: ProtocolMedication[],
     customMedications: CustomMedicationsData | null,
-  ): any[] {
-    if (!customMedications) return protocolMedications
+  ): CombinedMedication[] {
+    if (!customMedications)
+      return protocolMedications.map((med) => ({
+        id: med.id,
+        medicineId: med.medicineId,
+        dosage: med.dosage,
+        duration: med.duration,
+        notes: med.notes,
+        medicine: med.medicine,
+      }))
 
-    let combinedMedications = [...protocolMedications]
+    let combinedMedications: CombinedMedication[] = protocolMedications.map((med) => ({
+      id: med.id,
+      medicineId: med.medicineId,
+      dosage: med.dosage,
+      duration: med.duration,
+      notes: med.notes,
+      medicine: med.medicine,
+    }))
 
     // Apply modifications
     if (customMedications.modifications) {
-      customMedications.modifications.forEach((mod: any) => {
-        const index = combinedMedications.findIndex((med: any) => med.medicineId === mod.medicineId)
+      customMedications.modifications.forEach((mod: MedicationModification) => {
+        const index = combinedMedications.findIndex((med: CombinedMedication) => med.medicineId === mod.medicineId)
         if (index >= 0) {
           combinedMedications[index] = { ...combinedMedications[index], ...mod }
         }
@@ -548,8 +629,10 @@ export class PatientTreatmentService {
 
     // Remove medications marked for removal
     if (customMedications.removedMedications) {
-      const removedIds = customMedications.removedMedications.map((rem: any) => rem.medicineId as number)
-      combinedMedications = combinedMedications.filter((med: any) => !removedIds.includes(med.medicineId as number))
+      const removedIds = customMedications.removedMedications.map((rem: RemovedMedication) => rem.medicineId)
+      combinedMedications = combinedMedications.filter(
+        (med: CombinedMedication) => !removedIds.includes(med.medicineId),
+      )
     }
 
     // Add additional medications
