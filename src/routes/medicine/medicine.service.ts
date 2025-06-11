@@ -1,14 +1,13 @@
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common'
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { MedicineRepository } from '../../repositories/medicine.repository'
+import { PaginatedResponse } from '../../shared/schemas/pagination.schema'
 import {
+  BulkUpdatePricesDtoType,
   CreateMedicineDtoType,
-  UpdateMedicineDtoType,
   MedicineResponseType,
   QueryMedicineDtoType,
-  BulkUpdatePricesDtoType,
+  UpdateMedicineDtoType,
 } from './medicine.dto'
-import { PaginatedResponse } from '../../shared/schemas/pagination.schema'
 
 @Injectable()
 export class MedicineService {

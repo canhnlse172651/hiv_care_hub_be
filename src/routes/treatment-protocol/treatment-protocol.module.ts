@@ -1,4 +1,3 @@
-// filepath: /Users/nhatminh/Developer/hiv_care_hub_wdp_be/src/routes/treatment-protocol/treatment-protocol.module.ts
 import { Module } from '@nestjs/common'
 import { TreatmentProtocolController } from './treatment-protocol.controller'
 import { TreatmentProtocolService } from './treatment-protocol.service'
