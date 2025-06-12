@@ -7,11 +7,12 @@ import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core'
 import { CatchEverythingFilter } from './shared/fillters/catch-everything.fillter'
 import { RoleModule } from './routes/role/role.module'
 import { PermissionModule } from './routes/permission/permission.module'
+import { UserModule } from './routes/user/user.module'
 import { ZodSerializerInterceptor } from 'nestjs-zod'
 import CustomZodValidationPipe from './common/custom-zod-validate'
 
 @Module({
-  imports: [SharedModule, AuthModule, RoleModule, PermissionModule],
+  imports: [SharedModule, AuthModule, RoleModule, PermissionModule, UserModule],
   controllers: [AppController],
   providers: [
     AppService,

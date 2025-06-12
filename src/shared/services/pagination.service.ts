@@ -44,33 +44,60 @@ export class PaginationService {
     where?: any,
     include?: any,
   ): Promise<PaginatedResponse<T>> {
+    console.log('PaginationService - Input options:', options);
+    console.log('PaginationService - Input where:', where);
+
     const { page = 1, limit = 10, sortBy, sortOrder = 'desc' } = options;
+    console.log('PaginationService - Parsed options:', { page, limit, sortBy, sortOrder });
 
     // Calculate skip
     const skip = (page - 1) * limit;
+    console.log('PaginationService - Calculated skip:', skip);
 
     // Create orderBy
     const orderBy = sortBy ? { [sortBy]: sortOrder } : undefined;
+    console.log('PaginationService - OrderBy:', orderBy);
 
     try {
       // Get total count
       const total = await model.count({ where });
+      console.log('PaginationService - Total count:', total);
 
       // Get paginated data
       const data = await model.findMany({
         where,
-        include,
+      
         skip,
         take: limit,
         orderBy,
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          phoneNumber: true,
+          roleId: true,
+          status: true,
+          avatar: true,
+          totpSecret: true,
+          createdById: true,
+          updatedById: true,
+          deletedAt: true,
+          createdAt: true,
+          updatedAt: true,
+          role: true,
+        },
       });
+      console.log('PaginationService - Retrieved data length:', data.length);
 
-      return {
+      const result = {
         data,
         meta: this.calculateMeta(total, page, limit),
       };
+      console.log('PaginationService - Final result meta:', result.meta);
+
+      return result;
     } catch (error) {
-      console.error('Error in paginate:', error);
+      console.error('PaginationService - Error in paginate:', error);
       throw error;
     }
   }

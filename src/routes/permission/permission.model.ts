@@ -41,7 +41,7 @@ export type UserResType = z.infer<typeof UserResSchema>
 
 // Create Permission Schema
 export const CreatePermissionSchema = z.object({
-  name: z.string().min(1),
+  name: z.string().min(1).optional(),
   description: z.string().optional(),
   path: z.string().min(1),
   method: z.nativeEnum(HTTPMethod)
@@ -70,6 +70,4 @@ export const QueryPermissionSchema = z.object({
 export type CreatePermissionType = z.infer<typeof CreatePermissionSchema>
 export type UpdatePermissionType = z.infer<typeof UpdatePermissionSchema>
 export type UpdateUserPermissionsType = z.infer<typeof UpdateUserPermissionsSchema>
-
-
 export type QueryPermissionType = z.infer<typeof QueryPermissionSchema>

@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common'
 import { PrismaService } from 'src/shared/services/prisma.service'
 import { CreatePermissionType, UpdatePermissionType, QueryPermissionType, PermissionResType } from '../routes/permission/permission.model'
 import { HTTPMethod } from '@prisma/client'
-import { AuthRepository } from './auth.repository'
+import { AuthRepository } from './user.repository'
 
 @Injectable()
 export class PermissionRepository {
@@ -14,7 +14,7 @@ export class PermissionRepository {
   async createPermission(data: CreatePermissionType): Promise<PermissionResType> {
     return this.prisma.permission.create({
       data: {
-        name: data.name,
+        name: data.name || '',
         description: data.description || '',
         path: data.path,
         method: data.method,
