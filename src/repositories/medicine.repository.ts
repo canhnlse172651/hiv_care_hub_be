@@ -22,6 +22,13 @@ export class MedicineRepository extends BaseRepository<Medicine, CreateMedicineD
   }
 
   /**
+   * Get Prisma model for pagination service
+   */
+  getMedicineModel() {
+    return this.prisma.medicine
+  }
+
+  /**
    * Helper method to convert Decimal to number safely
    */
   private convertDecimalToNumber(value: any): number {

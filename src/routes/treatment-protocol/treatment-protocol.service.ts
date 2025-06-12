@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { TreatmentProtocolRepository } from '../../repositories/treatment-protocol.repository'
 import { PaginatedResponse } from '../../shared/schemas/pagination.schema'
+import { PaginationService } from '../../shared/services/pagination.service'
 import { PopularProtocol } from '../../shared/types'
 import {
   AddMedicineToProtocolDtoType,
@@ -14,7 +15,10 @@ import {
 
 @Injectable()
 export class TreatmentProtocolService {
-  constructor(private readonly treatmentProtocolRepository: TreatmentProtocolRepository) {}
+  constructor(
+    private readonly treatmentProtocolRepository: TreatmentProtocolRepository,
+    private readonly paginationService: PaginationService,
+  ) {}
 
   async createProtocol(data: CreateTreatmentProtocolDtoType, userId: number): Promise<TreatmentProtocolResponseType> {
     try {
@@ -34,28 +38,68 @@ export class TreatmentProtocolService {
         page: page ? parseInt(page) : 1,
         limit: limit ? parseInt(limit) : 10,
         sortBy: sortBy || 'name',
-        sortOrder: sortOrder || 'asc',
+        sortOrder: (sortOrder as 'asc' | 'desc') || 'asc',
         search,
       }
 
-      const filters = {
-        targetDisease,
-        createdById,
-        name,
+      // Build where condition
+      const where: any = {
+        deletedAt: null, // Filter soft-deleted protocols
       }
 
-      const result = await this.treatmentProtocolRepository.findWithAdvancedFiltering(paginationOptions, filters)
+      // Add specific filters
+      if (targetDisease) {
+        where.targetDisease = targetDisease
+      }
+
+      if (createdById) {
+        where.createdById = createdById
+      }
+
+      if (name) {
+        where.name = { contains: name, mode: 'insensitive' }
+      }
+
+      // Add search conditions if search term is provided
+      if (search) {
+        const searchConditions = [
+          { name: { contains: search, mode: 'insensitive' } },
+          { description: { contains: search, mode: 'insensitive' } },
+          { targetDisease: { contains: search, mode: 'insensitive' } },
+        ]
+
+        // If we have other filters, combine with AND
+        const hasOtherFilters = targetDisease || createdById || name
+        if (hasOtherFilters) {
+          where.AND = [{ OR: searchConditions }]
+        } else {
+          where.OR = searchConditions
+        }
+      }
+
+      const result = await this.paginationService.paginate(
+        this.treatmentProtocolRepository.getTreatmentProtocolModel(),
+        paginationOptions,
+        where,
+        {
+          medicines: {
+            include: {
+              medicine: true,
+            },
+          },
+          createdBy: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+        },
+      )
 
       return {
         data: result.data as TreatmentProtocolResponseType[],
-        meta: {
-          page: result.meta.page,
-          limit: result.meta.limit,
-          total: result.meta.total,
-          totalPages: result.meta.totalPages,
-          hasNextPage: result.meta.hasNext,
-          hasPreviousPage: result.meta.hasPrevious,
-        },
+        meta: result.meta,
       }
     } catch (error) {
       throw new BadRequestException('Failed to fetch treatment protocols')

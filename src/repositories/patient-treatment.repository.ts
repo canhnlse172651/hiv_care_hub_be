@@ -28,6 +28,13 @@ export class PatientTreatmentRepository extends BaseRepository<
   }
 
   /**
+   * Get Prisma model for pagination service
+   */
+  getPatientTreatmentModel() {
+    return this.prisma.patientTreatment
+  }
+
+  /**
    * Helper method to convert Decimal to number safely
    */
   private convertDecimalToNumber(value: any): number {

@@ -30,6 +30,13 @@ export class TreatmentProtocolRepository extends BaseRepository<
   }
 
   /**
+   * Get Prisma model for pagination service
+   */
+  getTreatmentProtocolModel() {
+    return this.prisma.treatmentProtocol
+  }
+
+  /**
    * Override default includes to include medicines and user info
    */
   protected getDefaultInclude() {

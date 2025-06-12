@@ -1,5 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { PatientTreatmentRepository } from '../../repositories/patient-treatment.repository'
+import { PaginatedResponse } from '../../shared/schemas/pagination.schema'
+import { PaginationService } from '../../shared/services/pagination.service'
 import { PrismaService } from '../../shared/services/prisma.service'
 import {
   AddMedicationData,
@@ -25,6 +27,7 @@ export class PatientTreatmentService {
   constructor(
     private readonly patientTreatmentRepository: PatientTreatmentRepository,
     private readonly prisma: PrismaService,
+    private readonly paginationService: PaginationService,
   ) {}
 
   // Create new patient treatment
@@ -69,31 +72,61 @@ export class PatientTreatmentService {
   }
 
   // Get all treatments with filtering and pagination
-  async getAllTreatments(query: QueryPatientTreatmentDtoType) {
+  async getAllTreatments(query: QueryPatientTreatmentDtoType): Promise<PaginatedResponse<any>> {
     try {
-      const filters = {
-        patientId: query.patientId,
-        protocolId: query.protocolId,
-        isActive: query.isActive,
-      }
-
       const paginationOptions = {
         page: query.page || 1,
         limit: query.limit || 10,
+        sortBy: 'createdAt',
+        sortOrder: 'desc' as const,
         search: query.search,
       }
 
-      const result = await this.patientTreatmentRepository.findWithAdvancedFiltering(paginationOptions, filters)
-      return {
-        success: true,
-        data: result.data,
-        pagination: {
-          currentPage: query.page || 1,
-          totalPages: result.meta.totalPages,
-          totalItems: result.meta.total,
-          itemsPerPage: query.limit || 10,
+      // Build where condition
+      const where: any = {
+        deletedAt: null, // Filter soft-deleted treatments
+      }
+
+      // Add specific filters
+      if (query.patientId) {
+        where.patientId = query.patientId
+      }
+
+      if (query.protocolId) {
+        where.protocolId = query.protocolId
+      }
+
+      if (query.isActive !== undefined) {
+        where.isActive = query.isActive
+      }
+
+      // Add search conditions if search term is provided
+      if (query.search) {
+        const searchConditions = [{ notes: { contains: query.search, mode: 'insensitive' } }]
+
+        // If we have other filters, combine with AND
+        const hasOtherFilters = query.patientId || query.protocolId || query.isActive !== undefined
+        if (hasOtherFilters) {
+          where.AND = [{ OR: searchConditions }]
+        } else {
+          where.OR = searchConditions
+        }
+      }
+
+      const result = await this.paginationService.paginate(
+        this.patientTreatmentRepository.getPatientTreatmentModel(),
+        paginationOptions,
+        where,
+        {
+          protocol: true,
+          patient: true,
+          doctor: true,
         },
-        message: 'Patient treatments retrieved successfully',
+      )
+
+      return {
+        data: result.data,
+        meta: result.meta,
       }
     } catch (error) {
       throw new BadRequestException('Failed to retrieve patient treatments')

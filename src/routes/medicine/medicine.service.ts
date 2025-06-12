@@ -1,6 +1,8 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { MedicineRepository } from '../../repositories/medicine.repository'
 import { PaginatedResponse } from '../../shared/schemas/pagination.schema'
+import { PaginationService } from '../../shared/services/pagination.service'
+import { MedicineEntity } from '../../shared/types'
 import {
   BulkUpdatePricesDtoType,
   CreateMedicineDtoType,
@@ -11,7 +13,10 @@ import {
 
 @Injectable()
 export class MedicineService {
-  constructor(private readonly medicineRepository: MedicineRepository) {}
+  constructor(
+    private readonly medicineRepository: MedicineRepository,
+    private readonly paginationService: PaginationService,
+  ) {}
 
   async createMedicine(data: CreateMedicineDtoType, userId?: number): Promise<MedicineResponseType> {
     try {
@@ -33,30 +38,66 @@ export class MedicineService {
         page: page ? parseInt(page) : 1,
         limit: limit ? parseInt(limit) : 10,
         sortBy: sortBy || 'name',
-        sortOrder: sortOrder || 'asc',
+        sortOrder: (sortOrder as 'asc' | 'desc') || 'asc',
         search,
       }
 
-      const filters = {
-        name,
-        unit,
-        priceMin,
-        priceMax,
+      // Build where condition
+      const where: any = {
+        deletedAt: null, // Filter soft-deleted medicines
       }
 
-      const result = await this.medicineRepository.findWithAdvancedFiltering(paginationOptions, filters)
+      // Add specific filters
+      if (name) {
+        where.name = { contains: name, mode: 'insensitive' }
+      }
+
+      if (unit) {
+        where.unit = unit
+      }
+
+      if (priceMin !== undefined || priceMax !== undefined) {
+        where.price = {}
+        if (priceMin !== undefined) {
+          where.price.gte = priceMin
+        }
+        if (priceMax !== undefined) {
+          where.price.lte = priceMax
+        }
+      }
+
+      // Add search conditions if search term is provided
+      if (search) {
+        const searchConditions = [
+          { name: { contains: search, mode: 'insensitive' } },
+          { description: { contains: search, mode: 'insensitive' } },
+        ]
+
+        // If we have other filters, combine with AND
+        const hasOtherFilters = name || unit || priceMin !== undefined || priceMax !== undefined
+        if (hasOtherFilters) {
+          where.AND = [{ OR: searchConditions }]
+        } else {
+          where.OR = searchConditions
+        }
+      }
+
+      const result = await this.paginationService.paginate<any>(
+        this.medicineRepository.getMedicineModel(),
+        paginationOptions,
+        where,
+      )
+
+      // Type assertion for the result data
+      const medicines = result.data as MedicineEntity[]
+      const transformedData: MedicineResponseType[] = medicines.map((medicine) => ({
+        ...medicine,
+        price: Number(medicine.price || 0),
+      }))
 
       return {
-        ...result,
-        data: result.data.map((medicine) => ({
-          ...medicine,
-          price: Number(medicine.price),
-        })),
-        meta: {
-          ...result.meta,
-          hasNextPage: result.meta.hasNext,
-          hasPreviousPage: result.meta.hasPrevious,
-        },
+        data: transformedData,
+        meta: result.meta,
       }
     } catch (error) {
       throw new BadRequestException('Failed to fetch medicines')

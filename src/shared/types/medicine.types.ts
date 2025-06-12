@@ -1,5 +1,10 @@
 import { Medicine } from '@prisma/client'
 
+// Interface for Medicine entity from database with converted price
+export interface MedicineEntity extends Omit<Medicine, 'price'> {
+  price: number // Price converted to number from Decimal
+}
+
 export interface CreateMedicineData {
   name: string
   description?: string
