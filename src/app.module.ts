@@ -16,6 +16,7 @@ import { CatchEverythingFilter } from './shared/fillters/catch-everything.fillte
 import { SharedModule } from './shared/shared.module'
 import { CateBlogModule } from './routes/category-blog/cate-blog.module'
 import { BlogModule } from './routes/blog/blog.module'
+import { ServiceModule } from './routes/service/service.module'
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { BlogModule } from './routes/blog/blog.module'
     PatientTreatmentModule,
     CateBlogModule,
     BlogModule,
+    ServiceModule,
   ],
   controllers: [AppController],
   providers: [
