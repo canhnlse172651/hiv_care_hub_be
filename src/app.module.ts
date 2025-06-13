@@ -10,10 +10,11 @@ import { PermissionModule } from './routes/permission/permission.module'
 import { UserModule } from './routes/user/user.module'
 import { ZodSerializerInterceptor } from 'nestjs-zod'
 import CustomZodValidationPipe from './common/custom-zod-validate'
+import { CateBlogModule } from './routes/category-blog/cate-blog.module'
 import { BlogModule } from './routes/blog/blog.module'
 
 @Module({
-  imports: [SharedModule, AuthModule, RoleModule, PermissionModule, UserModule, BlogModule],
+  imports: [SharedModule, AuthModule, RoleModule, PermissionModule, UserModule, CateBlogModule, BlogModule],
   controllers: [AppController],
   providers: [
     AppService,

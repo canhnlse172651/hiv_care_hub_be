@@ -11,11 +11,25 @@ export class BlogRepository {
   }
 
   async createBlog(data: CreateBlogDtoType): Promise<BlogResponseType> {
+    // Hàm tạo slug từ title
+    function slugify(str: string): string {
+      return str
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/\p{Diacritic}/gu, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)+/g, '')
+    }
+
+    const slug = slugify(data.title)
     const blog = await this.prisma.blogPost.create({
       data: {
         title: data.title,
+        slug,
         content: data.content,
+        imageUrl: data.imageUrl,
         authorId: data.authorId,
+        cateId: data.cateId,
       },
       include: {
         author: {
@@ -26,10 +40,21 @@ export class BlogRepository {
             avatar: true,
           },
         },
+        category: {
+          select: {
+            id: true,
+            title: true,
+            description: true,
+          },
+        },
       },
     })
 
-    return blog as BlogResponseType
+    const { category, ...rest } = blog
+    return {
+      ...rest,
+      cateBlog: category,
+    } as BlogResponseType
   }
 
   async findAllBlogs(): Promise<BlogResponseType[]> {
@@ -43,11 +68,24 @@ export class BlogRepository {
             avatar: true,
           },
         },
+        category: {
+          select: {
+            id: true,
+            title: true,
+            description: true,
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
     })
 
-    return blogs as BlogResponseType[]
+    return blogs.map((blog) => {
+      const { category, ...rest } = blog
+      return {
+        ...rest,
+        cateBlog: category,
+      } as BlogResponseType
+    })
   }
 
   async findBlogById(id: number): Promise<BlogResponseType | null> {
@@ -62,10 +100,22 @@ export class BlogRepository {
             avatar: true,
           },
         },
+        category: {
+          select: {
+            id: true,
+            title: true,
+            description: true,
+          },
+        },
       },
     })
 
-    return blog as BlogResponseType | null
+    return blog
+      ? ({
+          ...blog,
+          cateBlog: blog.category,
+        } as BlogResponseType)
+      : null
   }
 
   async updateBlog(id: number, data: UpdateBlogDtoType): Promise<BlogResponseType> {
@@ -81,10 +131,20 @@ export class BlogRepository {
             avatar: true,
           },
         },
+        category: {
+          select: {
+            id: true,
+            title: true,
+            description: true,
+          },
+        },
       },
     })
 
-    return updated as BlogResponseType
+    return {
+      ...updated,
+      cateBlog: updated.category,
+    } as BlogResponseType
   }
 
   async removeBlog(id: number): Promise<BlogResponseType> {
@@ -99,9 +159,48 @@ export class BlogRepository {
             avatar: true,
           },
         },
+        category: {
+          select: {
+            id: true,
+            title: true,
+            description: true,
+          },
+        },
       },
     })
 
-    return deleted as BlogResponseType
+    return {
+      ...deleted,
+      cateBlog: deleted.category,
+    } as BlogResponseType
+  }
+
+  async changeStatusBlog(id: number, isPublished: boolean): Promise<BlogResponseType> {
+    const updated = await this.prisma.blogPost.update({
+      where: { id },
+      data: { isPublished },
+      include: {
+        author: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatar: true,
+          },
+        },
+        category: {
+          select: {
+            id: true,
+            title: true,
+            description: true,
+          },
+        },
+      },
+    })
+
+    return {
+      ...updated,
+      cateBlog: updated.category,
+    } as BlogResponseType
   }
 }

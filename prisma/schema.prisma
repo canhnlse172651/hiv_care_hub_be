@@ -206,37 +206,38 @@ model Message {
 }
 
 model Doctor {
-  id             Int       @id @default(autoincrement())
-  userId         Int       @unique
-  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  specialization String    @db.VarChar(500)
-  certifications String[]
-  workingHours   Json
-  isAvailable    Boolean   @default(true)
-  
-  // Relations
-  schedules      DoctorSchedule[]
-  appointments   Appointment[]
-  testResults    TestResult[]
+  id                Int                      @id @default(autoincrement())
+  userId            Int                      @unique
+  user              User                     @relation(fields: [userId], references: [id])
+  specialization    String
+  certifications    String[]
+  isAvailable       Boolean                  @default(true)
+  schedules         DoctorSchedule[]
+  appointments      Appointment[]
   patientTreatments PatientTreatment[]
-  
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  testResults       TestResult[]
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+
+  @@map("doctors")
 }
 
 model DoctorSchedule {
-  id        Int      @id @default(autoincrement())
-  doctorId  Int
-  doctor    Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
-  date      DateTime
-  isOff     Boolean  @default(false)
-  shift     Shift
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([doctorId, date])
+  id              Int         @id @default(autoincrement())
+  doctorId        Int
+  date            DateTime
+  dayOfWeek       DayOfWeek
+  shift           Shift
+  isOff           Boolean     @default(false)
+  swappedWithId   Int?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  doctor          Doctor      @relation(fields: [doctorId], references: [id])
+  swappedWith     DoctorSchedule? @relation("SwappedSchedules", fields: [swappedWithId], references: [id])
+  swappedBy       DoctorSchedule[] @relation("SwappedSchedules")
+  @@index([doctorId])
   @@index([date, shift])
+  @@index([swappedWithId])
 }
 
 model Appointment {
@@ -252,7 +253,6 @@ model Appointment {
   type            AppointmentType
   status          AppointmentStatus
   notes           String?       @db.Text
-  
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 }
@@ -365,11 +365,24 @@ model BlogPost {
   title       String    @db.VarChar(500)
   content     String    @db.Text
   authorId    Int
+  imageUrl    String    @db.VarChar(500)
+  slug        String    @db.VarChar(500)
+  cateId      Int     
   author      User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  isPublished Boolean   @default(false)
-  
+  category    CateBlog  @relation(fields: [cateId], references: [id], onDelete: Cascade)
+  isPublished Boolean   @default(true)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+}
+
+model CateBlog {
+  id          Int         @id @default(autoincrement())
+  title       String      @db.VarChar(500)
+  description String      @db.VarChar(500)
+  Blog        BlogPost[]
+  isPublished Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 }
 
 model EducationMaterial {
@@ -386,6 +399,7 @@ model EducationMaterial {
 model Service {
   id          Int           @id @default(autoincrement())
   name        String        @db.VarChar(500)
+  slug        String        @db.VarChar(500)
   price       Decimal       @db.Decimal(10, 2)
   type        ServiceType
   description String        @db.Text
@@ -393,6 +407,7 @@ model Service {
   endTime     DateTime
   imageUrl    String        @default("")
   content     String        @db.Text
+  isActive    Boolean       @default(true)
   
   // Relations
   appointments Appointment[]

@@ -92,4 +92,9 @@ export class BlogService {
     await this.findBlogById(id)
     return await this.blogRepository.removeBlog(id)
   }
+
+  async changeStatusBlog(id: number, isPublished: boolean): Promise<BlogResponseType> {
+    const blog = await this.findBlogById(id)
+    return await this.blogRepository.changeStatusBlog(id, isPublished)
+  }
 }

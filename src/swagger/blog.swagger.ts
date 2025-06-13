@@ -8,6 +8,8 @@ export const BlogResponseSchema = {
     title: { type: 'string', example: 'Understanding NestJS Swagger Integration' },
     content: { type: 'string', example: 'NestJS provides powerful decorators to document APIs...' },
     authorId: { type: 'number', example: 1 },
+    cateId: { type: 'number', example: 1 },
+    isPublished: { type: 'boolean', example: true },
     createdAt: { type: 'string', format: 'date-time', example: '2025-01-01T00:00:00Z' },
     updatedAt: { type: 'string', format: 'date-time', example: '2025-01-01T00:00:00Z' },
   },
@@ -34,6 +36,11 @@ export const ApiCreateBlog = () => {
           authorId: {
             type: 'number',
             description: 'ID of the author creating the blog',
+            example: 1,
+          },
+          cateId: {
+            type: 'number',
+            description: 'ID of the category for the blog',
             example: 1,
           },
         },
@@ -97,6 +104,11 @@ export const ApiUpdateBlog = () => {
             description: 'ID of the author updating the blog',
             example: 1,
           },
+          cateId: {
+            type: 'number',
+            description: 'ID of the category for the blog',
+            example: 1,
+          },
         },
       },
     }),
@@ -113,6 +125,17 @@ export const ApiDeleteBlog = () => {
     ApiOperation({ summary: 'Delete blog by ID' }),
     ApiParam({ name: 'id', type: 'number', description: 'Blog ID', example: 1 }),
     ApiResponse({ status: 200, description: 'Blog deleted successfully' }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' }),
+    ApiResponse({ status: 404, description: 'Blog not found' }),
+  )
+}
+
+export const ApiPublishBlog = () => {
+  return applyDecorators(
+    ApiOperation({ summary: 'Publish blog by ID' }),
+    ApiParam({ name: 'id', type: 'number', description: 'Blog ID', example: 1 }),
+    ApiResponse({ status: 200, description: 'Blog published successfully', schema: BlogResponseSchema }),
     ApiResponse({ status: 401, description: 'Unauthorized' }),
     ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' }),
     ApiResponse({ status: 404, description: 'Blog not found' }),
