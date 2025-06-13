@@ -33,7 +33,7 @@ export class PermissionController {
   ) {}
 
   @Get()
-  @Roles(Role.Admin)
+  // @Roles(Role.Admin)
   @Permissions({
     path: '/permissions',
     method: HTTPMethod.GET,
@@ -44,7 +44,7 @@ export class PermissionController {
   }
 
   @Get(':id')
-  @Roles(Role.Admin)
+  // @Roles(Role.Admin)
   @Permissions({
     path: '/permissions/:id',
     method: HTTPMethod.GET,
@@ -55,7 +55,7 @@ export class PermissionController {
   }
 
   @Post()
-  @Roles(Role.Admin)
+  // @Roles(Role.Admin)
   @Permissions({
     path: '/permissions',
     method: HTTPMethod.POST,
@@ -67,7 +67,7 @@ export class PermissionController {
   }
 
   @Put(':id')
-  @Roles(Role.Admin)
+  // @Roles(Role.Admin)
   @Permissions({
     path: '/permissions/:id',
     method: HTTPMethod.PUT,
@@ -79,7 +79,7 @@ export class PermissionController {
   }
 
   @Delete(':id')
-  @Roles(Role.Admin)
+  // @Roles(Role.Admin)
   @Permissions({
     path: '/permissions/:id',
     method: HTTPMethod.DELETE,
@@ -92,7 +92,7 @@ export class PermissionController {
   // New endpoints for user permissions
 
   @Post('user/:userId')
-  @Roles(Role.Admin)
+  // @Roles(Role.Admin)
   @Permissions({
     path: '/permissions/user/:userId',
     method: HTTPMethod.POST,
@@ -104,7 +104,7 @@ export class PermissionController {
   }
 
   @Delete('user/:userId')
-  @Roles(Role.Admin)
+  //  @Roles(Role.Admin)
   @Permissions({
     path: '/permissions/user/:userId',
     method: HTTPMethod.DELETE,

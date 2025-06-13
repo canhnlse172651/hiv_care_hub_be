@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { PrismaService } from '../shared/services/prisma.service'
 import { BlogResponseType, CreateBlogDtoType, UpdateBlogDtoType } from '../routes/blog/blog.dto'
+import { slugify } from 'src/shared/utils/slugify.utils'
 
 @Injectable()
 export class BlogRepository {
@@ -11,16 +12,6 @@ export class BlogRepository {
   }
 
   async createBlog(data: CreateBlogDtoType): Promise<BlogResponseType> {
-    // Hàm tạo slug từ title
-    function slugify(str: string): string {
-      return str
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/\p{Diacritic}/gu, '')
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)+/g, '')
-    }
-
     const slug = slugify(data.title)
     const blog = await this.prisma.blogPost.create({
       data: {
@@ -119,9 +110,13 @@ export class BlogRepository {
   }
 
   async updateBlog(id: number, data: UpdateBlogDtoType): Promise<BlogResponseType> {
+    const updateData = {
+      ...data,
+      ...(data.title && { slug: slugify(data.title) }),
+    }
     const updated = await this.prisma.blogPost.update({
       where: { id },
-      data,
+      data: updateData,
       include: {
         author: {
           select: {

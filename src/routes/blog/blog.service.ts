@@ -84,17 +84,20 @@ export class BlogService {
   }
 
   async updateBlog(id: number, updateBlogDto: UpdateBlogDtoType): Promise<BlogResponseType> {
-    await this.findBlogById(id)
+    const blog = await this.findBlogById(id)
+    if (!blog) throw new NotFoundException('Blog not found')
     return await this.blogRepository.updateBlog(id, updateBlogDto)
   }
 
   async removeBlog(id: number): Promise<BlogResponseType> {
-    await this.findBlogById(id)
+    const blog = await this.findBlogById(id)
+    if (!blog) throw new NotFoundException('Blog not found')
     return await this.blogRepository.removeBlog(id)
   }
 
   async changeStatusBlog(id: number, isPublished: boolean): Promise<BlogResponseType> {
     const blog = await this.findBlogById(id)
+    if (!blog) throw new NotFoundException('Blog not found')
     return await this.blogRepository.changeStatusBlog(id, isPublished)
   }
 }

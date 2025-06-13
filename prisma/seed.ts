@@ -7,7 +7,7 @@ async function main() {
   // Create roles
   const adminRole = await prisma.role.create({
     data: {
-      name: 'ADMIN',
+      name: 'Admin',
       description: 'System administrator',
       permissions: {
         create: [
@@ -156,7 +156,7 @@ async function main() {
 
   const doctorRole = await prisma.role.create({
     data: {
-      name: 'DOCTOR',
+      name: 'Doctor',
       description: 'Medical doctor',
       permissions: {
         create: [
@@ -209,7 +209,7 @@ async function main() {
 
   const patientRole = await prisma.role.create({
     data: {
-      name: 'PATIENT',
+      name: 'Patient',
       description: 'Patient',
       permissions: {
         create: [

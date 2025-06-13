@@ -7,6 +7,7 @@ export const BlogResponseSchema = {
     id: { type: 'number', example: 1 },
     title: { type: 'string', example: 'Understanding NestJS Swagger Integration' },
     content: { type: 'string', example: 'NestJS provides powerful decorators to document APIs...' },
+    imageUrl: { type: 'string', example: null },
     authorId: { type: 'number', example: 1 },
     cateId: { type: 'number', example: 1 },
     isPublished: { type: 'boolean', example: true },
@@ -32,6 +33,11 @@ export const ApiCreateBlog = () => {
             type: 'string',
             description: 'Content of the blog',
             example: 'NestJS provides powerful decorators to document APIs...',
+          },
+          imageUrl: {
+            type: 'string',
+            description: 'URL of the blog image',
+            example: null,
           },
           authorId: {
             type: 'number',
@@ -98,6 +104,11 @@ export const ApiUpdateBlog = () => {
             type: 'string',
             description: 'Updated content',
             example: 'Updated content goes here...',
+          },
+          imageUrl: {
+            type: 'string',
+            description: 'Updated blog image URL',
+            example: null,
           },
           authorId: {
             type: 'number',

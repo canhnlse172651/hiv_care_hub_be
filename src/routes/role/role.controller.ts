@@ -30,18 +30,18 @@ export class RoleController {
 
   @Get()
   @ApiGetAllRoles()
-  @Roles(Role.Admin)
+  // @Roles(Role.Admin)
   @Permissions({
     path: '/roles',
     method: HTTPMethod.GET,
   })
   async getAllRoles(@Query() query: unknown) {
-    return this.roleService.getAllRoles(query);
+    return this.roleService.findAllRoles(query);
   }
 
   @Get(':id')
   @ApiGetRoleById()
-  @Roles(Role.Admin)
+  // @Roles(Role.Admin)
   @Permissions({
     path: '/roles/:id',
     method: HTTPMethod.GET,
@@ -52,7 +52,7 @@ export class RoleController {
 
   @Post()
   @ApiCreateRole()
-  @Roles(Role.Admin)
+  // @Roles(Role.Admin)
   @Permissions({
     path: '/roles',
     method: HTTPMethod.POST,
@@ -64,7 +64,7 @@ export class RoleController {
 
   @Put(':id')
   @ApiUpdateRole()
-  @Roles(Role.Admin)
+  // @Roles(Role.Admin)
   @Permissions({
     path: '/roles/:id',
     method: HTTPMethod.PUT,
@@ -76,7 +76,7 @@ export class RoleController {
 
   @Delete(':id')
   @ApiDeleteRole()
-  @Roles(Role.Admin)
+  // @Roles(Role.Admin)
   @Permissions({
     path: '/roles/:id',
     method: HTTPMethod.DELETE,
@@ -87,7 +87,7 @@ export class RoleController {
 
   @Get('user/:userId')
   @ApiGetUserRoles()
-  @Roles(Role.Admin)
+  // @Roles(Role.Admin)
   @Permissions({
     path: '/roles/user/:userId',
     method: HTTPMethod.GET,
@@ -98,7 +98,7 @@ export class RoleController {
 
   @Put('user/:userId/roles')
   @ApiUpdateUserRole()
-  @Roles(Role.Admin)
+  // @Roles(Role.Admin)
   @Permissions({
     path: '/roles/user/:userId',
     method: HTTPMethod.PUT,
