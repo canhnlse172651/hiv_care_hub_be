@@ -68,11 +68,8 @@ export type UpdateRoleType = z.infer<typeof UpdateRoleSchema>
 // Query Role Schema
 export const QueryRoleSchema = z.object({
   search: z.string().optional(),
-  searchFields: z
-    .array(z.enum(['name', 'description']))
-    .optional()
-    .default(['name', 'description']),
-  // Thêm các trường tìm kiếm khác nếu cần
+  sortBy: z.string().optional(),
+  sortOrder: z.enum(['asc', 'desc']).optional(),
 })
 
 export type QueryRoleType = z.infer<typeof QueryRoleSchema>

@@ -33,3 +33,5 @@ export class UpdateUserPermissionsDto extends createZodDto(UpdateUserPermissions
     return UpdateUserPermissionsSchema.parse(data);
   }
 } 
+
+

@@ -1,11 +1,12 @@
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common'
+import { Injectable, ConflictException, NotFoundException, InternalServerErrorException } from '@nestjs/common'
 import { RoleRepository } from '../../repositories/role.repository'
 import { PermissionRepository } from '../../repositories/permission.repository'
-import { CreateRoleType, UpdateRoleType, RoleResType, QueryRoleType, UpdateUserRolesType, UpdateUserRoleType } from './role.model'
+import { CreateRoleType, UpdateRoleType, RoleResType, QueryRoleType, UpdateUserRolesType, UpdateUserRoleType, QueryRoleSchema } from './role.model'
 import { AuthRepository } from 'src/repositories/user.repository'
 import { PaginationService } from '../../shared/services/pagination.service'
 import { createPaginationSchema, PaginatedResponse } from '../../shared/schemas/pagination.schema'
 import { z } from 'zod'
+import { Role, Permission } from '@prisma/client'
 
 @Injectable()
 export class RolesService {
@@ -81,36 +82,38 @@ export class RolesService {
     }
   }
 
-  async getAllRoles(query: unknown): Promise<PaginatedResponse<RoleResType>> {
-    // Parse pagination options
-    const paginationOptions = createPaginationSchema(z.any()).parse(query);
-    
-    // Build where condition for search
-    const where: any = {
-      deletedAt: null
-    };
+  async findAllRoles(query: unknown): Promise<PaginatedResponse<RoleResType>> {
+    try {
+      // Parse pagination options
+      const paginationOptions = createPaginationSchema(QueryRoleSchema).parse(query);
+      
+      // Build where condition for search
+      const where: any = {};
 
-    // Add search conditions if search term is provided
-    if (paginationOptions.search) {
-      const searchConditions = paginationOptions.searchFields.map(field => ({
-        [field]: {
-          contains: paginationOptions.search,
-          mode: 'insensitive'
-        }
-      }));
-
-      where.OR = searchConditions;
-    }
-
-    // Get paginated data using Prisma model
-    return this.paginationService.paginate(
-      this.roleRepository.getRoleModel(),
-      paginationOptions,
-      where,
-      {
-        permissions: true
+      // Add search conditions if search term is provided
+      if (paginationOptions.search) {
+        where.OR = paginationOptions.searchFields.map(field => ({
+          [field]: {
+            contains: paginationOptions.search,
+            mode: 'insensitive'
+          }
+        }));
       }
-    );
+
+      // Get paginated data using Prisma model
+      const result = await this.paginationService.paginate(
+        this.roleRepository.getRoleModel(),
+        paginationOptions,
+        where,
+        {
+          permissions: true
+        }
+      ) as PaginatedResponse<RoleResType>;
+
+      return result;
+    } catch (error) {
+      throw new InternalServerErrorException('Error finding roles: ' + error.message);
+    }
   }
 
   async getClientRoleId(): Promise<number> {

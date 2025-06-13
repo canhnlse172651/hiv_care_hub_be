@@ -10,9 +10,9 @@ import { PermissionModule } from './routes/permission/permission.module'
 import { UserModule } from './routes/user/user.module'
 import { ZodSerializerInterceptor } from 'nestjs-zod'
 import CustomZodValidationPipe from './common/custom-zod-validate'
-
+import { DoctorModule } from './routes/doctor/doctor.module'
 @Module({
-  imports: [SharedModule, AuthModule, RoleModule, PermissionModule, UserModule],
+  imports: [SharedModule, AuthModule, RoleModule, PermissionModule, UserModule, DoctorModule],
   controllers: [AppController],
   providers: [
     AppService,
