@@ -66,36 +66,20 @@ export class PaginationService {
       // Get paginated data
       const data = await model.findMany({
         where,
-      
+        include,
         skip,
         take: limit,
-        orderBy,
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          phoneNumber: true,
-          roleId: true,
-          status: true,
-          avatar: true,
-          totpSecret: true,
-          createdById: true,
-          updatedById: true,
-          deletedAt: true,
-          createdAt: true,
-          updatedAt: true,
-          role: true,
-        },
+        orderBy
       });
       console.log('PaginationService - Retrieved data length:', data.length);
 
-      const result = {
+      return {
         data,
         meta: this.calculateMeta(total, page, limit),
       };
-      console.log('PaginationService - Final result meta:', result.meta);
+     
 
-      return result;
+     
     } catch (error) {
       console.error('PaginationService - Error in paginate:', error);
       throw error;

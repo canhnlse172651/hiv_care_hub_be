@@ -153,21 +153,7 @@ export const ApiGetAllRoles = () => {
         minLength: 1
       }
     }),
-    ApiQuery({ 
-      name: 'searchFields', 
-      required: false, 
-      type: [String], 
-      description: 'Fields to search in (default: ["name", "description"])',
-      example: ['name'],
-      schema: {
-        type: 'array',
-        items: {
-          type: 'string',
-          enum: ['name', 'description']
-        },
-        default: ['name', 'description']
-      }
-    }),
+   
     // Response documentation
     ApiResponse({
       status: 200,
