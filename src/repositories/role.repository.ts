@@ -15,19 +15,19 @@ export class RoleRepository {
   async createRole(data: CreateRoleType): Promise<RoleResType> {
     try {
       return await this.prismaService.role.create({
-        data: {
-          name: data.name,
-          description: data.description,
-          permissions: {
-            connect: data.permissions.map(id => ({ id }))
-          },
+      data: {
+        name: data.name,
+        description: data.description,
+        permissions: {
+          connect: data.permissions.map(id => ({ id }))
+        },
           createdById: data.createdById,
           isActive: data.isActive ?? true
-        },
-        include: {
-          permissions: true
-        }
-      })
+      },
+      include: {
+        permissions: true
+      }
+    })
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
         if (error.code === 'P2002') {
@@ -67,20 +67,20 @@ export class RoleRepository {
   async updateRole(id: number, data: UpdateRoleType): Promise<RoleResType> {
     try {
       return await this.prismaService.role.update({
-        where: { id },
-        data: {
-          name: data.name,
-          description: data.description,
-          permissions: data.permissions ? {
-            set: data.permissions.map(id => ({ id }))
-          } : undefined,
+      where: { id },
+      data: {
+        name: data.name,
+        description: data.description,
+        permissions: data.permissions ? {
+          set: data.permissions.map(id => ({ id }))
+        } : undefined,
           updatedById: data.updatedById,
           isActive: data.isActive
-        },
-        include: {
-          permissions: true
-        }
-      })
+      },
+      include: {
+        permissions: true
+      }
+    })
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
         if (error.code === 'P2002') {

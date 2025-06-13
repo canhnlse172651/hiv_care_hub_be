@@ -1,525 +1,355 @@
-import { PrismaClient, HTTPMethod, Role, Permission, UserRole, UserStatus, ServiceType, AppointmentType, AppointmentStatus, ReminderType, TestType, MedicationSchedule } from '@prisma/client'
-import { Role as RoleName } from '../src/shared/constants/role.constant'
-import { HashingService } from '../src/shared/services/hashing.service'
+import { PrismaClient, UserStatus, DayOfWeek, Shift, Role, HTTPMethod } from '@prisma/client'
+import * as bcrypt from 'bcrypt'
 
 const prisma = new PrismaClient()
-const hashingService = new HashingService()
 
 async function main() {
   // Create roles
-  const roles = [
-    { 
-      name: RoleName.Admin,
-      description: 'System administrator with full access'
+  const adminRole = await prisma.role.create({
+    data: {
+      name: 'Admin',
+      description: 'System administrator',
+      permissions: {
+        create: [
+          {
+            name: 'manage_users',
+            description: 'Can manage users',
+            path: '/api/users',
+            method: HTTPMethod.GET,
+          },
+          {
+            name: 'manage_users_create',
+            description: 'Can create users',
+            path: '/api/users',
+            method: HTTPMethod.POST,
+          },
+          {
+            name: 'manage_users_update',
+            description: 'Can update users',
+            path: '/api/users',
+            method: HTTPMethod.PUT,
+          },
+          {
+            name: 'manage_users_delete',
+            description: 'Can delete users',
+            path: '/api/users',
+            method: HTTPMethod.DELETE,
+          },
+          {
+            name: 'manage_roles',
+            description: 'Can manage roles',
+            path: '/api/roles',
+            method: HTTPMethod.GET,
+          },
+          {
+            name: 'manage_roles_create',
+            description: 'Can create roles',
+            path: '/api/roles',
+            method: HTTPMethod.POST,
+          },
+          {
+            name: 'manage_roles_update',
+            description: 'Can update roles',
+            path: '/api/roles',
+            method: HTTPMethod.PUT,
+          },
+          {
+            name: 'manage_roles_delete',
+            description: 'Can delete roles',
+            path: '/api/roles',
+            method: HTTPMethod.DELETE,
+          },
+          {
+            name: 'manage_doctors',
+            description: 'Can manage doctors',
+            path: '/api/doctors',
+            method: HTTPMethod.GET,
+          },
+          {
+            name: 'manage_doctors_create',
+            description: 'Can create doctors',
+            path: '/api/doctors',
+            method: HTTPMethod.POST,
+          },
+          {
+            name: 'manage_doctors_update',
+            description: 'Can update doctors',
+            path: '/api/doctors',
+            method: HTTPMethod.PUT,
+          },
+          {
+            name: 'manage_doctors_delete',
+            description: 'Can delete doctors',
+            path: '/api/doctors',
+            method: HTTPMethod.DELETE,
+          },
+          {
+            name: 'manage_schedules',
+            description: 'Can manage schedules',
+            path: '/api/schedules',
+            method: HTTPMethod.GET,
+          },
+          {
+            name: 'manage_schedules_create',
+            description: 'Can create schedules',
+            path: '/api/schedules',
+            method: HTTPMethod.POST,
+          },
+          {
+            name: 'manage_schedules_update',
+            description: 'Can update schedules',
+            path: '/api/schedules',
+            method: HTTPMethod.PUT,
+          },
+          {
+            name: 'manage_schedules_delete',
+            description: 'Can delete schedules',
+            path: '/api/schedules',
+            method: HTTPMethod.DELETE,
+          },
+          {
+            name: 'view_reports',
+            description: 'Can view reports',
+            path: '/api/reports',
+            method: HTTPMethod.GET,
+          },
+          {
+            name: 'generate_schedules',
+            description: 'Can generate automatic schedules',
+            path: '/api/doctors/schedule/generate',
+            method: HTTPMethod.POST,
+          },
+          {
+            name: 'approve_time_off',
+            description: 'Can approve time off requests',
+            path: '/api/doctors/time-off',
+            method: HTTPMethod.PUT,
+          },
+          {
+            name: 'manage_specializations',
+            description: 'Can manage specializations',
+            path: '/api/specializations',
+            method: HTTPMethod.GET,
+          },
+          {
+            name: 'manage_specializations_create',
+            description: 'Can create specializations',
+            path: '/api/specializations',
+            method: HTTPMethod.POST,
+          },
+          {
+            name: 'manage_specializations_update',
+            description: 'Can update specializations',
+            path: '/api/specializations',
+            method: HTTPMethod.PUT,
+          },
+          {
+            name: 'manage_specializations_delete',
+            description: 'Can delete specializations',
+            path: '/api/specializations',
+            method: HTTPMethod.DELETE,
+          },
+        ],
+      },
     },
-    { 
-      name: RoleName.Doctor,
-      description: 'Medical doctor with access to patient records'
-    },
-    { 
-      name: RoleName.Staff,
-      description: 'Staff with access to patient care records'
-    },
-    { 
-      name: RoleName.Patient,
-      description: 'Patient with access to their own records'
-    },
-  ]
-
-  // Create roles first
-  const createdRoles: Role[] = []
-  for (const role of roles) {
-    const existingRole = await prisma.role.findFirst({
-      where: { name: role.name }
-    })
-
-    if (existingRole) {
-      const updatedRole = await prisma.role.update({
-        where: { id: existingRole.id },
-        data: role
-      })
-      createdRoles.push(updatedRole)
-    } else {
-      const newRole = await prisma.role.create({
-        data: role
-      })
-      createdRoles.push(newRole)
-    }
-  }
-
-  // Create permissions
-  const permissions = [
-    // Auth permissions
-    {
-      name: 'Login',
-      description: 'Allow user to login',
-      path: '/auth/login',
-      method: HTTPMethod.POST
-    },
-    {
-      name: 'Register',
-      description: 'Allow user to register',
-      path: '/auth/register',
-      method: HTTPMethod.POST
-    },
-    {
-      name: 'Refresh Token',
-      description: 'Allow user to refresh token',
-      path: '/auth/refresh-token',
-      method: HTTPMethod.POST
-    },
-    {
-      name: 'Logout',
-      description: 'Allow user to logout',
-      path: '/auth/logout',
-      method: HTTPMethod.POST
-    },
-
-    // Role permissions
-    {
-      name: 'Get All Roles',
-      description: 'Allow user to get all roles',
-      path: '/roles',
-      method: HTTPMethod.GET
-    },
-    {
-      name: 'Get Role By Id',
-      description: 'Allow user to get role by id',
-      path: '/roles/:id',
-      method: HTTPMethod.GET
-    },
-    {
-      name: 'Create Role',
-      description: 'Allow user to create role',
-      path: '/roles',
-      method: HTTPMethod.POST
-    },
-    {
-      name: 'Update Role',
-      description: 'Allow user to update role',
-      path: '/roles/:id',
-      method: HTTPMethod.PUT
-    },
-    {
-      name: 'Delete Role',
-      description: 'Allow user to delete role',
-      path: '/roles/:id',
-      method: HTTPMethod.DELETE
-    },
-
-    // Permission permissions
-    {
-      name: 'Get All Permissions',
-      description: 'Allow user to get all permissions',
-      path: '/permissions',
-      method: HTTPMethod.GET
-    },
-    {
-      name: 'Get Permission By Id',
-      description: 'Allow user to get permission by id',
-      path: '/permissions/:id',
-      method: HTTPMethod.GET
-    },
-    {
-      name: 'Create Permission',
-      description: 'Allow user to create permission',
-      path: '/permissions',
-      method: HTTPMethod.POST
-    },
-    {
-      name: 'Update Permission',
-      description: 'Allow user to update permission',
-      path: '/permissions/:id',
-      method: HTTPMethod.PUT
-    },
-    {
-      name: 'Delete Permission',
-      description: 'Allow user to delete permission',
-      path: '/permissions/:id',
-      method: HTTPMethod.DELETE
-    },
-
-    // User permissions
-    {
-      name: 'Get All Users',
-      description: 'Allow user to get all users',
-      path: '/users',
-      method: HTTPMethod.GET
-    },
-    {
-      name: 'Get User By Id',
-      description: 'Allow user to get user by id',
-      path: '/users/:id',
-      method: HTTPMethod.GET
-    },
-    {
-      name: 'Create User',
-      description: 'Allow user to create user',
-      path: '/users',
-      method: HTTPMethod.POST
-    },
-    {
-      name: 'Update User',
-      description: 'Allow user to update user',
-      path: '/users/:id',
-      method: HTTPMethod.PUT
-    },
-    {
-      name: 'Delete User',
-      description: 'Allow user to delete user',
-      path: '/users/:id',
-      method: HTTPMethod.DELETE
-    }
-  ]
-
-  // Create permissions
-  const createdPermissions: Permission[] = []
-  for (const permission of permissions) {
-    const existingPermission = await prisma.permission.findFirst({
-      where: {
-        path: permission.path,
-        method: permission.method
-      }
-    })
-
-    if (existingPermission) {
-      const updatedPermission = await prisma.permission.update({
-        where: { id: existingPermission.id },
-        data: permission
-      })
-      createdPermissions.push(updatedPermission)
-    } else {
-      const newPermission = await prisma.permission.create({
-        data: permission
-      })
-      createdPermissions.push(newPermission)
-    }
-  }
-
-  // Assign permissions to roles
-  const adminRole = createdRoles.find(role => role.name === RoleName.Admin)
-  const doctorRole = createdRoles.find(role => role.name === RoleName.Doctor)
-  const staffRole = createdRoles.find(role => role.name === RoleName.Staff)
-  const patientRole = createdRoles.find(role => role.name === RoleName.Patient)
-
-  if (adminRole) {
-    // Admin gets all permissions
-    await prisma.role.update({
-      where: { id: adminRole.id },
-      data: {
-        permissions: {
-          connect: createdPermissions.map(p => ({ id: p.id }))
-        }
-      }
-    })
-  }
-
-  if (doctorRole) {
-    // Doctor gets auth permissions and some role/permission read permissions
-    const doctorPermissions = createdPermissions.filter(p => 
-      p.path.startsWith('/auth/') ||
-      (p.path.startsWith('/roles') && p.method === HTTPMethod.GET) ||
-      (p.path.startsWith('/permissions') && p.method === HTTPMethod.GET)
-    )
-    await prisma.role.update({
-      where: { id: doctorRole.id },
-      data: {
-        permissions: {
-          connect: doctorPermissions.map(p => ({ id: p.id }))
-        }
-      }
-    })
-  }
-
-  if (staffRole) {
-    // Staff gets auth permissions and some role/permission read permissions
-    const staffPermissions = createdPermissions.filter(p => 
-      p.path.startsWith('/auth/') ||
-      (p.path.startsWith('/roles') && p.method === HTTPMethod.GET) ||
-      (p.path.startsWith('/permissions') && p.method === HTTPMethod.GET)
-    )
-    await prisma.role.update({
-      where: { id: staffRole.id },
-      data: {
-        permissions: {
-          connect: staffPermissions.map(p => ({ id: p.id }))
-        }
-      }
-    })
-  }
-
-  if (patientRole) {
-    // Patient only gets auth permissions
-    const patientPermissions = createdPermissions.filter(p => 
-      p.path.startsWith('/auth/')
-    )
-    await prisma.role.update({
-      where: { id: patientRole.id },
-      data: {
-        permissions: {
-          connect: patientPermissions.map(p => ({ id: p.id }))
-        }
-      }
-    })
-  }
-
-  // Create users
-  const users = [
-    {
-      email: 'admin@example.com',
-      password: 'Admin@123',
-      name: 'Admin User',
-      phoneNumber: '0123456789',
-      roleId: adminRole?.id,
-      status: UserStatus.ACTIVE,
-      avatar: null,
-      totpSecret: null
-    },
-    {
-      email: 'doctor@example.com',
-      password: 'Doctor@123',
-      name: 'Doctor User',
-      phoneNumber: '0123456789',
-      roleId: doctorRole?.id,
-      status: UserStatus.ACTIVE,
-      avatar: null,
-      totpSecret: null
-    },
-    {
-      email: 'staff@example.com',
-      password: 'Staff@123',
-      name: 'Staff User',
-      phoneNumber: '0123456789',
-      roleId: staffRole?.id,
-      status: UserStatus.ACTIVE,
-      avatar: null,
-      totpSecret: null
-    },
-    {
-      email: 'patient@example.com',
-      password: 'Patient@123',
-      name: 'Patient User',
-      phoneNumber: '0123456789',
-      roleId: patientRole?.id,
-      status: UserStatus.ACTIVE,
-      avatar: null,
-      totpSecret: null
-    }
-  ]
-
-  // Create users and their related data
-  for (const user of users) {
-    if (!user.roleId) {
-      console.error(`Role not found for user ${user.email}`)
-      continue
-    }
-
-    const existingUser = await prisma.user.findFirst({
-      where: { email: user.email }
-    })
-
-    const { roleId, ...userData } = user
-
-    if (existingUser) {
-      await prisma.user.update({
-        where: { id: existingUser.id },
-        data: {
-          ...userData,
-          password: await hashingService.hash(user.password),
-          role: {
-            connect: { id: roleId }
-          }
-        }
-      })
-    } else {
-      const newUser = await prisma.user.create({
-        data: {
-          ...userData,
-          password: await hashingService.hash(user.password),
-          role: {
-            connect: { id: roleId }
-          }
-        }
-      })
-
-      // Create doctor profile if user is a doctor
-      if (user.email === 'doctor@example.com') {
-        await prisma.doctor.create({
-          data: {
-            userId: newUser.id,
-            specialization: 'HIV Specialist',
-            certifications: ['MD', 'HIV Specialist Certification'],
-            workingHours: {
-              monday: { start: '08:00', end: '17:00' },
-              tuesday: { start: '08:00', end: '17:00' },
-              wednesday: { start: '08:00', end: '17:00' },
-              thursday: { start: '08:00', end: '17:00' },
-              friday: { start: '08:00', end: '17:00' }
-            },
-            isAvailable: true
-          }
-        })
-      }
-    }
-  }
-
-  // Create services
-  const services = [
-    {
-      name: 'HIV Test',
-      price: 50.00,
-      type: ServiceType.TEST,
-      description: 'HIV antibody test',
-      startTime: new Date('2024-01-01T08:00:00Z'),
-      endTime: new Date('2024-12-31T17:00:00Z'),
-      imageUrl: 'https://example.com/hiv-test.jpg',
-      content: 'Standard HIV antibody test with results in 20 minutes'
-    },
-    {
-      name: 'CD4 Count Test',
-      price: 100.00,
-      type: ServiceType.TEST,
-      description: 'CD4 cell count test',
-      startTime: new Date('2024-01-01T08:00:00Z'),
-      endTime: new Date('2024-12-31T17:00:00Z'),
-      imageUrl: 'https://example.com/cd4-test.jpg',
-      content: 'CD4 cell count test to monitor immune system health'
-    },
-    {
-      name: 'HIV Consultation',
-      price: 75.00,
-      type: ServiceType.CONSULT,
-      description: 'Initial HIV consultation',
-      startTime: new Date('2024-01-01T08:00:00Z'),
-      endTime: new Date('2024-12-31T17:00:00Z'),
-      imageUrl: 'https://example.com/consultation.jpg',
-      content: 'Initial consultation with HIV specialist'
-    }
-  ]
-
-  for (const service of services) {
-    const existingService = await prisma.service.findFirst({
-      where: { name: service.name }
-    })
-
-    if (existingService) {
-      await prisma.service.update({
-        where: { id: existingService.id },
-        data: service
-      })
-    } else {
-      await prisma.service.create({
-        data: service
-      })
-    }
-  }
-
-  // Create medicines
-  const medicines = [
-    {
-      name: 'Tenofovir',
-      description: 'Antiretroviral medication',
-      unit: 'tablet',
-      dose: '300mg',
-      price: 25.00
-    },
-    {
-      name: 'Emtricitabine',
-      description: 'Antiretroviral medication',
-      unit: 'tablet',
-      dose: '200mg',
-      price: 20.00
-    },
-    {
-      name: 'Dolutegravir',
-      description: 'Antiretroviral medication',
-      unit: 'tablet',
-      dose: '50mg',
-      price: 30.00
-    }
-  ]
-
-  for (const medicine of medicines) {
-    const existingMedicine = await prisma.medicine.findFirst({
-      where: { name: medicine.name }
-    })
-
-    if (existingMedicine) {
-      await prisma.medicine.update({
-        where: { id: existingMedicine.id },
-        data: medicine
-      })
-    } else {
-      await prisma.medicine.create({
-        data: medicine
-      })
-    }
-  }
-
-  // Create treatment protocols
-  const doctor = await prisma.user.findFirst({
-    where: { email: 'doctor@example.com' }
   })
 
-  if (doctor) {
-    const protocols = [
-      {
-        name: 'First-line ART',
-        description: 'Standard first-line antiretroviral therapy',
-        targetDisease: 'HIV',
-        createdById: doctor.id,
-        updatedById: doctor.id,
-        medicines: [
+  const doctorRole = await prisma.role.create({
+    data: {
+      name: 'Doctor',
+      description: 'Medical doctor',
+      permissions: {
+        create: [
           {
-            medicineId: 1, // Tenofovir
-            dosage: '1 tablet',
-            duration: MedicationSchedule.MORNING
+            name: 'view_schedule',
+            description: 'Can view own schedule',
+            path: '/api/doctors/schedule',
+            method: HTTPMethod.GET,
           },
           {
-            medicineId: 2, // Emtricitabine
-            dosage: '1 tablet',
-            duration: MedicationSchedule.MORNING
+            name: 'request_time_off',
+            description: 'Can request time off',
+            path: '/api/doctors/time-off',
+            method: HTTPMethod.POST,
           },
           {
-            medicineId: 3, // Dolutegravir
-            dosage: '1 tablet',
-            duration: MedicationSchedule.MORNING
-          }
-        ]
-      }
-    ]
+            name: 'view_patients',
+            description: 'Can view patients',
+            path: '/api/patients',
+            method: HTTPMethod.GET,
+          },
+          {
+            name: 'manage_patients',
+            description: 'Can manage patients',
+            path: '/api/patients',
+            method: HTTPMethod.GET,
+          },
+          {
+            name: 'manage_patients_create',
+            description: 'Can create patients',
+            path: '/api/patients',
+            method: HTTPMethod.POST,
+          },
+          {
+            name: 'manage_patients_update',
+            description: 'Can update patients',
+            path: '/api/patients',
+            method: HTTPMethod.PUT,
+          },
+          {
+            name: 'manage_patients_delete',
+            description: 'Can delete patients',
+            path: '/api/patients',
+            method: HTTPMethod.DELETE,
+          },
+        ],
+      },
+    },
+  })
 
-    for (const protocol of protocols) {
-      const { medicines, ...protocolData } = protocol
-      const existingProtocol = await prisma.treatmentProtocol.findFirst({
-        where: { name: protocol.name }
-      })
+  const patientRole = await prisma.role.create({
+    data: {
+      name: 'Patient',
+      description: 'Patient',
+      permissions: {
+        create: [
+          {
+            name: 'view_doctors',
+            description: 'Can view doctors',
+            path: '/api/doctors',
+            method: HTTPMethod.GET,
+          },
+          {
+            name: 'book_appointment',
+            description: 'Can book appointments',
+            path: '/api/appointments',
+            method: HTTPMethod.POST,
+          },
+          {
+            name: 'view_own_records',
+            description: 'Can view own medical records',
+            path: '/api/patients/records',
+            method: HTTPMethod.GET,
+          },
+        ],
+      },
+    },
+  })
 
-      if (existingProtocol) {
-        await prisma.treatmentProtocol.update({
-          where: { id: existingProtocol.id },
-          data: protocolData
-        })
-      } else {
-        const newProtocol = await prisma.treatmentProtocol.create({
-          data: protocolData
-        })
+  // Create admin user
+  const adminUser = await prisma.user.create({
+    data: {
+      email: 'admin@example.com',
+      password: await bcrypt.hash('admin123', 10),
+      name: 'Admin User',
+      phoneNumber: '1234567890',
+      roleId: adminRole.id,
+      status: 'ACTIVE',
+    },
+  })
 
-        // Create protocol medicines
-        for (const medicine of medicines) {
-          await prisma.protocolMedicine.create({
-            data: {
-              ...medicine,
-              protocolId: newProtocol.id
-            }
-          })
-        }
-      }
-    }
-  }
+  // Create doctor users
+  const doctorUsers = await Promise.all([
+    prisma.user.create({
+      data: {
+        email: 'doctor1@example.com',
+        password: await bcrypt.hash('doctor123', 10),
+        name: 'Dr. John Smith',
+        phoneNumber: '1234567891',
+        roleId: doctorRole.id,
+        status: 'ACTIVE',
+      },
+    }),
+    prisma.user.create({
+      data: {
+        email: 'doctor2@example.com',
+        password: await bcrypt.hash('doctor123', 10),
+        name: 'Dr. Sarah Johnson',
+        phoneNumber: '1234567892',
+        roleId: doctorRole.id,
+        status: 'ACTIVE',
+      },
+    }),
+    prisma.user.create({
+      data: {
+        email: 'doctor3@example.com',
+        password: await bcrypt.hash('doctor123', 10),
+        name: 'Dr. Michael Brown',
+        phoneNumber: '1234567893',
+        roleId: doctorRole.id,
+        status: 'ACTIVE',
+      },
+    }),
+    prisma.user.create({
+      data: {
+        email: 'doctor4@example.com',
+        password: await bcrypt.hash('doctor123', 10),
+        name: 'Dr. Emily Davis',
+        phoneNumber: '1234567894',
+        roleId: doctorRole.id,
+        status: 'ACTIVE',
+      },
+    }),
+    prisma.user.create({
+      data: {
+        email: 'doctor5@example.com',
+        password: await bcrypt.hash('doctor123', 10),
+        name: 'Dr. Robert Wilson',
+        phoneNumber: '1234567895',
+        roleId: doctorRole.id,
+        status: 'ACTIVE',
+      },
+    }),
+  ])
+
+  // Create doctors with different specializations and maxShiftsPerDay
+  const doctors = await Promise.all([
+    prisma.doctor.create({
+      data: {
+        userId: doctorUsers[0].id,
+        specialization: 'General Medicine',
+        certifications: ['MD', 'Board Certified'],
+       
+      },
+    }),
+    prisma.doctor.create({
+      data: {
+        userId: doctorUsers[1].id,
+        specialization: 'Pediatrics',
+        certifications: ['MD', 'Pediatric Board Certified'],
+       
+      },
+    }),
+    prisma.doctor.create({
+      data: {
+        userId: doctorUsers[2].id,
+        specialization: 'Internal Medicine',
+        certifications: ['MD', 'Internal Medicine Board Certified'],
+        
+      },
+    }),
+    prisma.doctor.create({
+      data: {
+        userId: doctorUsers[3].id,
+        specialization: 'Family Medicine',
+        certifications: ['MD', 'Family Medicine Board Certified'],
+       
+      },
+    }),
+    prisma.doctor.create({
+      data: {
+        userId: doctorUsers[4].id,
+        specialization: 'Emergency Medicine',
+        certifications: ['MD', 'Emergency Medicine Board Certified'],
+       
+      },
+    }),
+  ])
 
   console.log('Seed data created successfully')
 }
+
+
 
 main()
   .catch((e) => {
@@ -528,4 +358,4 @@ main()
   })
   .finally(async () => {
     await prisma.$disconnect()
-  }) 
+  })
