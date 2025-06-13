@@ -20,20 +20,14 @@ import { BlogModule } from './routes/blog/blog.module'
 @Module({
   imports: [
     SharedModule,
-
     AuthModule,
-
     RoleModule,
-
     PermissionModule,
-
     UserModule,
-
     DoctorModule,
     MedicineModule,
     TreatmentProtocolModule,
     PatientTreatmentModule,
-    ,
     CateBlogModule,
     BlogModule,
   ],
