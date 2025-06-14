@@ -8,8 +8,9 @@ import {
   Put,
   Query,
   ParseIntPipe,
+  UseGuards,
 } from '@nestjs/common'
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger'
+import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger'
 import { DoctorService } from './doctor.service'
 import { Doctor } from '@prisma/client'
 import { Roles } from '../../shared/decorators/roles.decorator'
@@ -19,7 +20,6 @@ import {
   CreateDoctorDto,
   UpdateDoctorDto,
   QueryDoctorDto,
- 
   GetDoctorScheduleDto,
   GenerateScheduleDto,
 } from './doctor.dto'
@@ -31,10 +31,14 @@ import {
   ApiDeleteDoctor,
   ApiGetDoctorSchedule,
   ApiGenerateSchedule,
+  ApiAssignDoctorsManually,
+  ApiSwapShifts,
 } from '../../swagger/doctor.swagger'
+import { RolesGuard } from '../../shared/guards/roles.guard'
+import { ManualScheduleAssignmentType, SwapShiftsType } from './doctor.model'
 
 @ApiBearerAuth()
-@ApiTags('Doctor Management')
+@ApiTags('Doctors')
 @Controller('doctors')
 export class DoctorController {
   constructor(private readonly doctorService: DoctorService) {}
@@ -93,5 +97,19 @@ export class DoctorController {
   async generateSchedule(@Body() body: unknown) {
     const dto = GenerateScheduleDto.create(body)
     return this.doctorService.generateSchedule(dto.doctorsPerShift, new Date(dto.startDate))
+  }
+
+  @Post('schedule/manual')
+  
+  @ApiAssignDoctorsManually()
+  async assignDoctorsManually(@Body() data: ManualScheduleAssignmentType) {
+    return this.doctorService.assignDoctorsManually(data);
+  }
+
+  @Post('schedule/swap')
+  // @Roles(Role.Admin)
+  @ApiSwapShifts()
+  async swapShifts(@Body() data: SwapShiftsType) {
+    return this.doctorService.swapShifts(data);
   }
 }

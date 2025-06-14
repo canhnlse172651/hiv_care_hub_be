@@ -64,11 +64,48 @@ export const CreateScheduleSchema = z.object({
 
 // Swap Shifts Schema
 export const SwapShiftsSchema = z.object({
-  doctorId1: z.number(),
-  doctorId2: z.number(),
-  date: z.string().transform(str => new Date(str)),
-  shift: z.nativeEnum(Shift),
-});
+  doctor1: z.object({
+    id: z.number().int().positive(),
+    date: z.string().datetime(),
+    shift: z.enum(['MORNING', 'AFTERNOON']),
+  }),
+  doctor2: z.object({
+    id: z.number().int().positive(),
+    date: z.string().datetime(),
+    shift: z.enum(['MORNING', 'AFTERNOON']),
+  }),
+}).refine(
+  (data) => {
+    const date1 = new Date(data.doctor1.date);
+    const date2 = new Date(data.doctor2.date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Kiểm tra không phải ngày trong quá khứ
+    if (date1 < today || date2 < today) {
+      return false;
+    }
+
+    // Kiểm tra khoảng cách giữa 2 ngày không quá 5 ngày
+    const diffTime = Math.abs(date2.getTime() - date1.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    if (diffDays > 5) {
+      return false;
+    }
+
+    // Kiểm tra cả 2 ngày đều trong khoảng T2-T7
+    const day1 = date1.getDay();
+    const day2 = date2.getDay();
+    if (day1 === 0 || day2 === 0) { // Chủ nhật
+      return false;
+    }
+
+    return true;
+  },
+  {
+    message: 'Invalid dates: Dates must be in the future, within 5 days of each other, and between Monday and Saturday',
+  }
+);
 
 // Create Schedule Config Schema
 export const CreateScheduleConfigSchema = z.object({
@@ -158,6 +195,18 @@ export const GenerateScheduleSchema = z.object({
   }),
 })
 
+// Manual Schedule Assignment Schema
+export const ManualScheduleAssignmentSchema = z.object({
+  date: z.string().datetime({
+    message: 'Date must be a valid date',
+  }),
+  shift: z.nativeEnum(Shift),
+  doctorIds: z.array(z.number()).min(1).max(5),
+  doctorsPerShift: z.number().int().min(1, {
+    message: 'Number of doctors per shift must be at least 1',
+  }),
+});
+
 // Types
 export type DoctorType = z.infer<typeof DoctorSchema>;
 export type DoctorScheduleType = z.infer<typeof DoctorScheduleSchema>;
@@ -168,3 +217,4 @@ export type SwapShiftsType = z.infer<typeof SwapShiftsSchema>;
 export type CreateScheduleConfigType = z.infer<typeof CreateScheduleConfigSchema>;
 export type RegisterScheduleType = z.infer<typeof RegisterScheduleSchema>;
 export type GetDoctorScheduleType = z.infer<typeof GetDoctorScheduleSchema>;
+export type ManualScheduleAssignmentType = z.infer<typeof ManualScheduleAssignmentSchema>;

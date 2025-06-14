@@ -221,4 +221,6 @@ export class DoctorRepository {
   async findManySchedules(args: Prisma.DoctorScheduleFindManyArgs) {
     return this.prismaService.doctorSchedule.findMany(args)
   }
+
+  
 }
