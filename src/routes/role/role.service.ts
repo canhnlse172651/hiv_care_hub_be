@@ -117,7 +117,7 @@ export class RolesService {
   }
 
   async getClientRoleId(): Promise<number> {
-    const clientRole = await this.roleRepository.findRoleByName('CLIENT')
+    const clientRole = await this.roleRepository.findRoleByName('Patient')
     if (!clientRole) {
       throw new NotFoundException('Client role not found')
     }
