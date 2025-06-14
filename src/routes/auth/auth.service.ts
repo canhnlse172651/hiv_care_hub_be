@@ -60,7 +60,16 @@ export class AuthService {
     console.log('Access Token:', tokens.accessToken)
     console.log('Refresh Token:', tokens.refreshToken)
     console.log('=====================')
-    return tokens
+
+    return {
+      ...tokens,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role?.name || 'UNKNOWN'
+      }
+    }
   }
 
   async generateTokens(payload: { userId: number }) {

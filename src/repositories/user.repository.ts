@@ -54,6 +54,11 @@ export class AuthRepository {
         deletedAt: true,
         createdAt: true,
         updatedAt: true,
+        role: {
+          select: {
+            name: true
+          }
+        }
       },
     })
   }
