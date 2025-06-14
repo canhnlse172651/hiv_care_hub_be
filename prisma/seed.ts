@@ -7,7 +7,7 @@ async function main() {
   // Create roles
   const adminRole = await prisma.role.create({
     data: {
-      name: 'Admin',
+      name: 'ADMIN',
       description: 'System administrator',
       permissions: {
         create: [
@@ -156,7 +156,7 @@ async function main() {
 
   const doctorRole = await prisma.role.create({
     data: {
-      name: 'Doctor',
+      name: 'DOCTOR',
       description: 'Medical doctor',
       permissions: {
         create: [
@@ -207,9 +207,62 @@ async function main() {
     },
   })
 
+  const staffRole = await prisma.role.create({
+    data: {
+      name: 'STAFF',
+      description: 'Hospital staff',
+      permissions: {
+        create: [
+          {
+            name: 'view_schedules',
+            description: 'Can view all schedules',
+            path: '/api/schedules',
+            method: HTTPMethod.GET,
+          },
+          {
+            name: 'manage_appointments',
+            description: 'Can manage appointments',
+            path: '/api/appointments',
+            method: HTTPMethod.GET,
+          },
+          {
+            name: 'manage_appointments_create',
+            description: 'Can create appointments',
+            path: '/api/appointments',
+            method: HTTPMethod.POST,
+          },
+          {
+            name: 'manage_appointments_update',
+            description: 'Can update appointments',
+            path: '/api/appointments',
+            method: HTTPMethod.PUT,
+          },
+          {
+            name: 'manage_appointments_delete',
+            description: 'Can delete appointments',
+            path: '/api/appointments',
+            method: HTTPMethod.DELETE,
+          },
+          {
+            name: 'view_patients',
+            description: 'Can view patients',
+            path: '/api/patients',
+            method: HTTPMethod.GET,
+          },
+          {
+            name: 'manage_patients',
+            description: 'Can manage patients',
+            path: '/api/patients',
+            method: HTTPMethod.GET,
+          },
+        ],
+      },
+    },
+  })
+
   const patientRole = await prisma.role.create({
     data: {
-      name: 'Patient',
+      name: 'PATIENT',
       description: 'Patient',
       permissions: {
         create: [
@@ -280,29 +333,57 @@ async function main() {
         status: 'ACTIVE',
       },
     }),
+  ])
+
+  // Create staff users
+  const staffUsers = await Promise.all([
     prisma.user.create({
       data: {
-        email: 'doctor4@example.com',
-        password: await bcrypt.hash('doctor123', 10),
-        name: 'Dr. Emily Davis',
+        email: 'staff1@example.com',
+        password: await bcrypt.hash('staff123', 10),
+        name: 'Jane Wilson',
         phoneNumber: '1234567894',
-        roleId: doctorRole.id,
+        roleId: staffRole.id,
         status: 'ACTIVE',
       },
     }),
     prisma.user.create({
       data: {
-        email: 'doctor5@example.com',
-        password: await bcrypt.hash('doctor123', 10),
-        name: 'Dr. Robert Wilson',
+        email: 'staff2@example.com',
+        password: await bcrypt.hash('staff123', 10),
+        name: 'Robert Davis',
         phoneNumber: '1234567895',
-        roleId: doctorRole.id,
+        roleId: staffRole.id,
         status: 'ACTIVE',
       },
     }),
   ])
 
-  // Create doctors with different specializations and maxShiftsPerDay
+  // Create patient users
+  const patientUsers = await Promise.all([
+    prisma.user.create({
+      data: {
+        email: 'patient1@example.com',
+        password: await bcrypt.hash('patient123', 10),
+        name: 'Alice Thompson',
+        phoneNumber: '1234567896',
+        roleId: patientRole.id,
+        status: 'ACTIVE',
+      },
+    }),
+    prisma.user.create({
+      data: {
+        email: 'patient2@example.com',
+        password: await bcrypt.hash('patient123', 10),
+        name: 'Bob Anderson',
+        phoneNumber: '1234567897',
+        roleId: patientRole.id,
+        status: 'ACTIVE',
+      },
+    }),
+  ])
+
+  // Create doctors with different specializations
   const doctors = await Promise.all([
     prisma.doctor.create({
       data: {
@@ -323,20 +404,7 @@ async function main() {
         userId: doctorUsers[2].id,
         specialization: 'Internal Medicine',
         certifications: ['MD', 'Internal Medicine Board Certified'],
-      },
-    }),
-    prisma.doctor.create({
-      data: {
-        userId: doctorUsers[3].id,
-        specialization: 'Family Medicine',
-        certifications: ['MD', 'Family Medicine Board Certified'],
-      },
-    }),
-    prisma.doctor.create({
-      data: {
-        userId: doctorUsers[4].id,
-        specialization: 'Emergency Medicine',
-        certifications: ['MD', 'Emergency Medicine Board Certified'],
+
       },
     }),
   ])
