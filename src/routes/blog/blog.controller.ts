@@ -1,14 +1,22 @@
-import { Controller, Get, Post, Body, Param, Patch, Delete, ParseIntPipe } from '@nestjs/common'
+import { Controller, Get, Post, Body, Param, Patch, Delete, ParseIntPipe, Query } from '@nestjs/common'
 import { BlogService } from './blog.service'
 import { CreateBlogDto, CreateBlogDtoType, UpdateBlogDto, UpdateBlogDtoType, BlogResponseType } from './blog.dto'
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger'
 import CustomZodValidationPipe from 'src/common/custom-zod-validate'
-import { ApiCreateBlog, ApiDeleteBlog, ApiGetAllBlogs, ApiGetBlogById, ApiUpdateBlog } from 'src/swagger/blog.swagger'
+import {
+  ApiCreateBlog,
+  ApiDeleteBlog,
+  ApiGetAllBlogs,
+  ApiGetBlogById,
+  ApiSearchBlogs,
+  ApiUpdateBlog,
+} from 'src/swagger/blog.swagger'
 import { ApiChangeCateBlogStatus } from 'src/swagger/cate-blog.swagger'
 import { Auth } from 'src/shared/decorators/auth.decorator'
 import { Roles } from 'src/shared/decorators/roles.decorator'
 import { Role } from 'src/shared/constants/role.constant'
 import { AuthType } from 'src/shared/constants/auth.constant'
+import { PaginatedResponse } from 'src/shared/schemas/pagination.schema'
 
 @ApiTags('Blogs')
 @Controller('blogs')
@@ -29,8 +37,14 @@ export class BlogController {
 
   @ApiGetAllBlogs()
   @Get()
-  async findAllBlogs(): Promise<BlogResponseType[]> {
-    return this.blogService.findAllBlogs()
+  async findAllBlogs(@Query() query: unknown): Promise<PaginatedResponse<BlogResponseType>> {
+    return this.blogService.findAllBlogs(query)
+  }
+
+  @ApiSearchBlogs()
+  @Get('search')
+  async searchBlogs(@Query('q') query: string): Promise<BlogResponseType[]> {
+    return this.blogService.searchBlogs(query)
   }
 
   @ApiGetBlogById()

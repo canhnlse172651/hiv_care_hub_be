@@ -2,10 +2,16 @@ import { Injectable } from '@nestjs/common'
 import { PrismaService } from '../shared/services/prisma.service'
 import { BlogResponseType, CreateBlogDtoType, UpdateBlogDtoType } from '../routes/blog/blog.dto'
 import { slugify } from 'src/shared/utils/slugify.utils'
+import { PaginationService } from 'src/shared/services/pagination.service'
+import { createPaginationSchema, PaginatedResponse, PaginationOptions } from 'src/shared/schemas/pagination.schema'
+import { BlogFilterSchema, BlogSearchSchema } from 'src/routes/blog/blog.model'
 
 @Injectable()
 export class BlogRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly paginationService: PaginationService,
+  ) {}
 
   getBlogModel() {
     return this.prisma.blogPost
@@ -48,35 +54,61 @@ export class BlogRepository {
     } as BlogResponseType
   }
 
-  async findAllBlogs(): Promise<BlogResponseType[]> {
-    const blogs = await this.prisma.blogPost.findMany({
-      include: {
-        author: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            avatar: true,
-          },
-        },
-        category: {
-          select: {
-            id: true,
-            title: true,
-            description: true,
-          },
+  async findAllBlogs(
+    options: PaginationOptions<{ title?: string; description?: string }>,
+  ): Promise<PaginatedResponse<any>> {
+    const paginationSchema = createPaginationSchema(BlogFilterSchema)
+    const validatedOptions = paginationSchema.parse({
+      page: options.page?.toString() || '1',
+      limit: options.limit?.toString() || '10',
+      sortBy: options.sortBy,
+      sortOrder: options.sortOrder,
+      search: options.search,
+      searchFields: options.searchFields || ['title', 'description'],
+      filters: options.filters ? JSON.stringify(options.filters) : undefined,
+    })
+    const where: any = {}
+    if (validatedOptions.search) {
+      where.OR = []
+      if (validatedOptions.searchFields.includes('title')) {
+        where.OR.push({ title: { contains: validatedOptions.search, mode: 'insensitive' } })
+      }
+      if (validatedOptions.searchFields.includes('description')) {
+        where.OR.push({ description: { contains: validatedOptions.search, mode: 'insensitive' } })
+      }
+    }
+    if (validatedOptions.filters) {
+      if (validatedOptions.filters.title) {
+        where.title = { contains: validatedOptions.filters.title, mode: 'insensitive' }
+      }
+      if (validatedOptions.filters.description) {
+        where.description = { contains: validatedOptions.filters.description, mode: 'insensitive' }
+      }
+    }
+    const orderBy: any = {}
+    if (validatedOptions.sortBy && validatedOptions.sortOrder) {
+      orderBy[validatedOptions.sortBy] = validatedOptions.sortOrder
+    } else {
+      orderBy.createdAt = 'desc'
+    }
+
+    return this.paginationService.paginate(this.prisma.blogPost, validatedOptions, where, {
+      author: true,
+      category: true,
+    })
+  }
+
+  async searchBlogs(query: string): Promise<BlogResponseType[]> {
+    const validatedParams = BlogSearchSchema.parse({ query })
+    return this.prisma.blogPost.findMany({
+      where: {
+        title: {
+          contains: validatedParams.query,
+          mode: 'insensitive',
         },
       },
       orderBy: { createdAt: 'desc' },
-    })
-
-    return blogs.map((blog) => {
-      const { category, ...rest } = blog
-      return {
-        ...rest,
-        cateBlog: category,
-      } as BlogResponseType
-    })
+    }) as Promise<BlogResponseType[]>
   }
 
   async findBlogById(id: number): Promise<BlogResponseType | null> {

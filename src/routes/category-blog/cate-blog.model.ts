@@ -28,3 +28,14 @@ export const CateBlogResSchema = z.object({
   createdAt: z.date(),
   updatedAt: z.date(),
 })
+
+export const CateBlogFilterSchema = z
+  .object({
+    title: z.string().optional(),
+  })
+  .optional()
+
+export const CateBlogSearchSchema = z.object({
+  query: z.string().min(1, 'Search query is required'),
+  limit: z.number().min(1).max(100).optional().default(50),
+})
