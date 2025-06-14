@@ -17,6 +17,9 @@ export const UserSchema = z.object({
   deletedAt: z.date().nullable(),
   createdAt: z.date(),
   updatedAt: z.date(),
+  role: z.object({
+    name: z.string()
+  }).optional()
 })
 
 // Types derived from schemas
