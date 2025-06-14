@@ -404,6 +404,7 @@ async function main() {
         userId: doctorUsers[2].id,
         specialization: 'Internal Medicine',
         certifications: ['MD', 'Internal Medicine Board Certified'],
+
       },
     }),
   ])

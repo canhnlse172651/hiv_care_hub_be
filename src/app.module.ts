@@ -14,6 +14,10 @@ import { TreatmentProtocolModule } from './routes/treatment-protocol/treatment-p
 import { UserModule } from './routes/user/user.module'
 import { CatchEverythingFilter } from './shared/fillters/catch-everything.fillter'
 import { SharedModule } from './shared/shared.module'
+import { CateBlogModule } from './routes/category-blog/cate-blog.module'
+import { BlogModule } from './routes/blog/blog.module'
+import { ServiceModule } from './routes/service/service.module'
+
 @Module({
   imports: [
     SharedModule,
@@ -25,6 +29,9 @@ import { SharedModule } from './shared/shared.module'
     MedicineModule,
     TreatmentProtocolModule,
     PatientTreatmentModule,
+    CateBlogModule,
+    BlogModule,
+    ServiceModule,
   ],
   controllers: [AppController],
   providers: [
