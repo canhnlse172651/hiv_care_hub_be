@@ -1,17 +1,28 @@
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { CateBlogResponseType, CreateCateBlogDto, UpdateCateBlogDto } from './cate-blog.dto'
 import { CateBlogRepository } from 'src/repositories/cate-blog.repository'
+import { PaginatedResponse } from 'src/shared/schemas/pagination.schema'
+import { PaginationService } from 'src/shared/services/pagination.service'
 
 @Injectable()
 export class CateBlogService {
-  constructor(private readonly cateBlogRepository: CateBlogRepository) {}
+  constructor(
+    private readonly cateBlogRepository: CateBlogRepository,
+    private readonly paginationService: PaginationService,
+  ) {}
 
   async createCateBlog(data: CreateCateBlogDto): Promise<CateBlogResponseType> {
     return await this.cateBlogRepository.createCateBlog(data)
   }
 
-  async findAllCateBlogs(): Promise<CateBlogResponseType[]> {
-    return await this.cateBlogRepository.findAllCateBlogs()
+  async findAllCateBlogs(query: unknown): Promise<PaginatedResponse<CateBlogResponseType>> {
+    const options = this.paginationService.getPaginationOptions(query)
+
+    return await this.cateBlogRepository.findCateBlogsPaginated(options)
+  }
+
+  async searchCateBlogs(query: string): Promise<CateBlogResponseType[]> {
+    return await this.cateBlogRepository.searchCateBlogs(query)
   }
 
   async findCateBlogById(id: number): Promise<CateBlogResponseType> {

@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Put } from '@nestjs/common'
+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Put, Query } from '@nestjs/common'
 import { CateBlogService } from './cate-blog.service'
 import {
   CateBlogResponseType,
@@ -17,10 +17,12 @@ import {
   ApiDeleteCateBlog,
   ApiGetAllCateBlogs,
   ApiGetCateBlogById,
+  ApiSearchCateBlogs,
   ApiUpdateCateBlog,
 } from 'src/swagger/cate-blog.swagger'
 import { Roles } from 'src/shared/decorators/roles.decorator'
 import { Role } from 'src/shared/constants/role.constant'
+import { PaginatedResponse } from 'src/shared/schemas/pagination.schema'
 
 @ApiTags('Category Blogs')
 @ApiBearerAuth()
@@ -41,8 +43,14 @@ export class CateBlogController {
 
   @ApiGetAllCateBlogs()
   @Get()
-  async findAllCateBlogs(): Promise<CateBlogResponseType[]> {
-    return this.cateBlogService.findAllCateBlogs()
+  async findAllCateBlogs(@Query() query: unknown): Promise<PaginatedResponse<CateBlogResponseType>> {
+    return this.cateBlogService.findAllCateBlogs(query)
+  }
+
+  @ApiSearchCateBlogs()
+  @Get('search')
+  async searchCateBlogs(@Query('q') query: string): Promise<CateBlogResponseType[]> {
+    return this.cateBlogService.searchCateBlogs(query)
   }
 
   @ApiGetCateBlogById()

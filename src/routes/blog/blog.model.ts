@@ -58,10 +58,13 @@ export const BlogResSchema = z.object({
   updatedAt: z.date(),
 })
 
-export const QueryBlogSchema = z.object({
-  search: z.string().optional(),
-  searchFields: z
-    .array(z.enum(['title']))
-    .optional()
-    .default(['title']),
+export const BlogFilterSchema = z
+  .object({
+    title: z.string().optional(),
+  })
+  .optional()
+
+export const BlogSearchSchema = z.object({
+  query: z.string().min(1, 'Search query is required'),
+  limit: z.number().min(1).max(100).optional().default(50),
 })
