@@ -111,9 +111,9 @@ export class ServiceController {
     }
   }
 
-  @ApiGetAllServices()
-  @Get('search')
-  async searchServices(@Query() query: any): Promise<PaginatedResponse<ServiceResponseType>> {
-    return this.serviceService.searchServices(query)
-  }
+  // @ApiGetAllServices()
+  // @Get('search')
+  // async searchServices(@Query() query: any): Promise<PaginatedResponse<ServiceResponseType>> {
+  //   return this.serviceService.searchServices(query)
+  // }
 }

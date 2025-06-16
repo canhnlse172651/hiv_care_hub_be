@@ -1,4 +1,4 @@
-import { ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger'
+import { ApiOperation, ApiResponse, ApiBody, ApiQuery } from '@nestjs/swagger'
 import { applyDecorators } from '@nestjs/common'
 import { ServiceResponseSwagger, CreateServiceDto, UpdateServiceDto } from '../routes/service/service.dto'
 
@@ -54,19 +54,62 @@ export function ApiCreateService() {
 
 export function ApiGetAllServices() {
   return applyDecorators(
-    ApiOperation({ summary: 'Lấy danh sách tất cả Service (admin)' }),
-    ApiResponse({ status: 200, description: 'Danh sách Service', type: ServiceResponseSwagger, isArray: true }),
+    ApiOperation({ summary: 'Lấy danh sách tất cả Service (admin, có phân trang, filter, search)' }),
+    ApiQuery({ name: 'page', required: false, type: Number, description: 'Trang hiện tại' }),
+    ApiQuery({ name: 'limit', required: false, type: Number, description: 'Số item/trang' }),
+    ApiQuery({ name: 'search', required: false, type: String, description: 'Tìm kiếm theo tên' }),
+    ApiQuery({ name: 'type', required: false, type: String, description: 'Lọc theo loại Service' }),
+    ApiQuery({ name: 'isActive', required: false, type: Boolean, description: 'Lọc theo trạng thái hoạt động' }),
+    ApiResponse({
+      status: 200,
+      description: 'Danh sách Service (có phân trang)',
+      schema: {
+        type: 'object',
+        properties: {
+          data: { type: 'array', items: { $ref: '#/components/schemas/ServiceResponseSwagger' } },
+          meta: {
+            type: 'object',
+            properties: {
+              total: { type: 'number', example: 100 },
+              page: { type: 'number', example: 1 },
+              limit: { type: 'number', example: 10 },
+              totalPages: { type: 'number', example: 10 },
+              hasNextPage: { type: 'boolean', example: true },
+              hasPreviousPage: { type: 'boolean', example: false },
+            },
+          },
+        },
+      },
+    }),
   )
 }
 
 export function ApiGetAllActiveServices() {
   return applyDecorators(
-    ApiOperation({ summary: 'Lấy danh sách Service đang hoạt động (public)' }),
+    ApiOperation({ summary: 'Lấy danh sách Service đang hoạt động (public, có phân trang, search)' }),
+    ApiQuery({ name: 'page', required: false, type: Number, description: 'Trang hiện tại' }),
+    ApiQuery({ name: 'limit', required: false, type: Number, description: 'Số item/trang' }),
+    ApiQuery({ name: 'search', required: false, type: String, description: 'Tìm kiếm theo tên' }),
     ApiResponse({
       status: 200,
-      description: 'Danh sách Service đang hoạt động',
-      type: ServiceResponseSwagger,
-      isArray: true,
+      description: 'Danh sách Service đang hoạt động (có phân trang)',
+      schema: {
+        type: 'object',
+        properties: {
+          data: { type: 'array', items: { $ref: '#/components/schemas/ServiceResponseSwagger' } },
+          meta: {
+            type: 'object',
+            properties: {
+              total: { type: 'number', example: 100 },
+              page: { type: 'number', example: 1 },
+              limit: { type: 'number', example: 10 },
+              totalPages: { type: 'number', example: 10 },
+              hasNextPage: { type: 'boolean', example: true },
+              hasPreviousPage: { type: 'boolean', example: false },
+            },
+          },
+        },
+      },
     }),
   )
 }

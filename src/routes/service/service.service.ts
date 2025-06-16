@@ -25,6 +25,15 @@ function mapServiceToResponse(service: PrismaServiceModel): ServiceResType {
   }
 }
 
+function randomSuffix(length = 3) {
+  const chars = 'abcdefghijklmnopqrstuvwxyz'
+  let result = ''
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  return result
+}
+
 @Injectable()
 export class ServiceService {
   constructor(
@@ -34,7 +43,13 @@ export class ServiceService {
 
   async createService(data: CreateServiceReqType): Promise<ServiceResType> {
     try {
-      const slug = slugify(data.name)
+      let slug = slugify(data.name)
+      // Kiểm tra trùng slug
+      let existed = await this.serviceRepository.findActiveServiceBySlug(slug)
+      while (existed) {
+        slug = `${slugify(data.name)}-${randomSuffix()}`
+        existed = await this.serviceRepository.findActiveServiceBySlug(slug)
+      }
       const prismaData = {
         ...data,
         slug,
@@ -85,7 +100,16 @@ export class ServiceService {
       ...(data.type && Object.values(ServiceType).includes(data.type as ServiceType)
         ? { type: data.type as ServiceType }
         : {}),
-      ...(typeof data.name === 'string' && { slug: slugify(data.name) }),
+    }
+    if (typeof data.name === 'string') {
+      let slug = slugify(data.name)
+      // Kiểm tra trùng slug (bỏ qua chính mình)
+      let existedSlug = await this.serviceRepository.findActiveServiceBySlug(slug)
+      while (existedSlug && existedSlug.id !== id) {
+        slug = `${slugify(data.name)}-${randomSuffix()}`
+        existedSlug = await this.serviceRepository.findActiveServiceBySlug(slug)
+      }
+      prismaData.slug = slug
     }
     const service = await this.serviceRepository.updateService(id, prismaData)
     return mapServiceToResponse(service)
