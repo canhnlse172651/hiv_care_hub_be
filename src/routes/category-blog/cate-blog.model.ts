@@ -10,13 +10,13 @@ export const CateBlogSchema = z.object({
 })
 
 export const CreateCateBlogSchema = z.object({
-  title: z.string().min(3),
-  description: z.string().min(3),
+  title: z.string().min(3, 'Title must be at least 3 characters'),
+  description: z.string().min(3, 'Description must be at least 3 characters'),
 })
 
 export const UpdateCateBlogSchema = z.object({
-  title: z.string().min(3).optional(),
-  description: z.string().min(3).optional(),
+  title: z.string().min(3, 'Title must be at least 3 characters').optional(),
+  description: z.string().min(3, 'Description must be at least 3 characters').optional(),
   isPublished: z.boolean().optional(),
 })
 

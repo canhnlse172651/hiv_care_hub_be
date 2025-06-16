@@ -54,6 +54,12 @@ export const ApiGetAllCateBlogs = () => {
       example: 10,
     }),
     ApiQuery({
+      name: 'search',
+      required: false,
+      description: 'Search query for category blog title',
+      type: String,
+    }),
+    ApiQuery({
       name: 'sortBy',
       required: false,
       description: 'Field to sort by',
@@ -180,25 +186,25 @@ export const ApiChangeCateBlogStatus = () => {
   )
 }
 
-export const ApiSearchCateBlogs = () => {
-  return applyDecorators(
-    ApiOperation({ summary: 'Search category blogs by title' }),
-    ApiQuery({
-      name: 'q',
-      description: 'Search query for category blog title',
-      type: String,
-      required: true,
-    }),
-    ApiResponse({
-      status: 200,
-      description: 'List of category blogs matching the search query',
-      schema: {
-        type: 'array',
-        items: CateBlogResponseSchema,
-      },
-    }),
-    ApiResponse({ status: 400, description: 'Bad Request' }),
-    ApiResponse({ status: 401, description: 'Unauthorized' }),
-    ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' }),
-  )
-}
+// export const ApiSearchCateBlogs = () => {
+//   return applyDecorators(
+//     ApiOperation({ summary: 'Search category blogs by title' }),
+//     ApiQuery({
+//       name: 'q',
+//       description: 'Search query for category blog title',
+//       type: String,
+//       required: true,
+//     }),
+//     ApiResponse({
+//       status: 200,
+//       description: 'List of category blogs matching the search query',
+//       schema: {
+//         type: 'array',
+//         items: CateBlogResponseSchema,
+//       },
+//     }),
+//     ApiResponse({ status: 400, description: 'Bad Request' }),
+//     ApiResponse({ status: 401, description: 'Unauthorized' }),
+//     ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' }),
+//   )
+// }

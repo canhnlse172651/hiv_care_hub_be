@@ -77,6 +77,12 @@ export const ApiGetAllBlogs = () => {
       example: 10,
     }),
     ApiQuery({
+      name: 'search',
+      required: false,
+      description: 'Search query for blog title',
+      type: String,
+    }),
+    ApiQuery({
       name: 'sortBy',
       required: false,
       description: 'Field to sort by',
@@ -182,25 +188,42 @@ export const ApiPublishBlog = () => {
   )
 }
 
-export const ApiSearchBlogs = () => {
+export const ApiGetBlogBySlug = () => {
   return applyDecorators(
-    ApiOperation({ summary: 'Search blogs by title' }),
-    ApiQuery({
-      name: 'q',
-      description: 'Search query for blog title',
-      type: String,
-      required: true,
+    ApiOperation({ summary: 'Get blog by slug' }),
+    ApiParam({
+      name: 'slug',
+      type: 'string',
+      description: 'Blog slug',
+      example: 'understanding-nestjs-swagger-integration',
     }),
-    ApiResponse({
-      status: 200,
-      description: 'List of blogs matching the search query',
-      schema: {
-        type: 'array',
-        items: BlogResponseSchema,
-      },
-    }),
+    ApiResponse({ status: 200, description: 'Blog found', schema: BlogResponseSchema }),
     ApiResponse({ status: 400, description: 'Bad Request' }),
     ApiResponse({ status: 401, description: 'Unauthorized' }),
     ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' }),
+    ApiResponse({ status: 404, description: 'Blog not found' }),
   )
 }
+
+// export const ApiSearchBlogs = () => {
+//   return applyDecorators(
+//     ApiOperation({ summary: 'Search blogs by title' }),
+//     ApiQuery({
+//       name: 'q',
+//       description: 'Search query for blog title',
+//       type: String,
+//       required: true,
+//     }),
+//     ApiResponse({
+//       status: 200,
+//       description: 'List of blogs matching the search query',
+//       schema: {
+//         type: 'array',
+//         items: BlogResponseSchema,
+//       },
+//     }),
+//     ApiResponse({ status: 400, description: 'Bad Request' }),
+//     ApiResponse({ status: 401, description: 'Unauthorized' }),
+//     ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' }),
+//   )
+// }
