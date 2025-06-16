@@ -1,5 +1,5 @@
 import { applyDecorators } from '@nestjs/common'
-import { ApiBody, ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger'
+import { ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse } from '@nestjs/swagger'
 
 export const CateBlogResponseSchema = {
   type: 'object',
@@ -38,7 +38,33 @@ export const ApiCreateCateBlog = () => {
 
 export const ApiGetAllCateBlogs = () => {
   return applyDecorators(
-    ApiOperation({ summary: 'Get all category blogs' }),
+    ApiOperation({ summary: 'Get all category blogs', description: 'Retrieve a list of all category blogs' }),
+    ApiQuery({
+      name: 'page',
+      required: false,
+      description: 'Page number',
+      type: Number,
+      example: 1,
+    }),
+    ApiQuery({
+      name: 'limit',
+      required: false,
+      description: 'Number of items per page',
+      type: Number,
+      example: 10,
+    }),
+    ApiQuery({
+      name: 'sortBy',
+      required: false,
+      description: 'Field to sort by',
+      enum: ['title'],
+    }),
+    ApiQuery({
+      name: 'sortOrder',
+      required: false,
+      description: 'Sort order (asc or desc)',
+      enum: ['asc', 'desc'],
+    }),
     ApiResponse({
       status: 200,
       description: 'List of all category blogs',
@@ -47,6 +73,9 @@ export const ApiGetAllCateBlogs = () => {
         items: CateBlogResponseSchema,
       },
     }),
+    ApiResponse({ status: 400, description: 'Bad Request' }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' }),
   )
 }
 
@@ -64,6 +93,9 @@ export const ApiGetCateBlogById = () => {
       description: 'Category blog details',
       schema: CateBlogResponseSchema,
     }),
+    ApiResponse({ status: 400, description: 'Bad Request' }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' }),
     ApiResponse({ status: 404, description: 'Category blog not found' }),
   )
 }
@@ -96,6 +128,8 @@ export const ApiUpdateCateBlog = () => {
       schema: CateBlogResponseSchema,
     }),
     ApiResponse({ status: 400, description: 'Bad Request' }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' }),
     ApiResponse({ status: 404, description: 'Category blog not found' }),
   )
 }
@@ -110,6 +144,9 @@ export const ApiDeleteCateBlog = () => {
       example: 1,
     }),
     ApiResponse({ status: 204, description: 'Category blog deleted successfully' }),
+    ApiResponse({ status: 400, description: 'Bad Request' }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' }),
     ApiResponse({ status: 404, description: 'Category blog not found' }),
   )
 }
@@ -137,6 +174,31 @@ export const ApiChangeCateBlogStatus = () => {
       schema: CateBlogResponseSchema,
     }),
     ApiResponse({ status: 400, description: 'Bad Request' }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' }),
     ApiResponse({ status: 404, description: 'Category blog not found' }),
+  )
+}
+
+export const ApiSearchCateBlogs = () => {
+  return applyDecorators(
+    ApiOperation({ summary: 'Search category blogs by title' }),
+    ApiQuery({
+      name: 'q',
+      description: 'Search query for category blog title',
+      type: String,
+      required: true,
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'List of category blogs matching the search query',
+      schema: {
+        type: 'array',
+        items: CateBlogResponseSchema,
+      },
+    }),
+    ApiResponse({ status: 400, description: 'Bad Request' }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' }),
   )
 }

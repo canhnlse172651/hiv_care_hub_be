@@ -1,5 +1,5 @@
 import { applyDecorators } from '@nestjs/common'
-import { ApiOperation, ApiResponse, ApiParam, ApiBody } from '@nestjs/swagger'
+import { ApiOperation, ApiResponse, ApiParam, ApiBody, ApiQuery } from '@nestjs/swagger'
 
 export const BlogResponseSchema = {
   type: 'object',
@@ -61,7 +61,33 @@ export const ApiCreateBlog = () => {
 
 export const ApiGetAllBlogs = () => {
   return applyDecorators(
-    ApiOperation({ summary: 'Get all blogs' }),
+    ApiOperation({ summary: 'Get all blogs', description: 'Retrieve a list of all blogs' }),
+    ApiQuery({
+      name: 'page',
+      required: false,
+      description: 'Page number',
+      type: Number,
+      example: 1,
+    }),
+    ApiQuery({
+      name: 'limit',
+      required: false,
+      description: 'Number of items per page',
+      type: Number,
+      example: 10,
+    }),
+    ApiQuery({
+      name: 'sortBy',
+      required: false,
+      description: 'Field to sort by',
+      enum: ['title'],
+    }),
+    ApiQuery({
+      name: 'sortOrder',
+      required: false,
+      description: 'Sort order (asc or desc)',
+      enum: ['asc', 'desc'],
+    }),
     ApiResponse({
       status: 200,
       description: 'List of all blogs',
@@ -70,6 +96,9 @@ export const ApiGetAllBlogs = () => {
         items: BlogResponseSchema,
       },
     }),
+    ApiResponse({ status: 400, description: 'Bad Request' }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' }),
   )
 }
 
@@ -150,5 +179,28 @@ export const ApiPublishBlog = () => {
     ApiResponse({ status: 401, description: 'Unauthorized' }),
     ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' }),
     ApiResponse({ status: 404, description: 'Blog not found' }),
+  )
+}
+
+export const ApiSearchBlogs = () => {
+  return applyDecorators(
+    ApiOperation({ summary: 'Search blogs by title' }),
+    ApiQuery({
+      name: 'q',
+      description: 'Search query for blog title',
+      type: String,
+      required: true,
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'List of blogs matching the search query',
+      schema: {
+        type: 'array',
+        items: BlogResponseSchema,
+      },
+    }),
+    ApiResponse({ status: 400, description: 'Bad Request' }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' }),
   )
 }

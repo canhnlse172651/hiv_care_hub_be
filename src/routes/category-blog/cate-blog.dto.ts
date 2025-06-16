@@ -1,5 +1,11 @@
 import { createZodDto } from 'nestjs-zod'
-import { CateBlogResSchema, CreateCateBlogSchema, UpdateCateBlogSchema } from './cate-blog.model'
+import {
+  CateBlogFilterSchema,
+  CateBlogResSchema,
+  CateBlogSearchSchema,
+  CreateCateBlogSchema,
+  UpdateCateBlogSchema,
+} from './cate-blog.model'
 import { z } from 'zod'
 
 export class CreateCateBlogDto extends createZodDto(CreateCateBlogSchema) {
@@ -18,3 +24,5 @@ export class UpdateCateBlogDto extends createZodDto(UpdateCateBlogSchema) {
 export type CateBlogResponseType = z.infer<typeof CateBlogResSchema>
 export type CreateCateBlogDtoType = z.infer<typeof CreateCateBlogSchema>
 export type UpdateCateBlogDtoType = z.infer<typeof UpdateCateBlogSchema>
+export type CateBlogFilterSchemaDto = z.infer<typeof CateBlogFilterSchema>
+export type CateBlogSearchSchemaDto = z.infer<typeof CateBlogSearchSchema>
