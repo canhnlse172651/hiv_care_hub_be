@@ -17,7 +17,6 @@ import {
   ApiDeleteCateBlog,
   ApiGetAllCateBlogs,
   ApiGetCateBlogById,
-  ApiSearchCateBlogs,
   ApiUpdateCateBlog,
 } from 'src/swagger/cate-blog.swagger'
 import { Roles } from 'src/shared/decorators/roles.decorator'
@@ -47,11 +46,11 @@ export class CateBlogController {
     return this.cateBlogService.findAllCateBlogs(query)
   }
 
-  @ApiSearchCateBlogs()
-  @Get('search')
-  async searchCateBlogs(@Query('q') query: string): Promise<CateBlogResponseType[]> {
-    return this.cateBlogService.searchCateBlogs(query)
-  }
+  // @ApiSearchCateBlogs()
+  // @Get('search')
+  // async searchCateBlogs(@Query('q') query: string): Promise<CateBlogResponseType[]> {
+  //   return this.cateBlogService.searchCateBlogs(query)
+  // }
 
   @ApiGetCateBlogById()
   @Get(':id')

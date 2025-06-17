@@ -8,7 +8,7 @@ import {
   ApiDeleteBlog,
   ApiGetAllBlogs,
   ApiGetBlogById,
-  ApiSearchBlogs,
+  ApiGetBlogBySlug,
   ApiUpdateBlog,
 } from 'src/swagger/blog.swagger'
 import { ApiChangeCateBlogStatus } from 'src/swagger/cate-blog.swagger'
@@ -41,16 +41,22 @@ export class BlogController {
     return this.blogService.findAllBlogs(query)
   }
 
-  @ApiSearchBlogs()
-  @Get('search')
-  async searchBlogs(@Query('q') query: string): Promise<BlogResponseType[]> {
-    return this.blogService.searchBlogs(query)
-  }
+  // @ApiSearchBlogs()
+  // @Get('search')
+  // async searchBlogs(@Query('q') query: string): Promise<BlogResponseType[]> {
+  //   return this.blogService.searchBlogs(query)
+  // }
 
   @ApiGetBlogById()
   @Get(':id')
   async findBlogById(@Param('id', ParseIntPipe) id: number): Promise<BlogResponseType> {
     return this.blogService.findBlogById(id)
+  }
+
+  @ApiGetBlogBySlug()
+  @Get('slug/:slug')
+  async findBlogBySlug(@Param('slug') slug: string): Promise<BlogResponseType> {
+    return this.blogService.findBlogBySlug(slug)
   }
 
   @ApiBearerAuth()

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { PrismaService } from '../shared/services/prisma.service'
 import { BlogResponseType, CreateBlogDtoType, UpdateBlogDtoType } from '../routes/blog/blog.dto'
-import { slugify } from 'src/shared/utils/slugify.utils'
+import { randomSuffix, slugify } from 'src/shared/utils/slugify.utils'
 import { PaginationService } from 'src/shared/services/pagination.service'
 import { createPaginationSchema, PaginatedResponse, PaginationOptions } from 'src/shared/schemas/pagination.schema'
 import { BlogFilterSchema, BlogSearchSchema } from 'src/routes/blog/blog.model'
@@ -18,7 +18,12 @@ export class BlogRepository {
   }
 
   async createBlog(data: CreateBlogDtoType): Promise<BlogResponseType> {
-    const slug = slugify(data.title)
+    let slug = slugify(data.title)
+    let exited = await this.findBlogBySlug(slug)
+    while (exited) {
+      slug = `${slugify(data.title)}-${randomSuffix()}`
+      exited = await this.findBlogBySlug(slug)
+    }
     const blog = await this.prisma.blogPost.create({
       data: {
         title: data.title,
@@ -69,13 +74,7 @@ export class BlogRepository {
     })
     const where: any = {}
     if (validatedOptions.search) {
-      where.OR = []
-      if (validatedOptions.searchFields.includes('title')) {
-        where.OR.push({ title: { contains: validatedOptions.search, mode: 'insensitive' } })
-      }
-      if (validatedOptions.searchFields.includes('description')) {
-        where.OR.push({ description: { contains: validatedOptions.search, mode: 'insensitive' } })
-      }
+      where.title = { contains: validatedOptions.search, mode: 'insensitive' }
     }
     if (validatedOptions.filters) {
       if (validatedOptions.filters.title) {
@@ -133,12 +132,12 @@ export class BlogRepository {
       },
     })
 
-    return blog
-      ? ({
-          ...blog,
-          cateBlog: blog.category,
-        } as BlogResponseType)
-      : null
+    if (!blog) return null
+    const { category, ...rest } = blog
+    return {
+      ...rest,
+      cateBlog: category,
+    } as BlogResponseType
   }
 
   async updateBlog(id: number, data: UpdateBlogDtoType): Promise<BlogResponseType> {
@@ -168,8 +167,9 @@ export class BlogRepository {
       },
     })
 
+    const { category, ...rest } = updated
     return {
-      ...updated,
+      ...rest,
       cateBlog: updated.category,
     } as BlogResponseType
   }
@@ -196,8 +196,10 @@ export class BlogRepository {
       },
     })
 
+    const { category, ...rest } = deleted
+
     return {
-      ...deleted,
+      ...rest,
       cateBlog: deleted.category,
     } as BlogResponseType
   }
@@ -225,9 +227,40 @@ export class BlogRepository {
       },
     })
 
+    const { category, ...rest } = updated
     return {
-      ...updated,
-      cateBlog: updated.category,
+      ...rest,
+      cateBlog: category,
+    } as BlogResponseType
+  }
+
+  async findBlogBySlug(slug: string): Promise<BlogResponseType | null> {
+    const blog = await this.prisma.blogPost.findFirst({
+      where: { slug },
+      include: {
+        author: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatar: true,
+          },
+        },
+        category: {
+          select: {
+            id: true,
+            title: true,
+            description: true,
+          },
+        },
+      },
+    })
+
+    if (!blog) return null
+    const { category, ...rest } = blog
+    return {
+      ...rest,
+      cateBlog: category,
     } as BlogResponseType
   }
 }

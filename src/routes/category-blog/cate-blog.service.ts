@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { CateBlogResponseType, CreateCateBlogDto, UpdateCateBlogDto } from './cate-blog.dto'
 import { CateBlogRepository } from 'src/repositories/cate-blog.repository'
 import { PaginatedResponse } from 'src/shared/schemas/pagination.schema'
@@ -12,6 +12,14 @@ export class CateBlogService {
   ) {}
 
   async createCateBlog(data: CreateCateBlogDto): Promise<CateBlogResponseType> {
+    const exitedBlog = await this.cateBlogRepository.findCateBlogsPaginated({
+      page: 1,
+      limit: 1,
+      sortOrder: 'desc',
+      search: data.title,
+      searchFields: ['title'],
+    })
+    if (exitedBlog.data.length > 0) throw new BadRequestException('Category blog already exists')
     return await this.cateBlogRepository.createCateBlog(data)
   }
 
