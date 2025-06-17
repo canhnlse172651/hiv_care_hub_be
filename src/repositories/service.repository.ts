@@ -54,4 +54,8 @@ export class ServiceRepository {
     const service = await this.prisma.service.findUnique({ where: { id }, select: { id: true } })
     return !!service
   }
+
+  getServiceModel() {
+    return this.prisma.service
+  }
 }

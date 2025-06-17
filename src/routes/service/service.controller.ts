@@ -22,6 +22,8 @@ import { Auth } from 'src/shared/decorators/auth.decorator'
 import { Roles } from 'src/shared/decorators/roles.decorator'
 import { Role } from 'src/shared/constants/role.constant'
 import { AuthType } from 'src/shared/constants/auth.constant'
+import { QueryServiceSchema } from './service.query'
+import { PaginatedResponse } from 'src/shared/schemas/pagination.schema'
 
 @ApiTags('Services')
 @Controller('services')
@@ -46,12 +48,8 @@ export class ServiceController {
 
   @ApiGetAllActiveServices()
   @Get('public')
-  async getAllActiveServicesBySlug(): Promise<ServiceResponseType[]> {
-    const result = await this.serviceService.findAllActiveServicesBySlug()
-    return result.map((service) => ({
-      ...service,
-      type: service.type,
-    }))
+  async getAllActiveServicesBySlug(@Query() query: any): Promise<PaginatedResponse<ServiceResponseType>> {
+    return this.serviceService.findAllActiveServicesBySlug(query)
   }
 
   @ApiBearerAuth()
@@ -59,12 +57,8 @@ export class ServiceController {
   @Roles(Role.Admin)
   @ApiGetAllServices()
   @Get()
-  async findAllServices(): Promise<ServiceResponseType[]> {
-    const result = await this.serviceService.findAllServices()
-    return result.map((service) => ({
-      ...service,
-      type: service.type,
-    }))
+  async findAllServices(@Query() query: any): Promise<PaginatedResponse<ServiceResponseType>> {
+    return this.serviceService.findAllServices(query)
   }
 
   @ApiGetServiceById()
@@ -116,4 +110,10 @@ export class ServiceController {
       type: result.type,
     }
   }
+
+  // @ApiGetAllServices()
+  // @Get('search')
+  // async searchServices(@Query() query: any): Promise<PaginatedResponse<ServiceResponseType>> {
+  //   return this.serviceService.searchServices(query)
+  // }
 }
