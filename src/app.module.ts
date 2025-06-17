@@ -17,6 +17,7 @@ import { SharedModule } from './shared/shared.module'
 import { CateBlogModule } from './routes/category-blog/cate-blog.module'
 import { BlogModule } from './routes/blog/blog.module'
 import { ServiceModule } from './routes/service/service.module'
+import { AppoinmentModule } from './routes/appoinment/appoinment.module'
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { ServiceModule } from './routes/service/service.module'
     CateBlogModule,
     BlogModule,
     ServiceModule,
+    AppoinmentModule,
   ],
   controllers: [AppController],
   providers: [

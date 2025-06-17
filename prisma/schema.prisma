@@ -42,6 +42,9 @@ enum AppointmentType {
 
 enum AppointmentStatus {
   PENDING
+  CHECKIN
+  PAID
+  PROCESS
   CONFIRMED
   CANCELLED
   COMPLETED
