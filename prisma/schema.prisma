@@ -406,12 +406,13 @@ model Service {
   price       Decimal       @db.Decimal(10, 2)
   type        ServiceType
   description String        @db.Text
-  startTime   DateTime
-  endTime     DateTime
+  startTime   String        @db.VarChar(500)
+  endTime     String        @db.VarChar(500)
   imageUrl    String        @default("")
   content     String        @db.Text
   isActive    Boolean       @default(true)
-  
+  duration    String       @db.VarChar(500) 
+
   // Relations
   appointments Appointment[]
   

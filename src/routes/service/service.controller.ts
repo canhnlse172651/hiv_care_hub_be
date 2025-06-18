@@ -58,7 +58,14 @@ export class ServiceController {
   @ApiGetAllServices()
   @Get()
   async findAllServices(@Query() query: any): Promise<PaginatedResponse<ServiceResponseType>> {
-    return this.serviceService.findAllServices(query)
+    const result = await this.serviceService.findAllServices(query)
+    return {
+      ...result,
+      data: result.data.map(service => ({
+        ...service,
+        duration: service.duration ?? '',
+      })),
+    }
   }
 
   @ApiGetServiceById()
@@ -68,6 +75,7 @@ export class ServiceController {
     return {
       ...service,
       type: service.type,
+      duration: service.duration ?? '',
     }
   }
 

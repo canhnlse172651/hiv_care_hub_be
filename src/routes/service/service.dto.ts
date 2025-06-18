@@ -10,8 +10,9 @@ export const ServiceSchema = z.object({
   price: z.string(), // Decimal sẽ trả về string
   type: z.nativeEnum(ServiceType),
   description: z.string(),
-  startTime: z.date(),
-  endTime: z.date(),
+  startTime: z.string(),
+  endTime: z.string(),
+  duration: z.string(),
   imageUrl: z.string(),
   content: z.string(),
   isActive: z.boolean(),
@@ -24,8 +25,9 @@ export const CreateServiceSchema = z.object({
   price: z.string(),
   type: z.nativeEnum(ServiceType),
   description: z.string(),
-  startTime: z.coerce.date(),
-  endTime: z.coerce.date(),
+  startTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/), // chỉ nhận giờ HH:mm
+  endTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/), // chỉ nhận giờ HH:mm
+  duration: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/), // chỉ nhận giờ HH:mm, optional
   imageUrl: z.string().optional(),
   content: z.string(),
   isActive: z.boolean().optional(),
@@ -68,11 +70,14 @@ export class ServiceResponseSwagger {
   @ApiProperty({ example: 'Khám tổng quát cho bệnh nhân HIV' })
   description: string
 
-  @ApiProperty({ example: '2024-06-14T08:00:00.000Z' })
-  startTime: Date
+  @ApiProperty({ example: '07:00' })
+  startTime: string
 
-  @ApiProperty({ example: '2024-06-14T09:00:00.000Z' })
-  endTime: Date
+  @ApiProperty({ example: '16:00' })
+  endTime: string
+
+  @ApiProperty({ example: '01:00', required: false, nullable: true })
+  duration?: string | null
 
   @ApiProperty({ example: 'https://example.com/image.jpg' })
   imageUrl: string
