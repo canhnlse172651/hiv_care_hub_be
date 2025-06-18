@@ -1,13 +1,13 @@
-import { createZodDto } from 'nestjs-zod';
+import { createZodDto } from 'nestjs-zod'
 import {
   CreateDoctorSchema,
   UpdateDoctorSchema,
   QueryDoctorSchema,
   SwapShiftsSchema,
-  
   GetDoctorScheduleSchema,
   GenerateScheduleSchema,
-} from './doctor.model';
+  GetDoctorByDateSchema,
+} from './doctor.model'
 
 // Create Doctor DTO
 export class CreateDoctorDto extends createZodDto(CreateDoctorSchema) {}
@@ -26,3 +26,6 @@ export class GetDoctorScheduleDto extends createZodDto(GetDoctorScheduleSchema) 
 
 // Generate Schedule DTO
 export class GenerateScheduleDto extends createZodDto(GenerateScheduleSchema) {}
+
+// Get Doctor By Date DTO
+export class GetDoctorByDateDto extends createZodDto(GetDoctorByDateSchema) {}
