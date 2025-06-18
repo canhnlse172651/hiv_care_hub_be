@@ -1,8 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import { PatientTreatment } from '@prisma/client'
 import { PatientTreatmentRepository } from '../../repositories/patient-treatment.repository'
 import { PaginatedResponse } from '../../shared/schemas/pagination.schema'
 import { PaginationService } from '../../shared/services/pagination.service'
+import { SharedErrorHandlingService } from '../../shared/services/error-handling.service'
+import { ENTITY_NAMES, RESPONSE_MESSAGES } from '../../shared/constants/api.constants'
 import {
   CreatePatientTreatmentSchema,
   GetPatientTreatmentsByPatientSchema,
@@ -18,38 +20,44 @@ export class PatientTreatmentService {
   constructor(
     private readonly patientTreatmentRepository: PatientTreatmentRepository,
     private readonly paginationService: PaginationService,
+    private readonly errorHandlingService: SharedErrorHandlingService,
   ) {}
 
   // Create new patient treatment
   async createPatientTreatment(data: any, userId: number): Promise<PatientTreatment> {
-    // Validate the input data against the schema first
-    const validatedData = CreatePatientTreatmentSchema.parse({
-      ...data,
-      createdById: userId,
-    })
+    try {
+      // Validate data with proper schema
+      const validatedData = CreatePatientTreatmentSchema.parse(data)
 
-    // The schema should have already converted dates properly
-    const processedData = {
-      ...validatedData,
-      createdById: userId,
+      // Add createdById from authenticated user
+      const treatmentData = {
+        ...validatedData,
+        createdById: userId,
+      }
+
+      return this.patientTreatmentRepository.createPatientTreatment(treatmentData)
+    } catch (error) {
+      this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.PATIENT_TREATMENT)
     }
-
-    return this.patientTreatmentRepository.createPatientTreatment(processedData)
   }
 
   // Get patient treatment by ID
   async getPatientTreatmentById(id: number): Promise<PatientTreatment> {
-    const treatment = await this.patientTreatmentRepository.findPatientTreatmentById(id)
-    if (!treatment) {
-      throw new NotFoundException('Patient treatment not found')
-    }
-    return treatment
+    const validatedId = this.errorHandlingService.validateId(id)
+    const treatment = await this.patientTreatmentRepository.findPatientTreatmentById(validatedId)
+    return this.errorHandlingService.validateEntityExists(treatment, ENTITY_NAMES.PATIENT_TREATMENT, validatedId)
   }
 
   // Update patient treatment
   async updatePatientTreatment(id: number, data: UpdatePatientTreatment): Promise<PatientTreatment> {
-    // Check if treatment exists
-    await this.getPatientTreatmentById(id)
+    try {
+      // Check if treatment exists
+      await this.getPatientTreatmentById(id)
+
+      return this.patientTreatmentRepository.updatePatientTreatment(id, data)
+    } catch (error) {
+      this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.PATIENT_TREATMENT)
+    }
 
     return this.patientTreatmentRepository.updatePatientTreatment(id, data)
   }

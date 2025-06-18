@@ -4,20 +4,15 @@ import { PaginatedResponse } from 'src/shared/schemas/pagination.schema'
 import { PaginationService } from 'src/shared/services/pagination.service'
 import { PrismaService } from 'src/shared/services/prisma.service'
 import { z } from 'zod'
-import { CustomMedication } from '../routes/patient-treatment/patient-treatment.model'
+import { FlexibleCustomMedicationsSchema } from '../routes/patient-treatment/patient-treatment.model'
 
-export const CustomMedicationSchema = z.object({
-  medicineId: z.number().positive('Medicine ID must be positive'),
-  dosage: z.string().min(1, 'Dosage is required'),
-  duration: z.string().min(1, 'Duration is required'),
-  notes: z.string().optional(),
-})
+// Use the same schema from model instead of defining a different one
 
 export const CreatePatientTreatmentDataSchema = z.object({
   patientId: z.number().positive('Patient ID must be positive'),
   protocolId: z.number().positive('Protocol ID must be positive'),
   doctorId: z.number().positive('Doctor ID must be positive'),
-  customMedications: z.array(CustomMedicationSchema).optional(),
+  customMedications: FlexibleCustomMedicationsSchema,
   notes: z.string().optional(),
   startDate: z.date(),
   endDate: z.date().optional(),
@@ -40,12 +35,13 @@ export class PatientTreatmentRepository {
   /**
    * Validates and converts ID parameter to number
    * Supports both number and string input for flexibility
+   * Uses shared validation logic from BaseRepository pattern
    *
    * @param id - ID to validate (number or string)
    * @returns Validated number ID
    * @throws ZodError if ID is invalid
    */
-  private validateId(id: number | string): number {
+  protected validateId(id: number | string): number {
     const result = z.union([z.number().positive(), z.string().transform(Number)]).parse(id)
     return typeof result === 'string' ? parseInt(result, 10) : result
   }
@@ -73,7 +69,7 @@ export class PatientTreatmentRepository {
     patientId: number
     protocolId: number
     doctorId: number
-    customMedications?: CustomMedication[]
+    customMedications?: any
     notes?: string
     startDate: Date
     endDate?: Date
@@ -83,13 +79,18 @@ export class PatientTreatmentRepository {
     // Validate input data
     const validatedData = CreatePatientTreatmentDataSchema.parse(data)
 
+    // Serialize customMedications for Prisma JSON field
+    const customMedicationsJson = validatedData.customMedications
+      ? JSON.parse(JSON.stringify(validatedData.customMedications))
+      : null
+
     try {
       return await this.prismaService.patientTreatment.create({
         data: {
           patientId: validatedData.patientId,
           protocolId: validatedData.protocolId,
           doctorId: validatedData.doctorId,
-          customMedications: validatedData.customMedications,
+          customMedications: customMedicationsJson,
           notes: validatedData.notes,
           startDate: validatedData.startDate,
           endDate: validatedData.endDate,
@@ -207,7 +208,7 @@ export class PatientTreatmentRepository {
     data: {
       protocolId?: number
       doctorId?: number
-      customMedications?: CustomMedication[]
+      customMedications?: any
       notes?: string
       startDate?: Date
       endDate?: Date
@@ -217,10 +218,20 @@ export class PatientTreatmentRepository {
     const validatedId = this.validateId(id)
     const validatedData = UpdatePatientTreatmentDataSchema.parse(data)
 
+    // Serialize customMedications for Prisma JSON field if provided
+    const updateData = {
+      ...validatedData,
+      ...(validatedData.customMedications !== undefined && {
+        customMedications: validatedData.customMedications
+          ? JSON.parse(JSON.stringify(validatedData.customMedications))
+          : null,
+      }),
+    }
+
     try {
       return await this.prismaService.patientTreatment.update({
         where: { id: validatedId },
-        data: validatedData,
+        data: updateData,
         include: {
           patient: {
             select: {
@@ -795,7 +806,7 @@ export class PatientTreatmentRepository {
       patientId: number
       protocolId: number
       doctorId: number
-      customMedications?: CustomMedication[]
+      customMedications?: any
       notes?: string
       startDate: Date
       endDate?: Date
@@ -814,7 +825,7 @@ export class PatientTreatmentRepository {
               patientId: data.patientId,
               protocolId: data.protocolId,
               doctorId: data.doctorId,
-              customMedications: data.customMedications,
+              customMedications: data.customMedications ? JSON.parse(JSON.stringify(data.customMedications)) : null,
               notes: data.notes,
               startDate: data.startDate,
               endDate: data.endDate,
@@ -1169,11 +1180,42 @@ export class PatientTreatmentRepository {
    * @returns Processed Error with appropriate message and context
    */
   private handlePrismaError(error: unknown): Error {
-    // TODO: Implement comprehensive error mapping similar to BaseRepository
-    // For now, return basic error handling
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      switch (error.code) {
+        case 'P2002': {
+          const target = Array.isArray(error.meta?.target) ? error.meta.target.join(', ') : 'unknown field'
+          return new Error(`Unique constraint violation on field(s): ${target}`)
+        }
+        case 'P2025': {
+          return new Error('Patient treatment record not found')
+        }
+        case 'P2003': {
+          return new Error('Foreign key constraint violation - referenced record does not exist')
+        }
+        case 'P2011': {
+          return new Error('Null constraint violation')
+        }
+        case 'P2012': {
+          return new Error('Missing required value')
+        }
+        default: {
+          return new Error(`Database operation failed: ${error.message}`)
+        }
+      }
+    }
+
+    if (error instanceof Prisma.PrismaClientUnknownRequestError) {
+      return new Error('Unknown database error occurred')
+    }
+
+    if (error instanceof Prisma.PrismaClientRustPanicError) {
+      return new Error('Database engine error occurred')
+    }
+
     if (error instanceof Error) {
       return error
     }
+
     return new Error('An unknown error occurred during patient treatment operation')
   }
 

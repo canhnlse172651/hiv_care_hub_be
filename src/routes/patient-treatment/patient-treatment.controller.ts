@@ -52,10 +52,7 @@ export class PatientTreatmentController {
   @Post()
   @Roles(Role.Admin, Role.Doctor)
   @ApiCreatePatientTreatment()
-  async createPatientTreatment(
-    @Body() body: CreatePatientTreatmentDto,
-    @CurrentUser() user: any,
-  ): Promise<PatientTreatment> {
+  async createPatientTreatment(@Body() body: unknown, @CurrentUser() user: any): Promise<PatientTreatment> {
     return this.patientTreatmentService.createPatientTreatment(body, Number(user.userId))
   }
 
@@ -111,19 +108,19 @@ export class PatientTreatmentController {
   // SEARCH AND ADVANCED QUERIES
   // ===============================
 
-  @Get('search/:query')
+  @Get('search')
   @Roles(Role.Admin, Role.Doctor, Role.Staff)
   @ApiSearchPatientTreatments()
-  async searchPatientTreatments(@Param('query') query: string): Promise<PatientTreatment[]> {
+  async searchPatientTreatments(@Query('q') query: string): Promise<PatientTreatment[]> {
     return this.patientTreatmentService.searchPatientTreatments(query)
   }
 
-  @Get('date-range/:startDate/:endDate')
+  @Get('date-range')
   @Roles(Role.Admin, Role.Doctor, Role.Staff)
   @ApiGetPatientTreatmentsByDateRange()
   async getPatientTreatmentsByDateRange(
-    @Param('startDate') startDate: string,
-    @Param('endDate') endDate: string,
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
   ): Promise<PatientTreatment[]> {
     return this.patientTreatmentService.getPatientTreatmentsByDateRange(new Date(startDate), new Date(endDate))
   }

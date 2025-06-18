@@ -1,18 +1,47 @@
 import { z } from 'zod'
+import {
+  SharedMedicationSchema,
+  SharedSearchSchema,
+  SharedBulkCreateSchema,
+} from '../../shared/interfaces/medication.interface'
 
-// Custom Medication Schema for structured medication data
-export const CustomMedicationSchema = z.object({
-  medicineId: z.number().min(1, 'Medicine ID is required'),
-  medicineName: z.string().min(1, 'Medicine name is required'),
+// Simple Custom Medication Schema for flexible use cases
+export const SimpleCustomMedicationSchema = z.object({
+  name: z.string().min(1, 'Medicine name is required'),
   dosage: z.string().min(1, 'Dosage is required'),
-  frequency: z.string().min(1, 'Frequency is required'),
-  duration: z.object({
-    value: z.number().min(1, 'Duration value must be positive'),
-    unit: z.enum(['days', 'weeks', 'months'], { required_error: 'Duration unit is required' }),
-  }),
+  frequency: z.string().optional(),
   notes: z.string().optional(),
   price: z.number().min(0, 'Price must be non-negative').optional(),
 })
+
+// Full Custom Medication Schema for structured medication data
+export const CustomMedicationSchema = z.object({
+  medicineId: z.number().min(1, 'Medicine ID is required').optional(),
+  medicineName: z.string().min(1, 'Medicine name is required'),
+  dosage: z.string().min(1, 'Dosage is required'),
+  frequency: z.string().min(1, 'Frequency is required').optional(),
+  duration: z
+    .object({
+      value: z.number().min(1, 'Duration value must be positive'),
+      unit: z.enum(['days', 'weeks', 'months'], { required_error: 'Duration unit is required' }),
+    })
+    .optional(),
+  notes: z.string().optional(),
+  price: z.number().min(0, 'Price must be non-negative').optional(),
+})
+
+// Flexible Custom Medications Schema - supports both structured and free-form data
+export const FlexibleCustomMedicationsSchema = z
+  .union([
+    z.array(CustomMedicationSchema), // Structured medications
+    z
+      .object({
+        additionalMeds: z.array(SimpleCustomMedicationSchema),
+      })
+      .passthrough(), // Free-form object with additionalMeds
+    z.record(z.unknown()), // Any object structure
+  ])
+  .optional()
 
 // Base Patient Treatment Schema
 export const PatientTreatmentSchema = z.object({
@@ -35,12 +64,16 @@ export const CreatePatientTreatmentSchema = z.object({
   patientId: z.number().min(1, 'Patient ID is required'),
   protocolId: z.number().min(1, 'Protocol ID is required'),
   doctorId: z.number().min(1, 'Doctor ID is required'),
-  customMedications: z.array(CustomMedicationSchema).optional(),
+  customMedications: FlexibleCustomMedicationsSchema,
   notes: z.string().optional(),
-  startDate: z.string().transform((str) => new Date(str)),
+  startDate: z.union([z.string(), z.date()]).transform((val) => {
+    return val instanceof Date ? val : new Date(val)
+  }),
   endDate: z
-    .string()
-    .transform((str) => new Date(str))
+    .union([z.string(), z.date()])
+    .transform((val) => {
+      return val instanceof Date ? val : new Date(val)
+    })
     .optional(),
   total: z.number().min(0, 'Total must be non-negative'),
 })
@@ -49,7 +82,7 @@ export const CreatePatientTreatmentSchema = z.object({
 export const UpdatePatientTreatmentSchema = z.object({
   protocolId: z.number().min(1, 'Protocol ID is required').optional(),
   doctorId: z.number().min(1, 'Doctor ID is required').optional(),
-  customMedications: z.array(CustomMedicationSchema).optional(),
+  customMedications: FlexibleCustomMedicationsSchema,
   notes: z.string().optional(),
   startDate: z
     .string()
@@ -62,20 +95,14 @@ export const UpdatePatientTreatmentSchema = z.object({
   total: z.number().min(0, 'Total must be non-negative').optional(),
 })
 
-// Query Patient Treatment Schema
-export const QueryPatientTreatmentSchema = z.object({
+// Query Patient Treatment Schema (extends shared search schema)
+export const QueryPatientTreatmentSchema = SharedSearchSchema.extend({
   page: z
     .string()
     .transform((val) => parseInt(val, 10))
     .pipe(z.number().int().min(1))
     .optional()
     .default('1'),
-  limit: z
-    .string()
-    .transform((val) => parseInt(val, 10))
-    .pipe(z.number().int().min(1).max(100))
-    .optional()
-    .default('10'),
   patientId: z
     .string()
     .transform((val) => parseInt(val, 10))
@@ -235,8 +262,8 @@ export type SearchTreatmentsQuery = z.infer<typeof SearchTreatmentsQuerySchema>
 export type TreatmentCostAnalysisQuery = z.infer<typeof TreatmentCostAnalysisQuerySchema>
 export type TreatmentComplianceQuery = z.infer<typeof TreatmentComplianceQuerySchema>
 
-// Bulk Create Schema
-export const BulkCreatePatientTreatmentSchema = z.object({
+// Bulk Create Schema (extends shared bulk schema)
+export const BulkCreatePatientTreatmentSchema = SharedBulkCreateSchema.extend({
   treatments: z
     .array(CreatePatientTreatmentSchema)
     .min(1, 'At least one treatment is required')

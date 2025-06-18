@@ -35,12 +35,13 @@ export class TreatmentProtocolRepository {
   /**
    * Validates and converts ID parameter to number
    * Supports both number and string input for flexibility
+   * Uses shared validation logic from BaseRepository pattern
    *
    * @param id - ID to validate (number or string)
    * @returns Validated number ID
    * @throws ZodError if ID is invalid
    */
-  private validateId(id: number | string): number {
+  protected validateId(id: number | string): number {
     const result = z.union([z.number().positive(), z.string().transform(Number)]).parse(id)
     return typeof result === 'string' ? parseInt(result, 10) : result
   }
@@ -905,11 +906,42 @@ export class TreatmentProtocolRepository {
    * @returns Processed Error with appropriate message and context
    */
   private handlePrismaError(error: unknown): Error {
-    // TODO: Implement comprehensive error mapping similar to BaseRepository
-    // For now, return basic error handling with context
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      switch (error.code) {
+        case 'P2002': {
+          const target = Array.isArray(error.meta?.target) ? error.meta.target.join(', ') : 'unknown field'
+          return new Error(`Unique constraint violation on field(s): ${target}`)
+        }
+        case 'P2025': {
+          return new Error('Treatment protocol record not found')
+        }
+        case 'P2003': {
+          return new Error('Foreign key constraint violation - referenced record does not exist')
+        }
+        case 'P2011': {
+          return new Error('Null constraint violation')
+        }
+        case 'P2012': {
+          return new Error('Missing required value')
+        }
+        default: {
+          return new Error(`Database operation failed: ${error.message}`)
+        }
+      }
+    }
+
+    if (error instanceof Prisma.PrismaClientUnknownRequestError) {
+      return new Error('Unknown database error occurred')
+    }
+
+    if (error instanceof Prisma.PrismaClientRustPanicError) {
+      return new Error('Database engine error occurred')
+    }
+
     if (error instanceof Error) {
       return error
     }
+
     return new Error('An unknown error occurred during treatment protocol operation')
   }
 }

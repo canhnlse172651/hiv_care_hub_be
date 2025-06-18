@@ -1,8 +1,10 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import { TreatmentProtocol } from '@prisma/client'
 import { TreatmentProtocolRepository } from '../../repositories/treatment-protocol.repository'
 import { PaginatedResponse } from '../../shared/schemas/pagination.schema'
 import { PaginationService } from '../../shared/services/pagination.service'
+import { SharedErrorHandlingService } from '../../shared/services/error-handling.service'
+import { ENTITY_NAMES, RESPONSE_MESSAGES } from '../../shared/constants/api.constants'
 import { CreateTreatmentProtocol, UpdateTreatmentProtocol } from './treatment-protocol.model'
 
 @Injectable()
@@ -10,43 +12,56 @@ export class TreatmentProtocolService {
   constructor(
     private readonly treatmentProtocolRepository: TreatmentProtocolRepository,
     private readonly paginationService: PaginationService,
+    private readonly errorHandlingService: SharedErrorHandlingService,
   ) {}
 
   // Create new treatment protocol
   async createTreatmentProtocol(data: CreateTreatmentProtocol, userId: number): Promise<TreatmentProtocol> {
-    // Check if protocol with same name already exists
-    const existingProtocol = await this.treatmentProtocolRepository.findTreatmentProtocolByName(data.name)
-    if (existingProtocol) {
-      throw new ConflictException('Treatment protocol with this name already exists')
-    }
+    try {
+      // Check if protocol with same name already exists
+      const existingProtocol = await this.treatmentProtocolRepository.findTreatmentProtocolByName(data.name)
+      this.errorHandlingService.validateNameUniqueness(existingProtocol, data.name, ENTITY_NAMES.TREATMENT_PROTOCOL)
 
-    return this.treatmentProtocolRepository.createTreatmentProtocol({
-      ...data,
-      createdById: userId,
-      updatedById: userId,
-    })
+      return this.treatmentProtocolRepository.createTreatmentProtocol({
+        ...data,
+        createdById: userId,
+        updatedById: userId,
+      })
+    } catch (error) {
+      this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.TREATMENT_PROTOCOL)
+    }
   }
 
   // Get treatment protocol by ID
   async getTreatmentProtocolById(id: number): Promise<TreatmentProtocol> {
-    const protocol = await this.treatmentProtocolRepository.findTreatmentProtocolById(id)
-    if (!protocol) {
-      throw new NotFoundException('Treatment protocol not found')
-    }
-    return protocol
+    const validatedId = this.errorHandlingService.validateId(id)
+    const protocol = await this.treatmentProtocolRepository.findTreatmentProtocolById(validatedId)
+    return this.errorHandlingService.validateEntityExists(protocol, ENTITY_NAMES.TREATMENT_PROTOCOL, validatedId)
   }
 
   // Update treatment protocol
   async updateTreatmentProtocol(id: number, data: UpdateTreatmentProtocol, userId: number): Promise<TreatmentProtocol> {
-    // Check if protocol exists
-    await this.getTreatmentProtocolById(id)
+    try {
+      // Check if protocol exists
+      await this.getTreatmentProtocolById(id)
 
-    // If updating name, check if another protocol with same name exists
-    if (data.name) {
-      const existingProtocol = await this.treatmentProtocolRepository.findTreatmentProtocolByName(data.name)
-      if (existingProtocol && existingProtocol.id !== id) {
-        throw new ConflictException('Treatment protocol with this name already exists')
+      // If updating name, check if another protocol with same name exists
+      if (data.name) {
+        const existingProtocol = await this.treatmentProtocolRepository.findTreatmentProtocolByName(data.name)
+        this.errorHandlingService.validateNameUniqueness(
+          existingProtocol,
+          data.name,
+          ENTITY_NAMES.TREATMENT_PROTOCOL,
+          id,
+        )
       }
+
+      return this.treatmentProtocolRepository.updateTreatmentProtocol(id, {
+        ...data,
+        updatedById: userId,
+      })
+    } catch (error) {
+      this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.TREATMENT_PROTOCOL)
     }
 
     return this.treatmentProtocolRepository.updateTreatmentProtocol(id, {
@@ -300,9 +315,7 @@ export class TreatmentProtocolService {
 
     // Check if new name already exists
     const existingProtocol = await this.treatmentProtocolRepository.findTreatmentProtocolByName(newName)
-    if (existingProtocol) {
-      throw new ConflictException('Treatment protocol with this name already exists')
-    }
+    this.errorHandlingService.validateNameUniqueness(existingProtocol, newName, ENTITY_NAMES.TREATMENT_PROTOCOL)
 
     // Get the original protocol with medicines
     const protocolWithMedicines = await this.treatmentProtocolRepository.findTreatmentProtocolById(id, {

@@ -1,9 +1,11 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import { Medicine } from '@prisma/client'
 import { z } from 'zod'
 import { MedicineRepository } from '../../repositories/medicine.repository'
 import { PaginatedResponse } from '../../shared/schemas/pagination.schema'
 import { PaginationService } from '../../shared/services/pagination.service'
+import { SharedErrorHandlingService } from '../../shared/services/error-handling.service'
+import { ENTITY_NAMES, RESPONSE_MESSAGES } from '../../shared/constants/api.constants'
 import { CreateMedicine, UpdateMedicine } from './medicine.model'
 
 @Injectable()
@@ -11,40 +13,45 @@ export class MedicineService {
   constructor(
     private readonly medicineRepository: MedicineRepository,
     private readonly paginationService: PaginationService,
+    private readonly errorHandlingService: SharedErrorHandlingService,
   ) {}
 
   // Create new medicine
   async createMedicine(data: CreateMedicine): Promise<Medicine> {
-    // Check if medicine with same name already exists
-    const existingMedicine = await this.medicineRepository.findMedicineByName(data.name)
-    if (existingMedicine) {
-      throw new ConflictException('Medicine with this name already exists')
-    }
+    try {
+      // Check if medicine with same name already exists
+      const existingMedicine = await this.medicineRepository.findMedicineByName(data.name)
+      this.errorHandlingService.validateNameUniqueness(existingMedicine, data.name, ENTITY_NAMES.MEDICINE)
 
-    // Use the repository's validated create method
-    return this.medicineRepository.createMedicine(data)
+      // Use the repository's validated create method
+      return this.medicineRepository.createMedicine(data)
+    } catch (error) {
+      this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.MEDICINE)
+    }
   }
 
   // Get medicine by ID
   async getMedicineById(id: number): Promise<Medicine> {
-    const medicine = await this.medicineRepository.findMedicineById(id)
-    if (!medicine) {
-      throw new NotFoundException('Medicine not found')
-    }
-    return medicine
+    const validatedId = this.errorHandlingService.validateId(id)
+    const medicine = await this.medicineRepository.findMedicineById(validatedId)
+    return this.errorHandlingService.validateEntityExists(medicine, ENTITY_NAMES.MEDICINE, validatedId)
   }
 
   // Update medicine
   async updateMedicine(id: number, data: UpdateMedicine): Promise<Medicine> {
-    // Check if medicine exists
-    await this.getMedicineById(id)
+    try {
+      // Check if medicine exists
+      await this.getMedicineById(id)
 
-    // If updating name, check if another medicine with same name exists
-    if (data.name) {
-      const existingMedicine = await this.medicineRepository.findMedicineByName(data.name)
-      if (existingMedicine && existingMedicine.id !== id) {
-        throw new ConflictException('Medicine with this name already exists')
+      // If updating name, check if another medicine with same name exists
+      if (data.name) {
+        const existingMedicine = await this.medicineRepository.findMedicineByName(data.name)
+        this.errorHandlingService.validateNameUniqueness(existingMedicine, data.name, ENTITY_NAMES.MEDICINE, id)
       }
+
+      return this.medicineRepository.updateMedicine(id, data)
+    } catch (error) {
+      this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.MEDICINE)
     }
 
     return this.medicineRepository.updateMedicine(id, data)

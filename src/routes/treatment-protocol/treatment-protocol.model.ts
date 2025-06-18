@@ -1,5 +1,10 @@
 import { MedicationSchedule } from '@prisma/client'
 import { z } from 'zod'
+import {
+  SharedMedicationSchema,
+  SharedSearchSchema,
+  SharedBulkCreateSchema,
+} from '../../shared/interfaces/medication.interface'
 
 // Base Treatment Protocol Schema
 export const TreatmentProtocolSchema = z.object({
@@ -13,14 +18,10 @@ export const TreatmentProtocolSchema = z.object({
   updatedAt: z.date(),
 })
 
-// Protocol Medicine Schema
-export const ProtocolMedicineSchema = z.object({
+// Protocol Medicine Schema (extends shared medication schema)
+export const ProtocolMedicineSchema = SharedMedicationSchema.extend({
   id: z.number(),
   protocolId: z.number(),
-  medicineId: z.number(),
-  dosage: z.string(),
-  duration: z.nativeEnum(MedicationSchedule),
-  notes: z.string().nullable(),
   createdAt: z.date(),
   updatedAt: z.date(),
 })
@@ -88,50 +89,48 @@ export type UpdateTreatmentProtocol = z.infer<typeof UpdateTreatmentProtocolSche
 export type QueryTreatmentProtocol = z.infer<typeof QueryTreatmentProtocolSchema>
 
 // Advanced Search Schema
-export const AdvancedSearchTreatmentProtocolSchema = z
-  .object({
-    query: z.string().min(1).max(255).trim().optional(),
-    targetDisease: z.string().min(1).max(255).trim().optional(),
-    createdById: z
-      .string()
-      .transform((val) => parseInt(val, 10))
-      .pipe(z.number().int().min(1))
-      .optional(),
-    minMedicineCount: z
-      .string()
-      .transform((val) => parseInt(val, 10))
-      .pipe(z.number().int().min(0))
-      .optional(),
-    maxMedicineCount: z
-      .string()
-      .transform((val) => parseInt(val, 10))
-      .pipe(z.number().int().min(0))
-      .optional(),
-    page: z
-      .string()
-      .transform((val) => parseInt(val, 10))
-      .pipe(z.number().int().min(1))
-      .optional()
-      .default('1'),
-    limit: z
-      .string()
-      .transform((val) => parseInt(val, 10))
-      .pipe(z.number().int().min(1).max(100))
-      .optional()
-      .default('10'),
-  })
-  .refine(
-    (data) => {
-      if (data.minMedicineCount !== undefined && data.maxMedicineCount !== undefined) {
-        return data.maxMedicineCount >= data.minMedicineCount
-      }
-      return true
-    },
-    {
-      message: 'Maximum medicine count must be greater than or equal to minimum medicine count',
-      path: ['maxMedicineCount'],
-    },
-  )
+// Advanced Search Schema (extends shared search schema)
+export const AdvancedSearchTreatmentProtocolSchema = SharedSearchSchema.extend({
+  targetDisease: z.string().min(1).max(255).trim().optional(),
+  createdById: z
+    .string()
+    .transform((val) => parseInt(val, 10))
+    .pipe(z.number().int().min(1))
+    .optional(),
+  minMedicineCount: z
+    .string()
+    .transform((val) => parseInt(val, 10))
+    .pipe(z.number().int().min(0))
+    .optional(),
+  maxMedicineCount: z
+    .string()
+    .transform((val) => parseInt(val, 10))
+    .pipe(z.number().int().min(0))
+    .optional(),
+  page: z
+    .string()
+    .transform((val) => parseInt(val, 10))
+    .pipe(z.number().int().min(1))
+    .optional()
+    .default('1'),
+  limit: z
+    .string()
+    .transform((val) => parseInt(val, 10))
+    .pipe(z.number().int().min(1).max(100))
+    .optional()
+    .default('10'),
+}).refine(
+  (data) => {
+    if (data.minMedicineCount !== undefined && data.maxMedicineCount !== undefined) {
+      return data.maxMedicineCount >= data.minMedicineCount
+    }
+    return true
+  },
+  {
+    message: 'Maximum medicine count must be greater than or equal to minimum medicine count',
+    path: ['maxMedicineCount'],
+  },
+)
 
 // Clone Protocol Schema
 export const CloneTreatmentProtocolSchema = z.object({
@@ -145,8 +144,8 @@ export const CloneTreatmentProtocolSchema = z.object({
     }),
 })
 
-// Bulk Create Schema
-export const BulkCreateTreatmentProtocolSchema = z.object({
+// Bulk Create Schema (extends shared bulk schema)
+export const BulkCreateTreatmentProtocolSchema = SharedBulkCreateSchema.extend({
   protocols: z
     .array(CreateTreatmentProtocolSchema)
     .min(1, 'At least one protocol is required')
