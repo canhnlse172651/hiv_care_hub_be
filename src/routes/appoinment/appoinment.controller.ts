@@ -20,14 +20,21 @@ import {
 } from 'src/swagger/appoinment.swagger'
 import { AppointmentStatus } from '@prisma/client'
 import CustomZodValidationPipe from 'src/common/custom-zod-validate'
-import { ApiTags } from '@nestjs/swagger'
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger'
+import { Auth } from 'src/shared/decorators/auth.decorator'
+import { AuthType } from 'src/shared/constants/auth.constant'
+import { Roles } from 'src/shared/decorators/roles.decorator'
+import { Role } from 'src/shared/constants/role.constant'
 
 @ApiTags('Appoinments')
+@ApiBearerAuth()
+@Auth([AuthType.Bearer])
 @Controller('appoinments')
 export class AppoinmentController {
   constructor(private readonly appoinmentService: AppoinmentService) {}
 
   @ApiCreateAppointment()
+  @Roles(Role.Patient, Role.Staff, Role.Doctor)
   @Post()
   createAppointment(
     @Body(new CustomZodValidationPipe(CreateAppointmentDto)) body: CreateAppointmentDtoType,
@@ -36,6 +43,7 @@ export class AppoinmentController {
   }
 
   @ApiUpdateAppointment()
+  @Roles(Role.Staff, Role.Doctor)
   @Put(':id')
   updateAppointment(
     @Param('id', ParseIntPipe) id: number,
@@ -45,6 +53,7 @@ export class AppoinmentController {
   }
 
   @ApiUpdateAppointmentStatus()
+  @Roles(Role.Staff, Role.Doctor, Role.Patient)
   @Put('status/:id/')
   updateAppointmentStatus(
     @Param('id', ParseIntPipe) id: number,
@@ -54,6 +63,7 @@ export class AppoinmentController {
   }
 
   @ApiDeleteAppointment()
+  @Roles(Role.Admin, Role.Staff)
   @Delete(':id')
   deleteAppointment(@Param('id', ParseIntPipe) id: number): Promise<AppointmentResponseType> {
     return this.appoinmentService.deleteAppointment(id)
@@ -66,18 +76,21 @@ export class AppoinmentController {
   }
 
   @ApiFindAppointmentByUserId()
+  @Roles(Role.Patient, Role.Admin)
   @Get('user/:id')
   findAppointmentByUserId(@Param('id', ParseIntPipe) id: number): Promise<AppointmentResponseType[]> {
     return this.appoinmentService.findAppointmentByUserId(id)
   }
 
   @ApiFindAppointmentByDoctorId()
+  @Roles(Role.Doctor, Role.Admin)
   @Get('doctor/:id')
   findAppointmentByDoctorId(@Param('id', ParseIntPipe) id: number): Promise<AppointmentResponseType[]> {
     return this.appoinmentService.findAppointmentByDoctorId(id)
   }
 
   @ApiFindAppointmentsPaginated()
+  @Roles(Role.Admin, Role.Staff)
   @Get()
   findAppointmentsPaginated(@Query() query: unknown): Promise<PaginatedResponse<AppointmentResponseType>> {
     return this.appoinmentService.findAppointmentsPaginated(query)
