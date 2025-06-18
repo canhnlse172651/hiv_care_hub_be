@@ -6,6 +6,7 @@ import { AppointmentStatus } from '@prisma/client'
 import { AuthRepository } from 'src/repositories/user.repository'
 import { ServiceRepository } from 'src/repositories/service.repository'
 import { PaginationService } from 'src/shared/services/pagination.service'
+import { formatTimeHHMM, isTimeBetween } from 'src/shared/utils/date.utils'
 
 @Injectable()
 export class AppoinmentService {
@@ -28,22 +29,15 @@ export class AppoinmentService {
     const service = await this.serviceRepository.findServiceById(data.serviceId)
     if (!service) throw new BadRequestException('Service not found')
 
-    const appointmentDate = new Date(data.appointmentTime)
-    const serviceStart = new Date(service.startTime)
-    const serviceEnd = new Date(service.endTime)
+    // Format the appointment time to HH:MM format for comparison with service hours
+    const appointmentTimeFormatted = formatTimeHHMM(data.appointmentTime)
 
-    // Lấy giờ, phút, giây
-    const [aH, aM, aS] = [appointmentDate.getHours(), appointmentDate.getMinutes(), appointmentDate.getSeconds()]
-    const [sH, sM, sS] = [serviceStart.getHours(), serviceStart.getMinutes(), serviceStart.getSeconds()]
-    const [eH, eM, eS] = [serviceEnd.getHours(), serviceEnd.getMinutes(), serviceEnd.getSeconds()]
+    console.log('Appointment time formatted:', appointmentTimeFormatted)
+    console.log('Service start time:', service.startTime)
+    console.log('Service end time:', service.endTime)
 
-    // So sánh >= start
-    const isAfterStart = aH > sH || (aH === sH && aM > sM) || (aH === sH && aM === sM && aS >= sS)
-
-    // So sánh <= end
-    const isBeforeEnd = aH < eH || (aH === eH && aM < eM) || (aH === eH && aM === eM && aS <= eS)
-
-    if (!isAfterStart || !isBeforeEnd) {
+    // Check if appointment time is within service hours using the utility function
+    if (!isTimeBetween(appointmentTimeFormatted, service.startTime, service.endTime)) {
       throw new BadRequestException('Appointment time must be within service working hours')
     }
 
@@ -63,7 +57,6 @@ export class AppoinmentService {
       const doctor = await this.userRepository.findUserById(data.doctorId)
       if (!doctor) throw new BadRequestException('Doctor not found')
     }
-
     if (data.appointmentTime && data.appointmentTime < new Date())
       throw new BadRequestException('Appointment time cannot be in the past')
 
@@ -71,22 +64,11 @@ export class AppoinmentService {
       const service = await this.serviceRepository.findServiceById(data.serviceId)
       if (!service) throw new BadRequestException('Service not found')
 
-      const appointmentDate = new Date(data.appointmentTime)
-      const serviceStart = new Date(service.startTime)
-      const serviceEnd = new Date(service.endTime)
+      // Format the appointment time to HH:MM format for comparison with service hours
+      const appointmentTimeFormatted = formatTimeHHMM(data.appointmentTime)
 
-      // Lấy giờ, phút, giây
-      const [aH, aM, aS] = [appointmentDate.getHours(), appointmentDate.getMinutes(), appointmentDate.getSeconds()]
-      const [sH, sM, sS] = [serviceStart.getHours(), serviceStart.getMinutes(), serviceStart.getSeconds()]
-      const [eH, eM, eS] = [serviceEnd.getHours(), serviceEnd.getMinutes(), serviceEnd.getSeconds()]
-
-      // So sánh >= start
-      const isAfterStart = aH > sH || (aH === sH && aM > sM) || (aH === sH && aM === sM && aS >= sS)
-
-      // So sánh <= end
-      const isBeforeEnd = aH < eH || (aH === eH && aM < eM) || (aH === eH && aM === eM && aS <= eS)
-
-      if (!isAfterStart || !isBeforeEnd) {
+      // Check if appointment time is within service hours using the utility function
+      if (!isTimeBetween(appointmentTimeFormatted, service.startTime, service.endTime)) {
         throw new BadRequestException('Appointment time must be within service working hours')
       }
     }
@@ -127,10 +109,8 @@ export class AppoinmentService {
 
   async findAppointmentsPaginated(query: unknown): Promise<PaginatedResponse<AppointmentResponseType>> {
     // Tách các trường filter ra khỏi query
-    const { serviceId, status, type, dateFrom, dateTo, ...rest } = query as any
-
-    // Gom các trường filter vào object filters
-    const filters: any = {}
+    const { serviceId, status, type, dateFrom, dateTo, ...rest } = query as any // Gom các trường filter vào object filters
+    const filters: Record<string, any> = {}
     if (serviceId !== undefined) filters.serviceId = Number(serviceId)
     if (status !== undefined) filters.status = status
     if (type !== undefined) filters.type = type

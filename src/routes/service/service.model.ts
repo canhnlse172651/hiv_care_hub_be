@@ -8,9 +8,10 @@ export const ServiceResSchema = z.object({
   price: z.string(),
   type: z.nativeEnum(ServiceType), // ✅ enum thay vì string
   description: z.string(),
-  startTime: z.date(),
-  endTime: z.date(),
+  startTime: z.string(), // trả về string HH:mm
+  endTime: z.string(), // trả về string HH:mm
   imageUrl: z.string(),
+  duration: z.string(), // có thể null hoặc undefined
   content: z.string(),
   isActive: z.boolean(),
   createdAt: z.date(),
@@ -22,8 +23,9 @@ export const CreateServiceReqSchema = z.object({
   price: z.string(),
   type: z.nativeEnum(ServiceType), // ✅ enum thay vì string
   description: z.string(),
-  startTime: z.date(),
-  endTime: z.date(),
+  startTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/), // chỉ nhận giờ HH:mm
+  endTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/), // chỉ nhận giờ HH:mm
+  duration: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/),
   imageUrl: z.string().optional(),
   content: z.string(),
   isActive: z.boolean().optional(),

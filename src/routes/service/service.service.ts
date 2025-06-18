@@ -17,6 +17,7 @@ function mapServiceToResponse(service: PrismaServiceModel): ServiceResType {
     description: service.description,
     startTime: service.startTime,
     endTime: service.endTime,
+    duration: service.duration,
     imageUrl: service.imageUrl,
     content: service.content,
     isActive: service.isActive,
@@ -55,6 +56,9 @@ export class ServiceService {
         slug,
         type: data.type as ServiceType,
         price: data.price,
+        startTime: data.startTime, // string HH:mm
+        endTime: data.endTime, // string HH:mm
+        duration: data.duration, // string HH:mm, optional
         imageUrl: data.imageUrl ?? '',
         isActive: data.isActive ?? true,
       }
@@ -100,6 +104,9 @@ export class ServiceService {
       ...(data.type && Object.values(ServiceType).includes(data.type as ServiceType)
         ? { type: data.type as ServiceType }
         : {}),
+      ...(typeof data.startTime === 'string' && { startTime: data.startTime }),
+      ...(typeof data.endTime === 'string' && { endTime: data.endTime }),
+      ...(typeof data.duration === 'string' && { duration: data.duration }),
     }
     if (typeof data.name === 'string') {
       let slug = slugify(data.name)
