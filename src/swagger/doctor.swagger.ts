@@ -167,7 +167,7 @@ export const ApiGetAllDoctors = () => {
       description: 'Filter by specialization',
       example: 'Cardiology',
     }),
-    
+
     // Response documentation
     ApiResponse({
       status: 200,
@@ -291,7 +291,7 @@ export const ApiUpdateDoctor = () => {
           certifications: {
             type: 'array',
             items: {
-              type: 'string'
+              type: 'string',
             },
             description: 'List of doctor certifications',
             example: ['Medical License', 'Board Certification'],
@@ -467,7 +467,8 @@ export const ApiSwapShifts = () => {
     }),
     ApiResponse({
       status: 400,
-      description: 'Invalid request - Dates must be in the future, within 5 days of each other, and between Monday and Saturday',
+      description:
+        'Invalid request - Dates must be in the future, within 5 days of each other, and between Monday and Saturday',
     }),
     ApiResponse({
       status: 401,
@@ -482,7 +483,7 @@ export const ApiSwapShifts = () => {
 
 export const ApiGetPreferredSchedules = () => {
   return applyDecorators(
-    ApiOperation({ summary: 'Get doctor\'s preferred schedules' }),
+    ApiOperation({ summary: "Get doctor's preferred schedules" }),
     ApiBody({
       schema: {
         type: 'object',
@@ -498,7 +499,7 @@ export const ApiGetPreferredSchedules = () => {
     }),
     ApiResponse({
       status: 200,
-      description: 'Return doctor\'s preferred schedules',
+      description: "Return doctor's preferred schedules",
       schema: {
         type: 'array',
         items: {
@@ -533,7 +534,7 @@ export const ApiGetPreferredSchedules = () => {
 
 export const ApiUpdatePreferredSchedules = () => {
   return applyDecorators(
-    ApiOperation({ summary: 'Update doctor\'s preferred schedules' }),
+    ApiOperation({ summary: "Update doctor's preferred schedules" }),
     ApiBody({
       schema: {
         type: 'object',
@@ -599,7 +600,7 @@ export const ApiGenerateSchedule = () => {
             type: 'string',
             format: 'date',
             description: 'Start date of the week (YYYY-MM-DD)',
-            example: '2024-03-20',
+            example: '2024-03-20T10:00:00Z',
           },
           doctorsPerShift: {
             type: 'number',
@@ -725,6 +726,39 @@ export const ApiAssignDoctorsManually = () => {
     ApiResponse({
       status: 400,
       description: 'Invalid request - Date in past, shift not in remaining shifts, or too many doctors assigned',
+    }),
+    ApiResponse({
+      status: 401,
+      description: 'Unauthorized',
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Forbidden - Insufficient permissions',
+    }),
+  )
+}
+
+export const ApiGetDoctorsByDate = () => {
+  return applyDecorators(
+    ApiOperation({ summary: 'Get all doctors working on a specific date' }),
+    ApiQuery({
+      name: 'date',
+      required: true,
+      type: String,
+      description: 'Date to filter doctors (format: YYYY-MM-DD or ISO string)',
+      example: '2024-06-18',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'List of doctors working on the given date',
+      schema: {
+        type: 'array',
+        items: DoctorResponseSchema,
+      },
+    }),
+    ApiResponse({
+      status: 400,
+      description: 'Invalid date format',
     }),
     ApiResponse({
       status: 401,
