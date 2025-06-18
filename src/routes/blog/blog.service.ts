@@ -31,6 +31,12 @@ export class BlogService {
     return blog
   }
 
+  async findBlogBySlug(slug: string): Promise<BlogResponseType> {
+    const blog = await this.blogRepository.findBlogBySlug(slug)
+    if (!blog) throw new NotFoundException('Blog not found')
+    return blog
+  }
+
   async updateBlog(id: number, updateBlogDto: UpdateBlogDtoType): Promise<BlogResponseType> {
     const blog = await this.findBlogById(id)
     if (!blog) throw new NotFoundException('Blog not found')

@@ -27,17 +27,17 @@ export const BlogSchema = z.object({
 })
 
 export const CreateBlogSchema = z.object({
-  title: z.string().min(3),
-  content: z.string(),
-  imageUrl: z.string(),
+  title: z.string().min(3, 'Title must be at least 3 characters'),
+  content: z.string().min(3, 'Content must be at least 3 characters'),
+  imageUrl: z.string().max(500, 'Image URL must be less than 500 characters'),
   authorId: z.number().int(),
   cateId: z.number().int(),
 })
 
 export const UpdateBlogSchema = z.object({
-  title: z.string().min(3).optional(),
-  content: z.string().optional(),
-  imageUrl: z.string().optional(),
+  title: z.string().min(3, 'Title must be at least 3 characters').optional(),
+  content: z.string().min(3, 'Content must be at least 3 characters').optional(),
+  imageUrl: z.string().max(500, 'Image URL must be less than 500 characters').optional(),
   authorId: z.number().int().optional(),
   cateId: z.number().int().optional(),
   isPublished: z.boolean().optional(),

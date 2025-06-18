@@ -39,13 +39,7 @@ export class CateBlogRepository {
     })
     const where: any = {}
     if (validatedOptions.search) {
-      where.OR = []
-      if (validatedOptions.searchFields.includes('title')) {
-        where.OR.push({ title: { contains: validatedOptions.search, mode: 'insensitive' } })
-      }
-      if (validatedOptions.searchFields.includes('description')) {
-        where.OR.push({ description: { contains: validatedOptions.search, mode: 'insensitive' } })
-      }
+      where.title = { contains: validatedOptions.search, mode: 'insensitive' }
     }
     if (validatedOptions.filters) {
       if (validatedOptions.filters.title) {
