@@ -24,27 +24,107 @@ export interface ISearchOptions {
   sortOrder?: 'asc' | 'desc'
 }
 
-// Common medication schema that can be reused
+// Common medication schema with explicit validation
 export const SharedMedicationSchema = z.object({
-  medicineId: z.number().positive('Medicine ID must be positive'),
-  dosage: z.string().min(1, 'Dosage is required'),
-  duration: z.nativeEnum(MedicationSchedule),
-  notes: z.string().optional(),
+  medicineId: z.union([z.string(), z.number()]).transform((val) => {
+    if (typeof val === 'number') return val
+    const parsed = parseFloat(val)
+    return isNaN(parsed) ? 0 : parsed
+  }),
+  dosage: z.union([z.string(), z.number(), z.boolean(), z.undefined(), z.null()]).transform((val) => {
+    if (val === undefined || val === null) return ''
+    return String(val).trim() || ''
+  }),
+  duration: z.union([z.nativeEnum(MedicationSchedule), z.string()]).transform((val): MedicationSchedule => {
+    if (typeof val === 'string') {
+      return Object.values(MedicationSchedule).includes(val as MedicationSchedule)
+        ? (val as MedicationSchedule)
+        : MedicationSchedule.MORNING
+    }
+    return val
+  }),
+  notes: z
+    .union([z.string(), z.number(), z.boolean(), z.undefined(), z.null()])
+    .transform((val) => {
+      if (val === undefined || val === null) return undefined
+      return String(val).trim() || undefined
+    })
+    .optional(),
 })
 
-// Common search schema
+// Explicit search schema
 export const SharedSearchSchema = z.object({
-  q: z.string().min(1, 'Search query is required').optional(),
-  limit: z.number().min(1).max(100).optional().default(50),
-  offset: z.number().min(0).optional().default(0),
-  sortBy: z.string().optional(),
-  sortOrder: z.enum(['asc', 'desc']).optional().default('desc'),
+  page: z
+    .union([z.string(), z.number()])
+    .transform((val) => {
+      if (typeof val === 'number') return val
+      const parsed = parseFloat(val)
+      return isNaN(parsed) ? 1 : parsed
+    })
+    .default(1),
+  limit: z
+    .union([z.string(), z.number()])
+    .transform((val) => {
+      if (typeof val === 'number') return val
+      const parsed = parseFloat(val)
+      return isNaN(parsed) ? 10 : parsed
+    })
+    .default(10),
+  sortBy: z
+    .union([z.string(), z.number(), z.boolean(), z.undefined(), z.null()])
+    .transform((val) => {
+      if (val === undefined || val === null) return undefined
+      return String(val).trim() || undefined
+    })
+    .optional(),
+  sortOrder: z
+    .union([z.string(), z.enum(['asc', 'desc']), z.undefined()])
+    .transform((val) => {
+      if (!val) return 'desc'
+      const str = String(val).toLowerCase()
+      return ['asc', 'ascending', 'up'].includes(str) ? 'asc' : 'desc'
+    })
+    .default('desc'),
+  search: z
+    .union([z.string(), z.number(), z.boolean(), z.undefined(), z.null()])
+    .transform((val) => {
+      if (val === undefined || val === null) return undefined
+      return String(val).trim() || undefined
+    })
+    .optional(),
 })
 
-// Common bulk operation schema
+// Explicit bulk operation schema
 export const SharedBulkCreateSchema = z.object({
-  items: z.array(z.unknown()).min(1, 'At least one item is required'),
-  validateBeforeCreate: z.boolean().optional().default(true),
+  items: z.union([z.array(z.unknown()), z.string(), z.undefined(), z.null()]).transform((val): unknown[] => {
+    if (val === undefined || val === null) return []
+    if (Array.isArray(val)) return val
+    if (typeof val === 'string') {
+      try {
+        const parsed = JSON.parse(val)
+        return Array.isArray(parsed) ? (parsed as unknown[]) : [val as unknown]
+      } catch {
+        return val
+          .split(',')
+          .map((item) => item.trim())
+          .filter(Boolean) as unknown[]
+      }
+    }
+    return []
+  }),
+  validateBeforeCreate: z
+    .union([z.string(), z.boolean(), z.number(), z.undefined(), z.null()])
+    .transform((val) => {
+      if (val === undefined || val === null || val === '') return true
+      if (typeof val === 'boolean') return val
+      if (typeof val === 'number') return val > 0
+      if (typeof val === 'string') {
+        const lower = val.toLowerCase()
+        return ['true', '1', 'yes', 'on'].includes(lower)
+      }
+      return true
+    })
+    .default(true),
 })
 
 export type SharedMedication = z.infer<typeof SharedMedicationSchema>

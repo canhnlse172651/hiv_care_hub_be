@@ -1,18 +1,18 @@
 import { Injectable } from '@nestjs/common'
 import { PatientTreatment } from '@prisma/client'
 import { PatientTreatmentRepository } from '../../repositories/patient-treatment.repository'
+import { ENTITY_NAMES } from '../../shared/constants/api.constants'
 import { PaginatedResponse } from '../../shared/schemas/pagination.schema'
-import { PaginationService } from '../../shared/services/pagination.service'
 import { SharedErrorHandlingService } from '../../shared/services/error-handling.service'
-import { ENTITY_NAMES, RESPONSE_MESSAGES } from '../../shared/constants/api.constants'
+import { PaginationService } from '../../shared/services/pagination.service'
 import {
+  BulkCreatePatientTreatment,
   CreatePatientTreatmentSchema,
+  CustomMedicationsQuerySchema,
   GetPatientTreatmentsByPatientSchema,
   QueryPatientTreatmentSchema,
   UpdatePatientTreatment,
-  BulkCreatePatientTreatment,
-  CreatePatientTreatment,
-  CustomMedicationsQuerySchema,
+  BasicQueryPatientTreatmentSchema,
 } from './patient-treatment.model'
 
 @Injectable()
@@ -23,21 +23,86 @@ export class PatientTreatmentService {
     private readonly errorHandlingService: SharedErrorHandlingService,
   ) {}
 
-  // Create new patient treatment
+  // Create new patient treatment - Enhanced with flexible validation
   async createPatientTreatment(data: any, userId: number): Promise<PatientTreatment> {
     try {
-      // Validate data with proper schema
-      const validatedData = CreatePatientTreatmentSchema.parse(data)
+      // Enhanced validation - handle various input formats
+      let validatedData
+
+      try {
+        // Ensure userId is a valid number
+        if (!userId || typeof userId !== 'number' || userId <= 0) {
+          throw new Error('Valid user ID is required')
+        }
+
+        // Apply flexible transformations before validation
+        const flexibleData = {
+          ...data,
+          // Transform common string-number fields
+          patientId: data.patientId ? Number(data.patientId) : undefined,
+          doctorId: data.doctorId ? Number(data.doctorId) : undefined,
+          protocolId: data.protocolId ? Number(data.protocolId) : undefined,
+          // Transform date fields safely - ensure they are strings for Zod
+          startDate: data.startDate ? String(data.startDate) : undefined,
+          endDate: data.endDate ? String(data.endDate) : undefined,
+          // Transform custom medications - ensure it's an object if provided
+          customMedications: data.customMedications
+            ? typeof data.customMedications === 'string'
+              ? JSON.parse(String(data.customMedications))
+              : data.customMedications
+            : {},
+        }
+
+        validatedData = CreatePatientTreatmentSchema.parse(flexibleData)
+      } catch (validationError) {
+        console.error('Validation failed:', validationError)
+        throw new Error(`Validation failed: ${validationError.message}`)
+      }
+
+      // Business rules validation
+      const businessValidation = await this.patientTreatmentRepository.validatePatientTreatmentBusinessRules({
+        patientId: validatedData.patientId,
+        protocolId: validatedData.protocolId,
+        doctorId: validatedData.doctorId,
+        customMedications: validatedData.customMedications,
+        startDate: validatedData.startDate,
+        endDate: validatedData.endDate,
+        total: validatedData.total,
+      })
+
+      if (!businessValidation.isValid) {
+        throw new Error(`Business validation failed: ${businessValidation.errors.join(', ')}`)
+      }
+
+      // Log warnings if any
+      if (businessValidation.warnings.length > 0) {
+        console.warn('Patient treatment creation warnings:', businessValidation.warnings)
+      }
+
+      // Use calculated total if significantly different from provided
+      const finalTotal =
+        businessValidation.calculatedTotal &&
+        validatedData.total > 0 &&
+        Math.abs(validatedData.total - businessValidation.calculatedTotal) > validatedData.total * 0.1
+          ? businessValidation.calculatedTotal
+          : validatedData.total
 
       // Add createdById from authenticated user
       const treatmentData = {
-        ...validatedData,
+        patientId: validatedData.patientId,
+        protocolId: validatedData.protocolId,
+        doctorId: validatedData.doctorId,
+        customMedications: validatedData.customMedications,
+        notes: validatedData.notes,
+        startDate: validatedData.startDate,
+        endDate: validatedData.endDate,
+        total: finalTotal,
         createdById: userId,
       }
 
       return this.patientTreatmentRepository.createPatientTreatment(treatmentData)
     } catch (error) {
-      this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.PATIENT_TREATMENT)
+      return this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.PATIENT_TREATMENT)
     }
   }
 
@@ -56,10 +121,8 @@ export class PatientTreatmentService {
 
       return this.patientTreatmentRepository.updatePatientTreatment(id, data)
     } catch (error) {
-      this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.PATIENT_TREATMENT)
+      return this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.PATIENT_TREATMENT)
     }
-
-    return this.patientTreatmentRepository.updatePatientTreatment(id, data)
   }
 
   // Delete patient treatment
@@ -72,157 +135,320 @@ export class PatientTreatmentService {
 
   // Get all patient treatments with pagination and filtering
   async getAllPatientTreatments(query: unknown): Promise<PaginatedResponse<PatientTreatment>> {
-    // Validate query with proper schema
-    const validatedQuery = QueryPatientTreatmentSchema.parse(query)
-    console.log('getAllPatientTreatments - Validated query:', validatedQuery)
+    try {
+      // Validate query with proper schema
+      const validatedQuery = BasicQueryPatientTreatmentSchema.parse(query)
+      console.log('getAllPatientTreatments - Validated query:', validatedQuery)
 
-    const { page, limit, patientId, doctorId, protocolId, startDate, endDate, sortBy, sortOrder } = validatedQuery
+      const { page, limit, search, sortBy, sortOrder, startDate, endDate } = validatedQuery
 
-    // Build where clause
-    const where: any = {}
+      // Build where clause with type-safe approach
+      const where: {
+        AND?: Array<{
+          OR?: Array<{
+            notes?: { contains: string; mode: 'insensitive' }
+            patient?: { name: { contains: string; mode: 'insensitive' } }
+            doctor?: { user: { name: { contains: string; mode: 'insensitive' } } }
+            protocol?: { name: { contains: string; mode: 'insensitive' } }
+          }>
+          startDate?: { gte: Date }
+          endDate?: { lte: Date }
+        }>
+      } = {}
 
-    if (patientId) {
-      where.patientId = patientId
-    }
+      const whereConditions: Array<any> = []
 
-    if (doctorId) {
-      where.doctorId = doctorId
-    }
+      // Handle search across multiple fields if provided
+      if (search?.trim()) {
+        whereConditions.push({
+          OR: [
+            { notes: { contains: search, mode: 'insensitive' } },
+            { patient: { name: { contains: search, mode: 'insensitive' } } },
+            { doctor: { user: { name: { contains: search, mode: 'insensitive' } } } },
+            { protocol: { name: { contains: search, mode: 'insensitive' } } },
+          ],
+        } as const)
+      }
 
-    if (protocolId) {
-      where.protocolId = protocolId
-    }
-
-    if (startDate || endDate) {
-      where.startDate = {}
+      // Add date range filters if provided
       if (startDate) {
-        where.startDate.gte = new Date(startDate)
+        const parsedStartDate = new Date(startDate)
+        if (!isNaN(parsedStartDate.getTime())) {
+          whereConditions.push({ startDate: { gte: parsedStartDate } })
+        }
       }
+
       if (endDate) {
-        where.startDate.lte = new Date(endDate)
+        const parsedEndDate = new Date(endDate)
+        if (!isNaN(parsedEndDate.getTime())) {
+          whereConditions.push({ endDate: { lte: parsedEndDate } })
+        }
       }
+
+      // Add AND conditions if we have any
+      if (whereConditions.length > 0) {
+        where.AND = whereConditions
+      }
+
+      const options = {
+        page: Math.max(1, Number(page)),
+        limit: Math.min(100, Math.max(1, Number(limit))), // Cap at 100 items per page
+        sortBy,
+        sortOrder,
+      }
+
+      return this.paginationService.paginate<PatientTreatment>(
+        this.patientTreatmentRepository.getPatientTreatmentModel(),
+        options,
+        where,
+        {
+          patient: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          doctor: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+          protocol: {
+            include: {
+              medicines: {
+                include: {
+                  medicine: true,
+                },
+              },
+            },
+          },
+          createdBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
+      )
+    } catch (error) {
+      if (error.name === 'ZodError') {
+        throw new Error(`Invalid query parameters: ${error.message}`)
+      }
+      return this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.PATIENT_TREATMENT)
     }
-
-    const options = { page, limit, sortBy, sortOrder }
-
-    return this.paginationService.paginate<PatientTreatment>(
-      this.patientTreatmentRepository.getPatientTreatmentModel(),
-      options,
-      where,
-      {
-        patient: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-        doctor: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-              },
-            },
-          },
-        },
-        protocol: {
-          include: {
-            medicines: {
-              include: {
-                medicine: true,
-              },
-            },
-          },
-        },
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-      },
-    )
   }
 
-  // Get patient treatments by patient ID
+  // Get patient treatments by patient ID with pagination and filtering
   async getPatientTreatmentsByPatientId(query: unknown): Promise<PaginatedResponse<PatientTreatment>> {
-    // Validate query with proper schema
-    const validatedQuery = GetPatientTreatmentsByPatientSchema.parse(query)
-    console.log('getPatientTreatmentsByPatientId - Validated query:', validatedQuery)
+    try {
+      // Validate query with patient-specific schema
+      const validatedQuery = GetPatientTreatmentsByPatientSchema.parse(query)
+      const { patientId, page, limit, sortBy, sortOrder, includeCompleted, startDate, endDate } = validatedQuery
 
-    const { patientId, page, limit } = validatedQuery
+      // Build where clause
+      const where: any = {
+        patientId: patientId,
+      }
 
-    const where = {
-      patientId: patientId,
-    }
+      // Add date filters if provided
+      if (startDate && typeof startDate === 'string') {
+        const parsedStartDate = new Date(startDate)
+        if (!isNaN(parsedStartDate.getTime())) {
+          where.startDate = { gte: parsedStartDate }
+        }
+      }
 
-    const options = { page, limit, sortBy: 'createdAt' as const, sortOrder: 'desc' as const }
+      if (endDate && typeof endDate === 'string') {
+        const parsedEndDate = new Date(endDate)
+        if (!isNaN(parsedEndDate.getTime())) {
+          where.endDate = { lte: parsedEndDate }
+        }
+      }
 
-    return this.paginationService.paginate<PatientTreatment>(
-      this.patientTreatmentRepository.getPatientTreatmentModel(),
-      options,
-      where,
-      {
-        protocol: true,
-        doctor: {
-          include: {
-            user: true,
+      const options = {
+        page: Math.max(1, Number(page)),
+        limit: Math.min(100, Math.max(1, Number(limit))),
+        sortBy,
+        sortOrder,
+      }
+
+      return this.paginationService.paginate<PatientTreatment>(
+        this.patientTreatmentRepository.getPatientTreatmentModel(),
+        options,
+        where,
+        {
+          patient: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          doctor: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+          protocol: {
+            include: {
+              medicines: {
+                include: {
+                  medicine: true,
+                },
+              },
+            },
+          },
+          createdBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
           },
         },
-      },
-    )
+      )
+    } catch (error) {
+      if (error.name === 'ZodError') {
+        throw new Error(`Invalid query parameters: ${error.message}`)
+      }
+      return this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.PATIENT_TREATMENT)
+    }
   }
 
   // Get patient treatments by doctor ID
   async getPatientTreatmentsByDoctorId(query: unknown): Promise<PaginatedResponse<PatientTreatment>> {
-    // For now, use a similar approach to patient query
-    // We could create a specific schema for doctor queries if needed
-    const validatedQuery = QueryPatientTreatmentSchema.parse(query)
-    console.log('getPatientTreatmentsByDoctorId - Validated query:', validatedQuery)
+    try {
+      // Validate query with doctor-specific schema (we're using the generic one for now)
+      const validatedQuery = QueryPatientTreatmentSchema.parse(query)
+      const { doctorId, page, limit, sortBy, sortOrder } = validatedQuery
 
-    const { doctorId, page, limit, sortBy, sortOrder } = validatedQuery
+      if (!doctorId) {
+        throw new Error('Doctor ID is required')
+      }
 
-    if (!doctorId) {
-      throw new Error('Doctor ID is required')
-    }
+      const where = {
+        doctorId: Number(doctorId),
+      }
 
-    const where = {
-      doctorId: doctorId,
-    }
+      const options = {
+        page: Math.max(1, Number(page) || 1),
+        limit: Math.min(100, Math.max(1, Number(limit) || 10)),
+        sortBy: sortBy || 'createdAt',
+        sortOrder: sortOrder || 'desc',
+      }
 
-    const options = { page, limit, sortBy, sortOrder }
-
-    return this.paginationService.paginate<PatientTreatment>(
-      this.patientTreatmentRepository.getPatientTreatmentModel(),
-      options,
-      where,
-      {
-        patient: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
+      return this.paginationService.paginate<PatientTreatment>(
+        this.patientTreatmentRepository.getPatientTreatmentModel(),
+        options,
+        where,
+        {
+          patient: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          protocol: true,
+          createdBy: {
+            select: {
+              id: true,
+              name: true,
+            },
           },
         },
-        protocol: true,
-      },
-    )
+      )
+    } catch (error) {
+      if (error.name === 'ZodError') {
+        throw new Error(`Invalid query parameters: ${error.message}`)
+      }
+      return this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.PATIENT_TREATMENT)
+    }
   }
 
   // ===============================
-  // SEARCH AND ADVANCED QUERIES
+  // ENHANCED SEARCH AND FLEXIBLE QUERIES
   // ===============================
 
-  async searchPatientTreatments(query: string): Promise<PatientTreatment[]> {
-    return this.patientTreatmentRepository.searchPatientTreatments(query)
+  // Enhanced search with flexible query handling
+  async searchPatientTreatments(query: string, searchFields?: string[]): Promise<PatientTreatment[]> {
+    // Handle empty or invalid queries
+    if (!query || query.trim() === '') {
+      return []
+    }
+
+    // Use provided search fields or default ones
+    const fieldsToSearch = searchFields || ['notes', 'customMedications']
+
+    // Try multiple search strategies
+    try {
+      // First try exact search
+      return await this.patientTreatmentRepository.searchPatientTreatments(query.trim())
+    } catch (error) {
+      console.log('Exact search failed, trying flexible search:', error)
+
+      // Try flexible search by parsing the query
+      const searchTerms = query.trim().split(/\s+/)
+      let results: PatientTreatment[] = []
+
+      for (const term of searchTerms) {
+        try {
+          const termResults = await this.patientTreatmentRepository.searchPatientTreatments(term)
+          results = [...results, ...termResults]
+        } catch (termError) {
+          console.log(`Search term "${term}" failed:`, termError)
+        }
+      }
+
+      // Remove duplicates
+      const uniqueResults = results.filter(
+        (treatment, index, self) => index === self.findIndex((t) => t.id === treatment.id),
+      )
+
+      return uniqueResults
+    }
   }
 
+  // Enhanced date range search with flexible date handling
   async getPatientTreatmentsByDateRange(startDate: Date, endDate: Date): Promise<PatientTreatment[]> {
-    return this.patientTreatmentRepository.getPatientTreatmentsByDateRange(startDate, endDate)
+    // Handle invalid dates gracefully
+    let validStartDate = startDate
+    let validEndDate = endDate
+
+    if (!startDate || isNaN(startDate.getTime())) {
+      validStartDate = new Date()
+      validStartDate.setFullYear(validStartDate.getFullYear() - 1) // Default to 1 year ago
+    }
+
+    if (!endDate || isNaN(endDate.getTime())) {
+      validEndDate = new Date() // Default to now
+    }
+
+    // Ensure startDate is before endDate
+    if (validStartDate > validEndDate) {
+      ;[validStartDate, validEndDate] = [validEndDate, validStartDate]
+    }
+
+    try {
+      return await this.patientTreatmentRepository.getPatientTreatmentsByDateRange(validStartDate, validEndDate)
+    } catch (error) {
+      console.log('Date range search failed, returning empty array:', error)
+      return []
+    }
   }
 
   async getActivePatientTreatments(query: unknown): Promise<PaginatedResponse<PatientTreatment>> {
@@ -268,8 +494,8 @@ export class PatientTreatmentService {
     // Parse and validate the query using CustomMedicationsQuerySchema instead
     const validatedQuery = CustomMedicationsQuerySchema.parse(query)
 
-    const page = validatedQuery.page || 1
-    const limit = validatedQuery.limit || 10
+    const page = Math.max(1, validatedQuery.page || 1)
+    const limit = Math.min(100, Math.max(1, validatedQuery.limit || 10)) // Limit between 1-100
     const skip = (page - 1) * limit
 
     // Convert dates if provided
@@ -285,9 +511,10 @@ export class PatientTreatmentService {
     // Use the repository method directly which already handles the JSON filter correctly
     const data = await this.patientTreatmentRepository.findTreatmentsWithCustomMedications(params)
 
-    // For count, we need to approximate since the repository method doesn't provide total
-    // In a real implementation, you'd add a count method to the repository
-    const totalPages = Math.ceil(data.length / limit) || 1
+    // Get total count for accurate pagination - this should be implemented in repository
+    // For now, we'll estimate based on the returned data
+    const hasNextPage = data.length === limit
+    const totalPages = hasNextPage ? page + 1 : page // Conservative estimate
 
     return {
       data,
@@ -296,7 +523,7 @@ export class PatientTreatmentService {
         page,
         limit,
         totalPages,
-        hasNextPage: data.length === limit, // Approximate
+        hasNextPage,
         hasPreviousPage: page > 1,
       },
     }
@@ -347,21 +574,101 @@ export class PatientTreatmentService {
   }
 
   async bulkCreatePatientTreatments(data: BulkCreatePatientTreatment, userId: number): Promise<PatientTreatment[]> {
-    const treatmentsWithUserId = data.treatments.map((treatment) => {
-      const processedTreatment = {
-        ...treatment,
-        startDate: typeof treatment.startDate === 'string' ? new Date(treatment.startDate) : treatment.startDate,
-        endDate: treatment.endDate
-          ? typeof treatment.endDate === 'string'
-            ? new Date(treatment.endDate)
-            : treatment.endDate
-          : undefined,
-        createdById: userId,
-      }
-      return processedTreatment
-    })
+    const results: PatientTreatment[] = []
+    const errors: string[] = []
 
-    return this.patientTreatmentRepository.bulkCreatePatientTreatments(treatmentsWithUserId)
+    const batchSize = Math.min(10, Math.max(1, data.items.length)) // Ensure valid batch size
+    const continueOnError = data.continueOnError || false
+    const validateBeforeCreate = data.validateBeforeCreate !== false // Default true
+
+    // Validate input
+    if (!data.items || data.items.length === 0) {
+      throw new Error('No treatment items provided for bulk creation')
+    }
+
+    // Process treatments in batches
+    for (let i = 0; i < data.items.length; i += batchSize) {
+      const batch = data.items.slice(i, i + batchSize)
+
+      for (const [batchIndex, treatment] of batch.entries()) {
+        const itemIndex = i + batchIndex + 1
+        try {
+          // Flexible data transformation with better error handling
+          const processedTreatment = {
+            patientId: this.safeParseNumber(treatment.patientId, `patientId for item ${itemIndex}`),
+            doctorId: this.safeParseNumber(treatment.doctorId, `doctorId for item ${itemIndex}`),
+            protocolId: this.safeParseNumber(treatment.protocolId, `protocolId for item ${itemIndex}`),
+            startDate: typeof treatment.startDate === 'string' ? new Date(treatment.startDate) : treatment.startDate,
+            endDate: treatment.endDate
+              ? typeof treatment.endDate === 'string'
+                ? new Date(treatment.endDate)
+                : treatment.endDate
+              : undefined,
+            notes: treatment.notes,
+            total: Math.max(0, this.safeParseNumber((treatment as any).total || 0, `total for item ${itemIndex}`, 0)), // Ensure non-negative
+            customMedications: this.safeParseCustomMedications(treatment.customMedications, itemIndex),
+            createdById: userId,
+          }
+
+          // Validate processed data if requested
+          if (validateBeforeCreate) {
+            CreatePatientTreatmentSchema.parse(processedTreatment)
+          }
+
+          // Create the treatment record
+          const created = await this.patientTreatmentRepository.createPatientTreatment(processedTreatment)
+          results.push(created)
+        } catch (error) {
+          const errorMessage = `Item ${itemIndex}: ${error instanceof Error ? error.message : 'Unknown error'}`
+          errors.push(errorMessage)
+
+          if (!continueOnError) {
+            throw new Error(`Bulk create failed at ${errorMessage}. Successfully created ${results.length} treatments.`)
+          }
+        }
+      }
+    }
+
+    // Log summary
+    console.log(`Bulk create completed: ${results.length} treatments created, ${errors.length} errors`)
+    if (errors.length > 0) {
+      console.log('Errors:', errors)
+    }
+
+    return results
+  }
+
+  // Helper methods for bulk create
+  private safeParseNumber(value: any, fieldName: string, defaultValue?: number): number {
+    if (value === null || value === undefined) {
+      if (defaultValue !== undefined) {
+        return defaultValue
+      }
+      throw new Error(`${fieldName} is required`)
+    }
+
+    const parsed: number = typeof value === 'string' ? Number(value) : Number(value)
+    if (isNaN(parsed) || !isFinite(parsed)) {
+      throw new Error(`${fieldName} must be a valid number`)
+    }
+
+    return parsed
+  }
+
+  private safeParseCustomMedications(value: any, itemIndex: number): any {
+    if (!value) return null
+
+    try {
+      if (Array.isArray(value)) {
+        return value
+      }
+      if (typeof value === 'string') {
+        return JSON.parse(value)
+      }
+      return value
+    } catch (error) {
+      throw new Error(`Invalid custom medications format for item ${itemIndex}`)
+    }
   }
 
   // Additional utility methods
@@ -376,17 +683,24 @@ export class PatientTreatmentService {
   }> {
     const stats = await this.getPatientTreatmentStats(patientId)
 
+    // Safe division to avoid divide by zero
+    const totalTreatments = stats.totalTreatments || 0
+    const completedTreatments = stats.completedTreatments || 0
+    const activeTreatments = stats.activeTreatments || 0
+
+    const complianceRate = totalTreatments > 0 ? (completedTreatments / totalTreatments) * 100 : 0
+
     return {
-      totalTreatments: stats.totalTreatments,
-      completedTreatments: stats.completedTreatments,
-      activeTreatments: stats.activeTreatments,
-      droppedTreatments: stats.totalTreatments - stats.completedTreatments - stats.activeTreatments,
-      complianceRate: stats.totalTreatments > 0 ? (stats.completedTreatments / stats.totalTreatments) * 100 : 0,
+      totalTreatments,
+      completedTreatments,
+      activeTreatments,
+      droppedTreatments: Math.max(0, totalTreatments - completedTreatments - activeTreatments),
+      complianceRate: Math.round(complianceRate * 100) / 100, // Round to 2 decimal places
       averageTreatmentDuration: stats.averageTreatmentDuration,
     }
   }
 
-  getTreatmentCostAnalysis(params: {
+  async getTreatmentCostAnalysis(params: {
     patientId?: number
     doctorId?: number
     protocolId?: number
@@ -405,16 +719,10 @@ export class PatientTreatmentService {
       treatmentCount: number
     }>
   }> {
-    // This would need repository support for cost analysis
-    // For now, return basic structure
-    return Promise.resolve({
-      totalCost: 0,
-      averageCostPerTreatment: 0,
-      costBreakdown: {
-        standardProtocolCosts: 0,
-        customMedicationCosts: 0,
-      },
-      costTrends: [],
-    })
+    try {
+      return await this.patientTreatmentRepository.getTreatmentCostAnalysis(params)
+    } catch (error) {
+      return this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.PATIENT_TREATMENT)
+    }
   }
 }

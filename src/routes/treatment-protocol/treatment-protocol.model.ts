@@ -1,9 +1,9 @@
 import { MedicationSchedule } from '@prisma/client'
 import { z } from 'zod'
 import {
+  SharedBulkCreateSchema,
   SharedMedicationSchema,
   SharedSearchSchema,
-  SharedBulkCreateSchema,
 } from '../../shared/interfaces/medication.interface'
 
 // Base Treatment Protocol Schema

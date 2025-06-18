@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common'
 import { TreatmentProtocol } from '@prisma/client'
 import { TreatmentProtocolRepository } from '../../repositories/treatment-protocol.repository'
+import { ENTITY_NAMES } from '../../shared/constants/api.constants'
 import { PaginatedResponse } from '../../shared/schemas/pagination.schema'
-import { PaginationService } from '../../shared/services/pagination.service'
 import { SharedErrorHandlingService } from '../../shared/services/error-handling.service'
-import { ENTITY_NAMES, RESPONSE_MESSAGES } from '../../shared/constants/api.constants'
+import { PaginationService } from '../../shared/services/pagination.service'
 import { CreateTreatmentProtocol, UpdateTreatmentProtocol } from './treatment-protocol.model'
 
 @Injectable()
@@ -15,12 +15,24 @@ export class TreatmentProtocolService {
     private readonly errorHandlingService: SharedErrorHandlingService,
   ) {}
 
-  // Create new treatment protocol
+  // Create new treatment protocol with enhanced validation
   async createTreatmentProtocol(data: CreateTreatmentProtocol, userId: number): Promise<TreatmentProtocol> {
     try {
-      // Check if protocol with same name already exists
-      const existingProtocol = await this.treatmentProtocolRepository.findTreatmentProtocolByName(data.name)
-      this.errorHandlingService.validateNameUniqueness(existingProtocol, data.name, ENTITY_NAMES.TREATMENT_PROTOCOL)
+      // Validate business rules
+      const validation = await this.treatmentProtocolRepository.validateProtocolBusinessRules({
+        name: data.name,
+        targetDisease: data.targetDisease,
+        medicines: data.medicines,
+      })
+
+      if (!validation.isValid) {
+        throw new Error(`Validation failed: ${validation.errors.join(', ')}`)
+      }
+
+      // Log warnings if any
+      if (validation.warnings.length > 0) {
+        console.warn('Treatment protocol creation warnings:', validation.warnings)
+      }
 
       return this.treatmentProtocolRepository.createTreatmentProtocol({
         ...data,
@@ -70,10 +82,20 @@ export class TreatmentProtocolService {
     })
   }
 
-  // Delete treatment protocol
+  // Delete treatment protocol with dependency checking
   async deleteTreatmentProtocol(id: number): Promise<TreatmentProtocol> {
     // Check if protocol exists
     await this.getTreatmentProtocolById(id)
+
+    // Validate that protocol can be safely deleted
+    const deleteValidation = await this.treatmentProtocolRepository.validateProtocolCanBeDeleted(id)
+
+    if (!deleteValidation.canDelete) {
+      throw new Error(
+        `Cannot delete treatment protocol: ${deleteValidation.activePatientTreatments} active patient treatments are using this protocol. ` +
+          `Total treatments using this protocol: ${deleteValidation.totalPatientTreatments}`,
+      )
+    }
 
     return this.treatmentProtocolRepository.deleteTreatmentProtocol(id)
   }
@@ -477,5 +499,32 @@ export class TreatmentProtocolService {
     )
 
     return { protocols, comparison }
+  }
+
+  // Get protocol cost estimation
+  async getProtocolCostEstimation(id: number): Promise<{
+    protocolId: number
+    protocolName: string
+    totalCost: number
+    medicinesCost: Array<{
+      medicineId: number
+      medicineName: string
+      unitPrice: number
+      dosage: string
+      duration: string
+      estimatedCost: number
+    }>
+  }> {
+    // Check if protocol exists
+    const protocol = await this.getTreatmentProtocolById(id)
+
+    // Calculate cost using repository method
+    const costCalculation = await this.treatmentProtocolRepository.calculateProtocolCost(id)
+
+    return {
+      protocolId: id,
+      protocolName: protocol.name,
+      ...costCalculation,
+    }
   }
 }

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { SharedSearchSchema, SharedBulkCreateSchema } from '../../shared/interfaces/medication.interface'
+import { SharedSearchSchema } from '../../shared/interfaces/medication.interface'
 
 export const MedicineSchema = z.object({
   id: z.number().positive('ID must be a positive number'),

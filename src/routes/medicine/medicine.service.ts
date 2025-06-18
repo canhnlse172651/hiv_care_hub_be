@@ -2,10 +2,10 @@ import { Injectable } from '@nestjs/common'
 import { Medicine } from '@prisma/client'
 import { z } from 'zod'
 import { MedicineRepository } from '../../repositories/medicine.repository'
+import { ENTITY_NAMES } from '../../shared/constants/api.constants'
 import { PaginatedResponse } from '../../shared/schemas/pagination.schema'
-import { PaginationService } from '../../shared/services/pagination.service'
 import { SharedErrorHandlingService } from '../../shared/services/error-handling.service'
-import { ENTITY_NAMES, RESPONSE_MESSAGES } from '../../shared/constants/api.constants'
+import { PaginationService } from '../../shared/services/pagination.service'
 import { CreateMedicine, UpdateMedicine } from './medicine.model'
 
 @Injectable()
@@ -16,12 +16,25 @@ export class MedicineService {
     private readonly errorHandlingService: SharedErrorHandlingService,
   ) {}
 
-  // Create new medicine
+  // Create new medicine with enhanced validation
   async createMedicine(data: CreateMedicine): Promise<Medicine> {
     try {
-      // Check if medicine with same name already exists
-      const existingMedicine = await this.medicineRepository.findMedicineByName(data.name)
-      this.errorHandlingService.validateNameUniqueness(existingMedicine, data.name, ENTITY_NAMES.MEDICINE)
+      // Validate business rules
+      const validation = await this.medicineRepository.validateMedicineBusinessRules({
+        name: data.name,
+        unit: data.unit,
+        dose: data.dose,
+        price: data.price,
+      })
+
+      if (!validation.isValid) {
+        throw new Error(`Validation failed: ${validation.errors.join(', ')}`)
+      }
+
+      // Log warnings if any
+      if (validation.warnings.length > 0) {
+        console.warn('Medicine creation warnings:', validation.warnings)
+      }
 
       // Use the repository's validated create method
       return this.medicineRepository.createMedicine(data)
@@ -57,10 +70,28 @@ export class MedicineService {
     return this.medicineRepository.updateMedicine(id, data)
   }
 
-  // Delete medicine
+  // Delete medicine with dependency checking
   async deleteMedicine(id: number): Promise<Medicine> {
     // Check if medicine exists
     await this.getMedicineById(id)
+
+    // Validate that medicine can be safely deleted
+    const deleteValidation = await this.medicineRepository.validateMedicineCanBeDeleted(id)
+
+    if (!deleteValidation.canDelete) {
+      const issues: string[] = []
+
+      if (deleteValidation.relatedProtocols.length > 0) {
+        const protocolNames = deleteValidation.relatedProtocols.map((p) => p.name).join(', ')
+        issues.push(`Medicine is used in treatment protocols: ${protocolNames}`)
+      }
+
+      if (deleteValidation.relatedActiveTreatments > 0) {
+        issues.push(`Medicine is being used in ${deleteValidation.relatedActiveTreatments} active treatments`)
+      }
+
+      throw new Error(`Cannot delete medicine: ${issues.join('; ')}`)
+    }
 
     return this.medicineRepository.deleteMedicine(id)
   }

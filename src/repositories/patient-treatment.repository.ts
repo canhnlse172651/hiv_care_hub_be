@@ -4,20 +4,16 @@ import { PaginatedResponse } from 'src/shared/schemas/pagination.schema'
 import { PaginationService } from 'src/shared/services/pagination.service'
 import { PrismaService } from 'src/shared/services/prisma.service'
 import { z } from 'zod'
-import { FlexibleCustomMedicationsSchema } from '../routes/patient-treatment/patient-treatment.model'
+import {
+  FlexibleCustomMedicationsSchema,
+  CreatePatientTreatmentSchema,
+} from '../routes/patient-treatment/patient-treatment.model'
 
 // Use the same schema from model instead of defining a different one
 
-export const CreatePatientTreatmentDataSchema = z.object({
-  patientId: z.number().positive('Patient ID must be positive'),
-  protocolId: z.number().positive('Protocol ID must be positive'),
-  doctorId: z.number().positive('Doctor ID must be positive'),
-  customMedications: FlexibleCustomMedicationsSchema,
-  notes: z.string().optional(),
-  startDate: z.date(),
-  endDate: z.date().optional(),
+export const CreatePatientTreatmentDataSchema = CreatePatientTreatmentSchema.extend({
   createdById: z.number().positive('Created by ID must be positive'),
-  total: z.number().min(0, 'Total must be non-negative'),
+  total: z.number().min(0, 'Total must be non-negative').optional(),
 })
 
 export const UpdatePatientTreatmentDataSchema = CreatePatientTreatmentDataSchema.partial().omit({
@@ -95,7 +91,7 @@ export class PatientTreatmentRepository {
           startDate: validatedData.startDate,
           endDate: validatedData.endDate,
           createdById: validatedData.createdById,
-          total: validatedData.total,
+          total: validatedData.total || 0,
         },
         include: {
           patient: {
@@ -830,7 +826,7 @@ export class PatientTreatmentRepository {
               startDate: data.startDate,
               endDate: data.endDate,
               createdById: data.createdById,
-              total: data.total,
+              total: data.total || 0,
             },
             include: {
               patient: {
@@ -1326,6 +1322,417 @@ export class PatientTreatmentRepository {
       })
     } catch (error) {
       throw this.handlePrismaError(error)
+    }
+  }
+
+  /**
+   * Get treatment cost analysis with comprehensive statistics
+   * Provides detailed cost breakdown and trends for analysis
+   *
+   * @param params - Filter parameters for cost analysis
+   * @returns Cost analysis data with trends and breakdowns
+   */
+  async getTreatmentCostAnalysis(params: {
+    patientId?: number
+    doctorId?: number
+    protocolId?: number
+    startDate?: Date
+    endDate?: Date
+  }): Promise<{
+    totalCost: number
+    averageCostPerTreatment: number
+    costBreakdown: {
+      standardProtocolCosts: number
+      customMedicationCosts: number
+    }
+    costTrends: Array<{
+      month: string
+      totalCost: number
+      treatmentCount: number
+    }>
+  }> {
+    try {
+      // Build where clause for filtering
+      const where: Prisma.PatientTreatmentWhereInput = {}
+
+      if (params.patientId) {
+        where.patientId = params.patientId
+      }
+
+      if (params.doctorId) {
+        where.doctorId = params.doctorId
+      }
+
+      if (params.protocolId) {
+        where.protocolId = params.protocolId
+      }
+
+      if (params.startDate || params.endDate) {
+        where.startDate = {}
+        if (params.startDate) {
+          where.startDate.gte = params.startDate
+        }
+        if (params.endDate) {
+          where.startDate.lte = params.endDate
+        }
+      }
+
+      // Get all treatments matching criteria
+      const treatments = await this.prismaService.patientTreatment.findMany({
+        where,
+        include: {
+          protocol: {
+            include: {
+              medicines: {
+                include: {
+                  medicine: true,
+                },
+              },
+            },
+          },
+        },
+      })
+
+      // Calculate total costs
+      const totalCost = treatments.reduce((sum, treatment) => sum + treatment.total, 0)
+      const treatmentCount = treatments.length
+      const averageCostPerTreatment = treatmentCount > 0 ? totalCost / treatmentCount : 0
+
+      // Calculate cost breakdown
+      let standardProtocolCosts = 0
+      let customMedicationCosts = 0
+
+      for (const treatment of treatments) {
+        // Standard protocol costs
+        if (treatment.protocol?.medicines) {
+          for (const protocolMedicine of treatment.protocol.medicines) {
+            if (protocolMedicine.medicine?.price) {
+              // Convert Decimal to number for calculation
+              const price =
+                typeof protocolMedicine.medicine.price === 'number'
+                  ? protocolMedicine.medicine.price
+                  : Number(protocolMedicine.medicine.price)
+
+              // Extract quantity from dosage string (e.g., "2 tablets" -> 2) or default to 1
+              const dosageMatch = protocolMedicine.dosage?.match(/^\d+/)
+              const quantity = dosageMatch ? parseInt(dosageMatch[0], 10) : 1
+              standardProtocolCosts += price * quantity
+            }
+          }
+        }
+
+        // Custom medication costs
+        if (treatment.customMedications) {
+          try {
+            const customMeds = treatment.customMedications as any
+            if (Array.isArray(customMeds)) {
+              for (const med of customMeds) {
+                const price = typeof med?.price === 'number' ? med.price : 0
+                customMedicationCosts += price
+              }
+            } else if (customMeds?.additionalMeds && Array.isArray(customMeds.additionalMeds)) {
+              for (const med of customMeds.additionalMeds) {
+                const price = typeof med?.price === 'number' ? med.price : 0
+                customMedicationCosts += price
+              }
+            }
+          } catch (error) {
+            // Handle JSON parsing errors gracefully
+            console.warn('Error parsing custom medications for cost analysis:', error)
+          }
+        }
+      }
+
+      // Generate cost trends by month
+      const monthlyData = new Map<string, { totalCost: number; treatmentCount: number }>()
+
+      for (const treatment of treatments) {
+        const monthKey = treatment.startDate.toISOString().substring(0, 7) // YYYY-MM format
+        const existing = monthlyData.get(monthKey) || { totalCost: 0, treatmentCount: 0 }
+
+        monthlyData.set(monthKey, {
+          totalCost: existing.totalCost + treatment.total,
+          treatmentCount: existing.treatmentCount + 1,
+        })
+      }
+
+      const costTrends = Array.from(monthlyData.entries())
+        .map(([month, data]) => ({
+          month,
+          totalCost: data.totalCost,
+          treatmentCount: data.treatmentCount,
+        }))
+        .sort((a, b) => a.month.localeCompare(b.month))
+
+      return {
+        totalCost,
+        averageCostPerTreatment,
+        costBreakdown: {
+          standardProtocolCosts,
+          customMedicationCosts,
+        },
+        costTrends,
+      }
+    } catch (error) {
+      throw this.handlePrismaError(error)
+    }
+  }
+
+  // Business Logic Validation Methods
+
+  /**
+   * Validate patient treatment business rules
+   */
+  async validatePatientTreatmentBusinessRules(data: {
+    patientId: number
+    protocolId: number
+    doctorId: number
+    customMedications?: any
+    startDate: Date
+    endDate?: Date
+    total: number
+  }): Promise<{
+    isValid: boolean
+    errors: string[]
+    warnings: string[]
+    calculatedTotal?: number
+  }> {
+    const errors: string[] = []
+    const warnings: string[] = []
+
+    // Validate patient exists and is active
+    const patient = await this.prismaService.user.findUnique({
+      where: { id: data.patientId },
+      include: { role: true },
+    })
+
+    if (!patient) {
+      errors.push(`Patient with ID ${data.patientId} not found`)
+    } else if (patient.deletedAt) {
+      errors.push(`Patient with ID ${data.patientId} is deleted`)
+    }
+
+    // Validate doctor exists and is active
+    const doctor = await this.prismaService.doctor.findUnique({
+      where: { id: data.doctorId },
+      include: { user: true },
+    })
+
+    if (!doctor) {
+      errors.push(`Doctor with ID ${data.doctorId} not found`)
+    } else if (doctor.user?.deletedAt) {
+      errors.push(`Doctor with ID ${data.doctorId} is deleted`)
+    }
+
+    // Validate protocol exists
+    const protocol = await this.prismaService.treatmentProtocol.findUnique({
+      where: { id: data.protocolId },
+      include: {
+        medicines: {
+          include: {
+            medicine: true,
+          },
+        },
+      },
+    })
+
+    if (!protocol) {
+      errors.push(`Treatment protocol with ID ${data.protocolId} not found`)
+    }
+
+    // Validate dates
+    if (data.endDate && data.startDate >= data.endDate) {
+      errors.push('End date must be after start date')
+    }
+
+    if (data.startDate > new Date()) {
+      warnings.push('Treatment start date is in the future')
+    }
+
+    // Check for overlapping treatments for the same patient
+    const overlappingTreatments = await this.prismaService.patientTreatment.findMany({
+      where: {
+        patientId: data.patientId,
+        AND: [
+          { startDate: { lte: data.endDate || new Date('2099-12-31') } },
+          {
+            OR: [{ endDate: null }, { endDate: { gte: data.startDate } }],
+          },
+        ],
+      },
+    })
+
+    if (overlappingTreatments.length > 0) {
+      warnings.push(`Patient has ${overlappingTreatments.length} overlapping treatments`)
+    }
+
+    // Calculate expected total cost
+    let calculatedTotal = 0
+    if (protocol) {
+      // Calculate from protocol medicines
+      const protocolCost = protocol.medicines.reduce((sum, pm) => {
+        const medicinePrice = Number(pm.medicine.price)
+        // Simple calculation: medicine price * estimated days
+        const durationMultiplier = pm.duration === 'MORNING' ? 30 : pm.duration === 'AFTERNOON' ? 30 : 30
+        return sum + medicinePrice * durationMultiplier
+      }, 0)
+
+      calculatedTotal += protocolCost
+
+      // Add custom medications cost if any
+      if (data.customMedications && Array.isArray(data.customMedications)) {
+        const customCost = data.customMedications.reduce((sum: number, med: any) => {
+          const price = Number(med.price || 0)
+          return sum + price
+        }, 0)
+        calculatedTotal += customCost
+      }
+
+      // Check if provided total is reasonable
+      const totalDifference = Math.abs(data.total - calculatedTotal)
+      const percentageDifference = (totalDifference / Math.max(calculatedTotal, data.total)) * 100
+
+      if (percentageDifference > 20) {
+        warnings.push(`Provided total (${data.total}) differs significantly from calculated total (${calculatedTotal})`)
+      }
+    }
+
+    // Validate custom medications if provided
+    if (data.customMedications) {
+      try {
+        if (Array.isArray(data.customMedications)) {
+          for (const med of data.customMedications) {
+            if (!med.name || !med.dosage) {
+              errors.push('Custom medications must have name and dosage')
+              break
+            }
+          }
+        }
+      } catch (error) {
+        errors.push('Invalid custom medications format')
+      }
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings,
+      calculatedTotal,
+    }
+  }
+
+  /**
+   * Check if patient treatment can be safely deleted
+   */
+  async validatePatientTreatmentCanBeDeleted(id: number): Promise<{
+    canDelete: boolean
+    relatedTestResults: number
+    isActive: boolean
+  }> {
+    const validatedId = this.validateId(id)
+
+    // Check for related test results
+    const testResultsCount = await this.prismaService.testResult.count({
+      where: { patientTreatmentId: validatedId },
+    })
+
+    // Check if treatment is currently active
+    const treatment = await this.prismaService.patientTreatment.findUnique({
+      where: { id: validatedId },
+    })
+
+    const isActive = treatment ? !treatment.endDate || treatment.endDate > new Date() : false
+
+    return {
+      canDelete: testResultsCount === 0 && !isActive,
+      relatedTestResults: testResultsCount,
+      isActive,
+    }
+  }
+
+  /**
+   * Calculate treatment total cost
+   */
+  async calculateTreatmentTotal(
+    protocolId: number,
+    customMedications?: any[],
+    durationDays?: number,
+  ): Promise<{
+    protocolCost: number
+    customMedicationsCost: number
+    totalCost: number
+    breakdown: Array<{
+      type: 'protocol' | 'custom'
+      name: string
+      unitPrice: number
+      quantity: number
+      subtotal: number
+    }>
+  }> {
+    const breakdown: Array<{
+      type: 'protocol' | 'custom'
+      name: string
+      unitPrice: number
+      quantity: number
+      subtotal: number
+    }> = []
+    let protocolCost = 0
+    let customMedicationsCost = 0
+
+    // Calculate protocol medicines cost
+    const protocol = await this.prismaService.treatmentProtocol.findUnique({
+      where: { id: protocolId },
+      include: {
+        medicines: {
+          include: {
+            medicine: true,
+          },
+        },
+      },
+    })
+
+    if (protocol) {
+      const days = durationDays || 30 // Default 30 days
+
+      for (const pm of protocol.medicines) {
+        const unitPrice = Number(pm.medicine.price)
+        const quantity = days // Simplified: 1 unit per day
+        const subtotal = unitPrice * quantity
+
+        protocolCost += subtotal
+        breakdown.push({
+          type: 'protocol',
+          name: pm.medicine.name,
+          unitPrice,
+          quantity,
+          subtotal,
+        })
+      }
+    }
+
+    // Calculate custom medications cost
+    if (customMedications && Array.isArray(customMedications)) {
+      for (const med of customMedications) {
+        const unitPrice = Number(med.price || 0)
+        const quantity = Number(med.quantity || 1)
+        const subtotal = unitPrice * quantity
+
+        customMedicationsCost += subtotal
+        breakdown.push({
+          type: 'custom',
+          name: med.name || 'Custom Medicine',
+          unitPrice,
+          quantity,
+          subtotal,
+        })
+      }
+    }
+
+    return {
+      protocolCost,
+      customMedicationsCost,
+      totalCost: protocolCost + customMedicationsCost,
+      breakdown,
     }
   }
 }
