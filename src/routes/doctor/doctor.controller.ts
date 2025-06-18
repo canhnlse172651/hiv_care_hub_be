@@ -1,9 +1,7 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query, ParseIntPipe, UseGuards } from '@nestjs/common'
-import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger'
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, ParseIntPipe } from '@nestjs/common'
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger'
 import { DoctorService } from './doctor.service'
 import { Doctor } from '@prisma/client'
-import { Roles } from '../../shared/decorators/roles.decorator'
-import { Role } from '../../shared/constants/role.constant'
 import { PaginatedResponse } from '../../shared/schemas/pagination.schema'
 import {
   CreateDoctorDto,
@@ -25,11 +23,9 @@ import {
   ApiSwapShifts,
   ApiGetDoctorsByDate,
 } from '../../swagger/doctor.swagger'
-import { RolesGuard } from '../../shared/guards/roles.guard'
-import { GetDoctorByDateType, ManualScheduleAssignmentType, SwapShiftsType } from './doctor.model'
-import CustomZodValidationPipe from 'src/common/custom-zod-validate'
+import { ManualScheduleAssignmentType, SwapShiftsType } from './doctor.model'
 
-// @ApiBearerAuth()
+@ApiBearerAuth()
 @ApiTags('Doctors')
 @Controller('doctors')
 export class DoctorController {
