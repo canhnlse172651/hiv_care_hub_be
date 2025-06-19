@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { Injectable, BadRequestException } from '@nestjs/common'
 import { TreatmentProtocol } from '@prisma/client'
 import { TreatmentProtocolRepository } from '../../repositories/treatment-protocol.repository'
 import { ENTITY_NAMES } from '../../shared/constants/api.constants'
@@ -26,7 +26,7 @@ export class TreatmentProtocolService {
       })
 
       if (!validation.isValid) {
-        throw new Error(`Validation failed: ${validation.errors.join(', ')}`)
+        throw new BadRequestException(`Validation failed: ${validation.errors.join(', ')}`)
       }
 
       // Log warnings if any
@@ -40,6 +40,11 @@ export class TreatmentProtocolService {
         updatedById: userId,
       })
     } catch (error) {
+      // If it's already an HTTP exception, re-throw it
+      if (error instanceof BadRequestException) {
+        throw error
+      }
+      // Handle other errors (like Prisma errors)
       this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.TREATMENT_PROTOCOL)
     }
   }
