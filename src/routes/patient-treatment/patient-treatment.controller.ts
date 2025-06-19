@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common'
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger'
 import { PatientTreatment } from '@prisma/client'
+import CustomZodValidationPipe from '../../common/custom-zod-validate'
 import { AuthType } from '../../shared/constants/auth.constant'
 import { Role } from '../../shared/constants/role.constant'
 import { Auth } from '../../shared/decorators/auth.decorator'
@@ -36,12 +37,10 @@ import {
 } from '../../swagger/patient-treatment.swagger'
 import {
   BulkCreatePatientTreatmentDto,
-  CustomMedicationsQueryDto,
+  CreatePatientTreatmentDto,
+  CreatePatientTreatmentDtoType,
   PatientTreatmentQueryDto,
   UpdatePatientTreatmentDto,
-  BasicQueryPatientTreatmentDto,
-  SearchPatientTreatmentDto,
-  SimplePatientTreatmentsByPatientDto,
 } from './patient-treatment.dto'
 import { PatientTreatmentService } from './patient-treatment.service'
 
@@ -55,10 +54,14 @@ export class PatientTreatmentController {
   @Post()
   @Roles(Role.Admin, Role.Doctor)
   @ApiCreatePatientTreatment()
-  async createPatientTreatment(@Body() body: unknown, @CurrentUser() user: any): Promise<PatientTreatment> {
+  async createPatientTreatment(
+    @Body(new CustomZodValidationPipe(CreatePatientTreatmentDto))
+    data: CreatePatientTreatmentDtoType,
+    @CurrentUser() user: any,
+  ): Promise<PatientTreatment> {
     // Use userId from JWT payload
     const userId = user.userId || user.id
-    return this.patientTreatmentService.createPatientTreatment(body, Number(userId))
+    return this.patientTreatmentService.createPatientTreatment(data, Number(userId))
   }
 
   @Get()
