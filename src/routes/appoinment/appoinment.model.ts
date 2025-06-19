@@ -18,8 +18,8 @@ export const serviceResSchema = z.object({
   description: z.string(),
   type: z.string(),
   price: decimalSchema,
-  startTime: z.date(),
-  endTime: z.date(),
+  startTime: z.string(),
+  endTime: z.string(),
   content: z.string(),
 })
 
