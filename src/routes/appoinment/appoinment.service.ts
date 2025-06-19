@@ -7,6 +7,24 @@ import { AuthRepository } from 'src/repositories/user.repository'
 import { ServiceRepository } from 'src/repositories/service.repository'
 import { PaginationService } from 'src/shared/services/pagination.service'
 import { formatTimeHHMM, isTimeBetween } from 'src/shared/utils/date.utils'
+import { DoctorRepository } from 'src/repositories/doctor.repository'
+
+const slots = [
+  { start: '07:00', end: '07:30' },
+  { start: '07:35', end: '08:05' },
+  { start: '08:10', end: '08:40' },
+  { start: '08:45', end: '09:15' },
+  { start: '09:20', end: '09:50' },
+  { start: '09:55', end: '10:25' },
+  { start: '10:30', end: '11:00' },
+  { start: '13:00', end: '13:30' },
+  { start: '13:35', end: '14:05' },
+  { start: '14:10', end: '14:40' },
+  { start: '14:45', end: '15:15' },
+  { start: '15:20', end: '15:50' },
+  { start: '15:55', end: '16:25' },
+  { start: '16:30', end: '17:00' },
+]
 
 @Injectable()
 export class AppoinmentService {
@@ -15,30 +33,68 @@ export class AppoinmentService {
     private readonly userRepository: AuthRepository,
     private readonly serviceRepository: ServiceRepository,
     private readonly paginationService: PaginationService,
+    private readonly doctorRepository: DoctorRepository,
   ) {}
 
   async createAppointment(data: CreateAppointmentDtoType): Promise<AppointmentResponseType> {
     const user = await this.userRepository.findUserById(data.userId)
     if (!user) throw new BadRequestException('User not found')
 
-    const doctor = await this.userRepository.findUserById(data.doctorId)
+    const doctor = await this.doctorRepository.findDoctorById(data.doctorId)
     if (!doctor) throw new BadRequestException('Doctor not found')
-
-    if (data.appointmentTime < new Date()) throw new BadRequestException('Appointment time cannot be in the past')
 
     const service = await this.serviceRepository.findServiceById(data.serviceId)
     if (!service) throw new BadRequestException('Service not found')
 
+    if (data.appointmentTime < new Date()) throw new BadRequestException('Appointment time cannot be in the past')
+
     // Format the appointment time to HH:MM format for comparison with service hours
     const appointmentTimeFormatted = formatTimeHHMM(data.appointmentTime)
-
-    console.log('Appointment time formatted:', appointmentTimeFormatted)
-    console.log('Service start time:', service.startTime)
-    console.log('Service end time:', service.endTime)
+    const slot = slots.find((s) => s.start === appointmentTimeFormatted)
+    if (!slot) {
+      throw new BadRequestException('This slot is not available for appointment')
+    }
 
     // Check if appointment time is within service hours using the utility function
     if (!isTimeBetween(appointmentTimeFormatted, service.startTime, service.endTime)) {
       throw new BadRequestException('Appointment time must be within service working hours')
+    }
+
+    const shift = data.appointmentTime.getHours() - 7 < 11 ? 'MORNING' : 'AFTERNOON'
+
+    const date = new Date(data.appointmentTime).toISOString().slice(0, 10)
+    const doctors = await this.doctorRepository.findDoctorByDate(new Date(date))
+    const hasSchedule = doctors.some((doc) =>
+      doc.schedules.some(
+        (sch) => sch.doctorId === data.doctorId && sch.date.toISOString().slice(0, 10) === date && sch.shift === shift,
+      ),
+    )
+
+    if (!hasSchedule) {
+      throw new BadRequestException('Doctor does not have a working shift at the selected time')
+    }
+
+    // Check if the slot is already booked
+    const slotStart = new Date(data.appointmentTime)
+    const [endHour, endMinute] = slot.end.split(':').map(Number)
+    const slotEnd = new Date(
+      slotStart.getFullYear(),
+      slotStart.getMonth(),
+      slotStart.getDate(),
+      endHour + 7,
+      endMinute,
+      0,
+      0,
+    )
+
+    const existingAppointment = await this.appoinmentRepository.getAppointmentByDoctorAndTime(
+      data.doctorId,
+      slotStart,
+      slotEnd,
+    )
+
+    if (existingAppointment) {
+      throw new BadRequestException('This slot is already booked')
     }
 
     return await this.appoinmentRepository.createAppointment(data)
@@ -48,33 +104,71 @@ export class AppoinmentService {
     const existed = await this.appoinmentRepository.findAppointmentById(id)
     if (!existed) throw new BadRequestException('Appointment not found')
 
+    // Nếu có thay đổi doctorId hoặc appointmentTime thì validate lại toàn bộ logic đặt lịch
+    const doctorId = data.doctorId ?? existed.doctor.id
+    const appointmentTime = data.appointmentTime ?? existed.appointmentTime
+    const serviceId = data.serviceId ?? existed.service.id
+
     if (data.userId) {
       const user = await this.userRepository.findUserById(data.userId)
       if (!user) throw new BadRequestException('User not found')
     }
 
-    if (data.doctorId) {
-      const doctor = await this.userRepository.findUserById(data.doctorId)
-      if (!doctor) throw new BadRequestException('Doctor not found')
+    const doctor = await this.doctorRepository.findDoctorById(doctorId)
+    if (!doctor) throw new BadRequestException('Doctor not found')
+
+    const service = await this.serviceRepository.findServiceById(serviceId)
+    if (!service) throw new BadRequestException('Service not found')
+
+    if (appointmentTime < new Date()) throw new BadRequestException('Appointment time cannot be in the past')
+
+    // Format the appointment time to HH:MM format for comparison with service hours
+    const appointmentTimeFormatted = formatTimeHHMM(appointmentTime)
+    const slot = slots.find((s) => s.start === appointmentTimeFormatted)
+    if (!slot) {
+      throw new BadRequestException('This slot is not available for appointment')
     }
-    if (data.appointmentTime && data.appointmentTime < new Date())
-      throw new BadRequestException('Appointment time cannot be in the past')
 
-    if (data.serviceId && data.appointmentTime) {
-      const service = await this.serviceRepository.findServiceById(data.serviceId)
-      if (!service) throw new BadRequestException('Service not found')
-
-      // Format the appointment time to HH:MM format for comparison with service hours
-      const appointmentTimeFormatted = formatTimeHHMM(data.appointmentTime)
-
-      // Check if appointment time is within service hours using the utility function
-      if (!isTimeBetween(appointmentTimeFormatted, service.startTime, service.endTime)) {
-        throw new BadRequestException('Appointment time must be within service working hours')
-      }
+    // Check if appointment time is within service hours using the utility function
+    if (!isTimeBetween(appointmentTimeFormatted, service.startTime, service.endTime)) {
+      throw new BadRequestException('Appointment time must be within service working hours')
     }
+
+    const shift = appointmentTime.getHours() - 7 < 11 ? 'MORNING' : 'AFTERNOON'
+    const date = new Date(appointmentTime).toISOString().slice(0, 10)
+    const doctors = await this.doctorRepository.findDoctorByDate(new Date(date))
+    const hasSchedule = doctors.some((doc) =>
+      doc.schedules.some(
+        (sch) => sch.doctorId === doctorId && sch.date.toISOString().slice(0, 10) === date && sch.shift === shift,
+      ),
+    )
+    if (!hasSchedule) {
+      throw new BadRequestException('Doctor does not have a working shift at the selected time')
+    }
+
+    // Check if the slot is already booked (không tính chính lịch hẹn này)
+    const slotStart = new Date(appointmentTime)
+    const [endHour, endMinute] = slot.end.split(':').map(Number)
+    const slotEnd = new Date(
+      slotStart.getFullYear(),
+      slotStart.getMonth(),
+      slotStart.getDate(),
+      endHour + 7,
+      endMinute,
+      0,
+      0,
+    )
+    const existingAppointment = await this.appoinmentRepository.getAppointmentByDoctorAndTime(
+      doctorId,
+      slotStart,
+      slotEnd,
+    )
+    if (existingAppointment && existingAppointment.id !== id) {
+      throw new BadRequestException('This slot is already booked')
+    }
+
     return this.appoinmentRepository.updateAppointment(id, data)
   }
-
   async updateAppointmentStatus(id: number, status: AppointmentStatus): Promise<AppointmentResponseType> {
     const existed = await this.appoinmentRepository.findAppointmentById(id)
     if (!existed) throw new BadRequestException('Appointment not found')
