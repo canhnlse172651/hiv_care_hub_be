@@ -102,6 +102,8 @@ export class DoctorController {
   @Get('schedule/by-date')
   async getDoctorsByDate(@Query('date') date: string): Promise<Doctor[]> {
     const parsedDate = new Date(date)
+    console.log('date', date)
+    console.log('parsedDate', parsedDate)
     return this.doctorService.getDoctorsByDate(parsedDate)
   }
 }

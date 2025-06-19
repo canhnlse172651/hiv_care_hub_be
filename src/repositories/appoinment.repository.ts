@@ -283,4 +283,14 @@ export class AppoinmentRepository {
 
     return this.paginationService.paginate(this.prisma.appointment, validatedOptions, where, this.includeRelations)
   }
+
+  async getAppointmentByDoctorAndTime(doctorId: number, slotStart: Date, slotEnd: Date) {
+    return this.prisma.appointment.findFirst({
+      where: {
+        doctorId,
+        appointmentTime: { gte: slotStart, lt: slotEnd },
+        status: { in: [AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED] },
+      },
+    })
+  }
 }
