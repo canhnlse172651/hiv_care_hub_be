@@ -26,18 +26,21 @@ export const ApiGetAllMedicines = () =>
       required: false,
       description: 'Search query for medicine name or description',
       type: String,
+      example: 'efavirenz',
     }),
     ApiQuery({
       name: 'sortBy',
       required: false,
       description: 'Field to sort by',
       enum: ['name', 'price', 'createdAt'],
+      example: 'name',
     }),
     ApiQuery({
       name: 'sortOrder',
       required: false,
       description: 'Sort order',
       enum: ['asc', 'desc'],
+      example: 'asc',
     }),
     ApiResponse({
       status: 200,
@@ -63,6 +66,7 @@ export const ApiGetMedicineById = () =>
       name: 'id',
       description: 'Medicine ID',
       type: Number,
+      example: 1,
     }),
     ApiResponse({
       status: 200,
@@ -121,6 +125,18 @@ export const ApiCreateMedicine = () =>
         },
         required: ['name', 'unit', 'dose', 'price'],
       },
+      examples: {
+        example: {
+          summary: 'Create Medicine',
+          value: {
+            name: 'Efavirenz',
+            description: 'Antiretroviral medication for HIV treatment',
+            unit: 'mg',
+            dose: '600mg',
+            price: 25.5,
+          },
+        },
+      },
     }),
     ApiResponse({
       status: 201,
@@ -154,6 +170,7 @@ export const ApiUpdateMedicine = () =>
       name: 'id',
       description: 'Medicine ID',
       type: Number,
+      example: 1,
     }),
     ApiBody({
       description: 'Updated medicine data',
@@ -184,6 +201,18 @@ export const ApiUpdateMedicine = () =>
             type: 'number',
             description: 'Medicine price',
             example: 25.5,
+          },
+        },
+      },
+      examples: {
+        example: {
+          summary: 'Update Medicine',
+          value: {
+            name: 'Efavirenz (Updated)',
+            description: 'Antiretroviral medication for HIV treatment - Updated formula',
+            unit: 'mg',
+            dose: '600mg',
+            price: 27.5,
           },
         },
       },
@@ -224,6 +253,7 @@ export const ApiDeleteMedicine = () =>
       name: 'id',
       description: 'Medicine ID',
       type: Number,
+      example: 1,
     }),
     ApiResponse({
       status: 200,
@@ -254,6 +284,7 @@ export const ApiSearchMedicines = () =>
       description: 'Search query',
       type: String,
       required: true,
+      example: 'efavirenz',
     }),
     ApiResponse({
       status: 200,

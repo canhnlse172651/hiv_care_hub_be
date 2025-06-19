@@ -26,42 +26,65 @@ export const ApiGetAllPatientTreatments = () =>
       required: false,
       description: 'Filter by patient ID',
       type: Number,
+      example: 123,
     }),
     ApiQuery({
       name: 'doctorId',
       required: false,
-      description: 'Filter by doctor ID',
-      type: Number,
-    }),
-    ApiQuery({
-      name: 'protocolId',
-      required: false,
-      description: 'Filter by protocol ID',
-      type: Number,
-    }),
-    ApiQuery({
-      name: 'startDate',
-      required: false,
-      description: 'Filter by start date (YYYY-MM-DD)',
-      type: String,
+      example: '2024-12-31',
     }),
     ApiQuery({
       name: 'endDate',
       required: false,
       description: 'Filter by end date (YYYY-MM-DD)',
       type: String,
+      example: '2024-12-31',
     }),
     ApiQuery({
       name: 'sortBy',
       required: false,
       description: 'Field to sort by',
       enum: ['startDate', 'endDate', 'total', 'createdAt'],
+      example: 'createdAt',
     }),
     ApiQuery({
       name: 'sortOrder',
       required: false,
       description: 'Sort order',
       enum: ['asc', 'desc'],
+      example: 'desc',
+    }),
+    ApiResponse({
+      type: Number,
+      example: 789,
+    }),
+    ApiQuery({
+      name: 'startDate',
+      required: false,
+      description: 'Filter by start date (YYYY-MM-DD)',
+      type: String,
+      example: '2024-01-01',
+    }),
+    ApiQuery({
+      name: 'endDate',
+      required: false,
+      description: 'Filter by end date (YYYY-MM-DD)',
+      type: String,
+      example: '2024-12-31',
+    }),
+    ApiQuery({
+      name: 'sortBy',
+      required: false,
+      description: 'Field to sort by',
+      enum: ['startDate', 'endDate', 'total', 'createdAt'],
+      example: 'createdAt',
+    }),
+    ApiQuery({
+      name: 'sortOrder',
+      required: false,
+      description: 'Sort order',
+      enum: ['asc', 'desc'],
+      example: 'desc',
     }),
     ApiResponse({
       status: 200,
@@ -87,6 +110,7 @@ export const ApiGetPatientTreatmentById = () =>
       name: 'id',
       description: 'Patient Treatment ID',
       type: Number,
+      example: 1,
     }),
     ApiResponse({
       status: 200,
@@ -169,6 +193,28 @@ export const ApiCreatePatientTreatment = () =>
         },
         required: ['patientId', 'protocolId', 'doctorId', 'startDate', 'total'],
       },
+      examples: {
+        example: {
+          summary: 'Create Patient Treatment',
+          value: {
+            patientId: 1,
+            protocolId: 1,
+            doctorId: 1,
+            customMedications: {
+              additionalMeds: [
+                {
+                  name: 'Vitamin D',
+                  dosage: '1000 IU daily',
+                },
+              ],
+            },
+            notes: 'Patient responds well to treatment',
+            startDate: '2024-01-01T00:00:00Z',
+            endDate: '2024-12-31T23:59:59Z',
+            total: 1500,
+          },
+        },
+      },
     }),
     ApiResponse({
       status: 201,
@@ -198,6 +244,7 @@ export const ApiUpdatePatientTreatment = () =>
       name: 'id',
       description: 'Patient Treatment ID',
       type: Number,
+      example: 1,
     }),
     ApiBody({
       description: 'Updated patient treatment data',
@@ -250,6 +297,27 @@ export const ApiUpdatePatientTreatment = () =>
           },
         },
       },
+      examples: {
+        example: {
+          summary: 'Update Patient Treatment',
+          value: {
+            protocolId: 1,
+            doctorId: 1,
+            customMedications: {
+              additionalMeds: [
+                {
+                  name: 'Vitamin D',
+                  dosage: '1000 IU daily',
+                },
+              ],
+            },
+            notes: 'Patient responds well to treatment - updated',
+            startDate: '2024-01-01T00:00:00Z',
+            endDate: '2024-12-31T23:59:59Z',
+            total: 1600,
+          },
+        },
+      },
     }),
     ApiResponse({
       status: 200,
@@ -283,6 +351,7 @@ export const ApiDeletePatientTreatment = () =>
       name: 'id',
       description: 'Patient Treatment ID',
       type: Number,
+      example: 1,
     }),
     ApiResponse({
       status: 200,
@@ -312,6 +381,7 @@ export const ApiGetPatientTreatmentsByPatient = () =>
       name: 'patientId',
       description: 'Patient ID',
       type: Number,
+      example: 123,
     }),
     ApiQuery({
       name: 'page',
@@ -326,6 +396,43 @@ export const ApiGetPatientTreatmentsByPatient = () =>
       description: 'Number of items per page',
       type: Number,
       example: 10,
+    }),
+    ApiQuery({
+      name: 'sortBy',
+      required: false,
+      description: 'Field to sort by (e.g., createdAt, total, startDate)',
+      type: String,
+      example: 'createdAt',
+    }),
+    ApiQuery({
+      name: 'sortOrder',
+      required: false,
+      description: 'Sort order (asc or desc)',
+      type: String,
+      enum: ['asc', 'desc'],
+      example: 'desc',
+    }),
+    ApiQuery({
+      name: 'startDate',
+      required: false,
+      description: 'Filter by start date (YYYY-MM-DD)',
+      type: String,
+      example: '2024-01-01',
+    }),
+    ApiQuery({
+      name: 'endDate',
+      required: false,
+      description: 'Filter by end date (YYYY-MM-DD)',
+      type: String,
+      example: '2024-12-31',
+    }),
+    ApiQuery({
+      name: 'includeCompleted',
+      required: false,
+      description: 'Include completed treatments (true/false)',
+      type: String,
+      enum: ['true', 'false'],
+      example: 'true',
     }),
     ApiResponse({
       status: 200,
@@ -351,6 +458,7 @@ export const ApiGetPatientTreatmentsByDoctor = () =>
       name: 'doctorId',
       description: 'Doctor ID',
       type: Number,
+      example: 456,
     }),
     ApiQuery({
       name: 'page',
@@ -365,6 +473,21 @@ export const ApiGetPatientTreatmentsByDoctor = () =>
       description: 'Number of items per page',
       type: Number,
       example: 10,
+    }),
+    ApiQuery({
+      name: 'sortBy',
+      required: false,
+      description: 'Field to sort by (e.g., createdAt, total, patientId)',
+      type: String,
+      example: 'createdAt',
+    }),
+    ApiQuery({
+      name: 'sortOrder',
+      required: false,
+      description: 'Sort order (asc or desc)',
+      type: String,
+      enum: ['asc', 'desc'],
+      example: 'desc',
     }),
     ApiResponse({
       status: 200,
@@ -395,16 +518,37 @@ export const ApiSearchPatientTreatments = () =>
       description: 'Search patient treatments by patient name, doctor name, protocol name, or notes',
     }),
     ApiQuery({
+      name: 'search',
+      required: false,
+      description: 'Search query for treatment search',
+      type: String,
+      example: 'patient name or treatment notes',
+    }),
+    ApiQuery({
       name: 'q',
       required: false,
-      description: 'Search query',
+      description: 'Alternative search query parameter',
       type: String,
-      example: 'treatment name or patient name',
+      example: 'treatment name or doctor name',
+    }),
+    ApiQuery({
+      name: 'query',
+      required: false,
+      description: 'Another alternative search query parameter',
+      type: String,
+      example: 'protocol name or notes',
+    }),
+    ApiQuery({
+      name: 'page',
+      required: false,
+      description: 'Page number for pagination',
+      type: Number,
+      example: 1,
     }),
     ApiQuery({
       name: 'limit',
       required: false,
-      description: 'Maximum number of results',
+      description: 'Maximum number of results per page',
       type: Number,
       example: 50,
     }),
@@ -480,6 +624,42 @@ export const ApiGetActivePatientTreatments = () =>
       type: Number,
       example: 10,
     }),
+    ApiQuery({
+      name: 'sortBy',
+      required: false,
+      description: 'Field to sort by (e.g., createdAt, patientId, total)',
+      type: String,
+      example: 'createdAt',
+    }),
+    ApiQuery({
+      name: 'sortOrder',
+      required: false,
+      description: 'Sort order (asc or desc)',
+      type: String,
+      enum: ['asc', 'desc'],
+      example: 'desc',
+    }),
+    ApiQuery({
+      name: 'patientId',
+      required: false,
+      description: 'Filter by specific patient ID',
+      type: Number,
+      example: 123,
+    }),
+    ApiQuery({
+      name: 'doctorId',
+      required: false,
+      description: 'Filter by specific doctor ID',
+      type: Number,
+      example: 456,
+    }),
+    ApiQuery({
+      name: 'protocolId',
+      required: false,
+      description: 'Filter by specific protocol ID',
+      type: Number,
+      example: 789,
+    }),
     ApiResponse({
       status: 200,
       description: 'Active patient treatments retrieved successfully',
@@ -514,6 +694,29 @@ export const ApiGetTreatmentsWithCustomMedications = () =>
       type: Number,
       example: 10,
     }),
+    ApiQuery({
+      name: 'sortBy',
+      required: false,
+      description: 'Field to sort by (e.g., createdAt, patientId, total)',
+      type: String,
+      example: 'createdAt',
+    }),
+    ApiQuery({
+      name: 'sortOrder',
+      required: false,
+      description: 'Sort order (asc or desc)',
+      type: String,
+      enum: ['asc', 'desc'],
+      example: 'desc',
+    }),
+    ApiQuery({
+      name: 'hasCustomMeds',
+      required: false,
+      description: 'Filter by whether treatment has custom medications (true/false)',
+      type: String,
+      enum: ['true', 'false'],
+      example: 'true',
+    }),
     ApiResponse({
       status: 200,
       description: 'Treatments with custom medications retrieved successfully',
@@ -542,6 +745,7 @@ export const ApiGetPatientTreatmentStats = () =>
       name: 'patientId',
       description: 'Patient ID',
       type: Number,
+      example: 1,
     }),
     ApiResponse({
       status: 200,
@@ -571,6 +775,7 @@ export const ApiGetDoctorWorkloadStats = () =>
       name: 'doctorId',
       description: 'Doctor ID',
       type: Number,
+      example: 1,
     }),
     ApiResponse({
       status: 200,
@@ -620,6 +825,7 @@ export const ApiCompareProtocolVsCustomTreatments = () =>
       name: 'protocolId',
       description: 'Protocol ID',
       type: Number,
+      example: 1,
     }),
     ApiResponse({
       status: 200,
@@ -628,6 +834,93 @@ export const ApiCompareProtocolVsCustomTreatments = () =>
     ApiResponse({
       status: 404,
       description: 'Protocol not found',
+    }),
+    ApiResponse({
+      status: 401,
+      description: 'Unauthorized',
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Forbidden',
+    }),
+  )
+
+export const ApiGetTreatmentComplianceStats = () =>
+  applyDecorators(
+    ApiOperation({
+      summary: 'Get patient treatment compliance statistics',
+      description:
+        'Retrieve detailed compliance analytics for a specific patient including adherence rates, missed doses, and treatment progression.',
+    }),
+    ApiParam({
+      name: 'patientId',
+      description: 'Patient ID',
+      type: Number,
+      example: 1,
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Treatment compliance statistics retrieved successfully',
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'Patient not found',
+    }),
+    ApiResponse({
+      status: 401,
+      description: 'Unauthorized',
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Forbidden - Patients can only access their own compliance statistics',
+    }),
+  )
+
+export const ApiGetTreatmentCostAnalysis = () =>
+  applyDecorators(
+    ApiOperation({
+      summary: 'Get treatment cost analysis',
+      description:
+        'Analyze costs of patient treatments with detailed breakdown by medications, protocols, and time periods. Supports filtering by patient, doctor, protocol, and date range.',
+    }),
+    ApiQuery({
+      name: 'patientId',
+      required: false,
+      description: 'Filter by patient ID',
+      type: Number,
+      example: 123,
+    }),
+    ApiQuery({
+      name: 'doctorId',
+      required: false,
+      description: 'Filter by doctor ID',
+      type: Number,
+      example: 456,
+    }),
+    ApiQuery({
+      name: 'protocolId',
+      required: false,
+      description: 'Filter by protocol ID',
+      type: Number,
+      example: 789,
+    }),
+    ApiQuery({
+      name: 'startDate',
+      required: false,
+      description: 'Filter by start date (YYYY-MM-DD)',
+      type: String,
+      example: '2024-01-01',
+    }),
+    ApiQuery({
+      name: 'endDate',
+      required: false,
+      description: 'Filter by end date (YYYY-MM-DD)',
+      type: String,
+      example: '2024-12-31',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Treatment cost analysis retrieved successfully',
     }),
     ApiResponse({
       status: 401,

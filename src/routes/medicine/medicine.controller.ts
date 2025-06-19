@@ -70,9 +70,25 @@ export class MedicineController {
 
   @Get('price-range')
   @Roles(Role.Admin, Role.Doctor, Role.Staff)
-  @ApiOperation({ summary: 'Get medicines by price range' })
-  @ApiQuery({ name: 'minPrice', required: true, type: Number })
-  @ApiQuery({ name: 'maxPrice', required: true, type: Number })
+  @ApiOperation({
+    summary: 'Get medicines by price range',
+    description:
+      'Filter medicines within a specified price range. Useful for budget-based medicine selection and cost analysis.',
+  })
+  @ApiQuery({
+    name: 'minPrice',
+    required: true,
+    type: Number,
+    description: 'Minimum price threshold for filtering medicines',
+    example: 50000,
+  })
+  @ApiQuery({
+    name: 'maxPrice',
+    required: true,
+    type: Number,
+    description: 'Maximum price threshold for filtering medicines',
+    example: 200000,
+  })
   async getMedicinesByPriceRange(
     @Query('minPrice') minPrice: string,
     @Query('maxPrice') maxPrice: string,
@@ -89,13 +105,41 @@ export class MedicineController {
 
   @Get('advanced-search')
   @Roles(Role.Admin, Role.Doctor, Role.Staff)
-  @ApiOperation({ summary: 'Advanced search for medicines' })
-  @ApiQuery({ name: 'query', required: false, type: String })
-  @ApiQuery({ name: 'minPrice', required: false, type: Number })
-  @ApiQuery({ name: 'maxPrice', required: false, type: Number })
-  @ApiQuery({ name: 'unit', required: false, type: String })
-  @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiOperation({
+    summary: 'Advanced search for medicines',
+    description:
+      'Perform advanced search with multiple criteria including name, price range, unit type, and pagination. Provides comprehensive filtering capabilities for medicine discovery.',
+  })
+  @ApiQuery({
+    name: 'query',
+    required: false,
+    type: String,
+    description: 'Search term for medicine name or description',
+    example: 'Paracetamol',
+  })
+  @ApiQuery({
+    name: 'minPrice',
+    required: false,
+    type: Number,
+    description: 'Minimum price for filtering',
+    example: 10000,
+  })
+  @ApiQuery({
+    name: 'maxPrice',
+    required: false,
+    type: Number,
+    description: 'Maximum price for filtering',
+    example: 100000,
+  })
+  @ApiQuery({
+    name: 'unit',
+    required: false,
+    type: String,
+    description: 'Filter by medicine unit (e.g., mg, ml, tablet)',
+    example: 'mg',
+  })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Number of results per page', example: 10 })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number for pagination', example: 1 })
   async advancedSearchMedicines(@Query() query: Record<string, string>) {
     // Convert string parameters to appropriate types with proper type checking
     const params: {
@@ -119,7 +163,11 @@ export class MedicineController {
 
   @Post('bulk')
   @Roles(Role.Admin, Role.Doctor)
-  @ApiOperation({ summary: 'Create multiple medicines' })
+  @ApiOperation({
+    summary: 'Create multiple medicines',
+    description:
+      'Bulk create multiple medicines in a single operation. Supports duplicate detection and validation. Ideal for importing medicine catalogs or batch data entry.',
+  })
   @ApiBody({
     schema: {
       type: 'object',
@@ -141,6 +189,37 @@ export class MedicineController {
         skipDuplicates: { type: 'boolean' },
       },
       required: ['medicines'],
+    },
+    examples: {
+      'Bulk Medicine Creation': {
+        summary: 'Example of bulk medicine creation',
+        value: {
+          medicines: [
+            {
+              name: 'Paracetamol 500mg',
+              description: 'Pain reliever and fever reducer',
+              unit: 'tablet',
+              dose: '500mg',
+              price: 5000,
+            },
+            {
+              name: 'Amoxicillin 250mg',
+              description: 'Antibiotic for bacterial infections',
+              unit: 'capsule',
+              dose: '250mg',
+              price: 8000,
+            },
+            {
+              name: 'Ibuprofen 400mg',
+              description: 'Anti-inflammatory medication',
+              unit: 'tablet',
+              dose: '400mg',
+              price: 7500,
+            },
+          ],
+          skipDuplicates: true,
+        },
+      },
     },
   })
   async createManyMedicines(

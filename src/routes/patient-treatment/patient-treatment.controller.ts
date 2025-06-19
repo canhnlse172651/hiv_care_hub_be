@@ -10,7 +10,7 @@ import {
   Put,
   Query,
 } from '@nestjs/common'
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger'
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { PatientTreatment } from '@prisma/client'
 import CustomZodValidationPipe from '../../common/custom-zod-validate'
 import { AuthType } from '../../shared/constants/auth.constant'
@@ -21,16 +21,20 @@ import { Roles } from '../../shared/decorators/roles.decorator'
 import { PaginatedResponse } from '../../shared/schemas/pagination.schema'
 import {
   ApiBulkCreatePatientTreatments,
+  ApiCompareProtocolVsCustomTreatments,
   ApiCreatePatientTreatment,
   ApiDeletePatientTreatment,
   ApiGetActivePatientTreatments,
   ApiGetAllPatientTreatments,
+  ApiGetCustomMedicationStats,
   ApiGetDoctorWorkloadStats,
   ApiGetPatientTreatmentById,
   ApiGetPatientTreatmentsByDateRange,
   ApiGetPatientTreatmentsByDoctor,
   ApiGetPatientTreatmentsByPatient,
   ApiGetPatientTreatmentStats,
+  ApiGetTreatmentComplianceStats,
+  ApiGetTreatmentCostAnalysis,
   ApiGetTreatmentsWithCustomMedications,
   ApiSearchPatientTreatments,
   ApiUpdatePatientTreatment,
@@ -242,18 +246,21 @@ export class PatientTreatmentController {
 
   @Get('analytics/custom-medication-stats')
   @Roles(Role.Admin, Role.Doctor, Role.Staff)
+  @ApiGetCustomMedicationStats()
   async getCustomMedicationStats() {
     return this.patientTreatmentService.getCustomMedicationStats()
   }
 
   @Get('analytics/protocol-comparison/:protocolId')
   @Roles(Role.Admin, Role.Doctor, Role.Staff)
+  @ApiCompareProtocolVsCustomTreatments()
   async compareProtocolVsCustomTreatments(@Param('protocolId', ParseIntPipe) protocolId: number) {
     return this.patientTreatmentService.compareProtocolVsCustomTreatments(protocolId)
   }
 
   @Get('analytics/compliance/:patientId')
   @Roles(Role.Admin, Role.Doctor, Role.Staff, Role.Patient)
+  @ApiGetTreatmentComplianceStats()
   async getTreatmentComplianceStats(@Param('patientId', ParseIntPipe) patientId: number, @CurrentUser() user: any) {
     // If user is a patient, they can only see their own compliance stats
     if (user.role?.name === 'PATIENT' && Number(user.id) !== patientId) {
@@ -264,6 +271,7 @@ export class PatientTreatmentController {
 
   @Get('analytics/cost-analysis')
   @Roles(Role.Admin, Role.Doctor, Role.Staff)
+  @ApiGetTreatmentCostAnalysis()
   async getTreatmentCostAnalysis(@Query() query: PatientTreatmentQueryDto) {
     const params = {
       patientId: query.patientId,
