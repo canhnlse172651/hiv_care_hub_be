@@ -95,17 +95,25 @@ export abstract class BaseRepository<
   // Abstract method to get the Prisma model - must be implemented by child classes
   abstract getModel(): PrismaModel<T, CreateInput, UpdateInput, WhereInput, WhereUniqueInput, OrderByInput>
 
+  /**
+   * Validates and converts ID parameter to number
+   * Supports both number and string input for flexibility
+   *
+   * @param id - ID to validate (number or string)
+   * @returns Validated number ID
+   * @throws ZodError if ID is invalid
+   */
+  protected validateId(id: number | string): number {
+    const result = z.union([z.number().positive(), z.string().transform(Number)]).parse(id)
+    return typeof result === 'string' ? parseInt(result, 10) : result
+  }
+
   // Get model for pagination (used by PaginationService)
   getModelForPagination(): PrismaModel<T, CreateInput, UpdateInput, WhereInput, WhereUniqueInput, OrderByInput> {
     return this.getModel()
   }
 
   // Validation methods using Zod
-  protected validateId(id: number | string): number {
-    const result = z.union([z.number().positive(), z.string().transform(Number)]).parse(id)
-    return typeof result === 'string' ? parseInt(result, 10) : result
-  }
-
   protected validateQueryParams(params: unknown): BaseQueryParams {
     return BaseQueryParamsSchema.parse(params)
   }

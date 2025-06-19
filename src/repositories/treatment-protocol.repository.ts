@@ -35,12 +35,13 @@ export class TreatmentProtocolRepository {
   /**
    * Validates and converts ID parameter to number
    * Supports both number and string input for flexibility
+   * Uses shared validation logic from BaseRepository pattern
    *
    * @param id - ID to validate (number or string)
    * @returns Validated number ID
    * @throws ZodError if ID is invalid
    */
-  private validateId(id: number | string): number {
+  protected validateId(id: number | string): number {
     const result = z.union([z.number().positive(), z.string().transform(Number)]).parse(id)
     return typeof result === 'string' ? parseInt(result, 10) : result
   }
@@ -897,6 +898,177 @@ export class TreatmentProtocolRepository {
     }
   }
 
+  // Business Logic Validation Methods
+
+  /**
+   * Validate if treatment protocol can be safely deleted
+   */
+  async validateProtocolCanBeDeleted(id: number): Promise<{
+    canDelete: boolean
+    activePatientTreatments: number
+    totalPatientTreatments: number
+  }> {
+    const validatedId = this.validateId(id)
+
+    // Check for active patient treatments using this protocol
+    const activeCount = await this.prismaService.patientTreatment.count({
+      where: {
+        protocolId: validatedId,
+        OR: [
+          { endDate: null }, // No end date means still active
+          { endDate: { gt: new Date() } }, // End date in future
+        ],
+      },
+    })
+
+    // Check total patient treatments (for reference)
+    const totalCount = await this.prismaService.patientTreatment.count({
+      where: { protocolId: validatedId },
+    })
+
+    return {
+      canDelete: activeCount === 0,
+      activePatientTreatments: activeCount,
+      totalPatientTreatments: totalCount,
+    }
+  }
+
+  /**
+   * Validate treatment protocol business rules
+   */
+  async validateProtocolBusinessRules(data: {
+    name: string
+    targetDisease: string
+    medicines: Array<{
+      medicineId: number
+      dosage: string
+      duration: MedicationSchedule
+      notes?: string
+    }>
+  }): Promise<{
+    isValid: boolean
+    errors: string[]
+    warnings: string[]
+  }> {
+    const errors: string[] = []
+    const warnings: string[] = []
+
+    // Check for duplicate protocol name
+    const existingProtocol = await this.prismaService.treatmentProtocol.findFirst({
+      where: { name: { equals: data.name, mode: 'insensitive' } },
+    })
+
+    if (existingProtocol) {
+      errors.push(`Treatment protocol with name '${data.name}' already exists`)
+    }
+
+    // Validate medicines exist
+    const medicineIds = data.medicines.map((m) => m.medicineId)
+    const existingMedicines = await this.prismaService.medicine.findMany({
+      where: { id: { in: medicineIds } },
+      select: { id: true, name: true },
+    })
+
+    const missingMedicines = medicineIds.filter((id) => !existingMedicines.some((m) => m.id === id))
+
+    if (missingMedicines.length > 0) {
+      errors.push(`Medicine IDs not found: ${missingMedicines.join(', ')}`)
+    }
+
+    // Check for duplicate medicines in protocol
+    const duplicateMedicines = medicineIds.filter((id, index) => medicineIds.indexOf(id) !== index)
+
+    if (duplicateMedicines.length > 0) {
+      errors.push(`Duplicate medicines in protocol: ${duplicateMedicines.join(', ')}`)
+    }
+
+    // Validate dosage formats
+    for (const medicine of data.medicines) {
+      if (!medicine.dosage || medicine.dosage.trim().length === 0) {
+        errors.push(`Dosage is required for medicine ID ${medicine.medicineId}`)
+      }
+
+      // Check if dosage contains some numeric value
+      const hasNumber = /\d/.test(medicine.dosage)
+      if (!hasNumber) {
+        warnings.push(`Dosage for medicine ID ${medicine.medicineId} should contain numeric value`)
+      }
+    }
+
+    // Validate target disease
+    if (!data.targetDisease || data.targetDisease.trim().length === 0) {
+      errors.push('Target disease is required')
+    }
+
+    // Business rule: At least one medicine required
+    if (data.medicines.length === 0) {
+      errors.push('Protocol must contain at least one medicine')
+    }
+
+    // Warning for too many medicines
+    if (data.medicines.length > 10) {
+      warnings.push('Protocol contains many medicines. Consider reviewing for complexity.')
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings,
+    }
+  }
+
+  /**
+   * Calculate estimated protocol cost
+   */
+  async calculateProtocolCost(protocolId: number): Promise<{
+    totalCost: number
+    medicinesCost: Array<{
+      medicineId: number
+      medicineName: string
+      unitPrice: number
+      dosage: string
+      duration: MedicationSchedule
+      estimatedCost: number
+    }>
+  }> {
+    const protocol = await this.prismaService.treatmentProtocol.findUnique({
+      where: { id: protocolId },
+      include: {
+        medicines: {
+          include: {
+            medicine: true,
+          },
+        },
+      },
+    })
+
+    if (!protocol) {
+      throw new Error('Treatment protocol not found')
+    }
+
+    const medicinesCost = protocol.medicines.map((pm) => {
+      // Simple cost estimation based on duration
+      const multiplier = pm.duration === 'MORNING' ? 30 : pm.duration === 'AFTERNOON' ? 30 : 30 // Daily for 30 days
+      const estimatedCost = Number(pm.medicine.price) * multiplier
+
+      return {
+        medicineId: pm.medicineId,
+        medicineName: pm.medicine.name,
+        unitPrice: Number(pm.medicine.price),
+        dosage: pm.dosage,
+        duration: pm.duration,
+        estimatedCost,
+      }
+    })
+
+    const totalCost = medicinesCost.reduce((sum, mc) => sum + mc.estimatedCost, 0)
+
+    return {
+      totalCost,
+      medicinesCost,
+    }
+  }
+
   /**
    * Enhanced error handling for database operations
    * Converts Prisma errors to application-specific errors with meaningful messages
@@ -905,11 +1077,42 @@ export class TreatmentProtocolRepository {
    * @returns Processed Error with appropriate message and context
    */
   private handlePrismaError(error: unknown): Error {
-    // TODO: Implement comprehensive error mapping similar to BaseRepository
-    // For now, return basic error handling with context
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      switch (error.code) {
+        case 'P2002': {
+          const target = Array.isArray(error.meta?.target) ? error.meta.target.join(', ') : 'unknown field'
+          return new Error(`Unique constraint violation on field(s): ${target}`)
+        }
+        case 'P2025': {
+          return new Error('Treatment protocol record not found')
+        }
+        case 'P2003': {
+          return new Error('Foreign key constraint violation - referenced record does not exist')
+        }
+        case 'P2011': {
+          return new Error('Null constraint violation')
+        }
+        case 'P2012': {
+          return new Error('Missing required value')
+        }
+        default: {
+          return new Error(`Database operation failed: ${error.message}`)
+        }
+      }
+    }
+
+    if (error instanceof Prisma.PrismaClientUnknownRequestError) {
+      return new Error('Unknown database error occurred')
+    }
+
+    if (error instanceof Prisma.PrismaClientRustPanicError) {
+      return new Error('Database engine error occurred')
+    }
+
     if (error instanceof Error) {
       return error
     }
+
     return new Error('An unknown error occurred during treatment protocol operation')
   }
 }

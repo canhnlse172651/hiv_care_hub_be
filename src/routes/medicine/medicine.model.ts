@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { SharedSearchSchema } from '../../shared/interfaces/medication.interface'
 
 export const MedicineSchema = z.object({
   id: z.number().positive('ID must be a positive number'),
@@ -89,44 +90,36 @@ export const UpdateMedicineSchema = CreateMedicineSchema.partial().refine((data)
 })
 
 // Query Medicine Schema with advanced filtering
-export const QueryMedicineSchema = z
-  .object({
-    page: z.string().transform(Number).pipe(z.number().min(1, 'Page must be at least 1')).optional().default('1'),
-    limit: z
-      .string()
-      .transform(Number)
-      .pipe(z.number().min(1, 'Limit must be at least 1').max(100, 'Limit cannot exceed 100'))
-      .optional()
-      .default('10'),
-    search: z.string().min(1, 'Search query must not be empty').max(255, 'Search query is too long').trim().optional(),
-    sortBy: z
-      .enum(['name', 'price', 'createdAt', 'unit'], {
-        errorMap: () => ({ message: 'Sort field must be one of: name, price, createdAt, unit' }),
-      })
-      .optional()
-      .default('createdAt'),
-    sortOrder: z
-      .enum(['asc', 'desc'], {
-        errorMap: () => ({ message: 'Sort order must be either asc or desc' }),
-      })
-      .optional()
-      .default('desc'),
-    minPrice: z.string().transform(Number).pipe(z.number().min(0, 'Minimum price must be non-negative')).optional(),
-    maxPrice: z.string().transform(Number).pipe(z.number().min(0, 'Maximum price must be non-negative')).optional(),
-    unit: z.string().trim().toLowerCase().optional(),
-  })
-  .refine(
-    (data) => {
-      if (data.minPrice !== undefined && data.maxPrice !== undefined) {
-        return data.maxPrice >= data.minPrice
-      }
-      return true
-    },
-    {
-      message: 'Maximum price must be greater than or equal to minimum price',
-      path: ['maxPrice'],
-    },
-  )
+// Query Medicine Schema (extends shared search schema)
+export const QueryMedicineSchema = SharedSearchSchema.extend({
+  page: z.string().transform(Number).pipe(z.number().min(1, 'Page must be at least 1')).optional().default('1'),
+  sortBy: z
+    .enum(['name', 'price', 'createdAt', 'unit'], {
+      errorMap: () => ({ message: 'Sort field must be one of: name, price, createdAt, unit' }),
+    })
+    .optional()
+    .default('createdAt'),
+  sortOrder: z
+    .enum(['asc', 'desc'], {
+      errorMap: () => ({ message: 'Sort order must be either asc or desc' }),
+    })
+    .optional()
+    .default('desc'),
+  minPrice: z.string().transform(Number).pipe(z.number().min(0, 'Minimum price must be non-negative')).optional(),
+  maxPrice: z.string().transform(Number).pipe(z.number().min(0, 'Maximum price must be non-negative')).optional(),
+  unit: z.string().trim().toLowerCase().optional(),
+}).refine(
+  (data) => {
+    if (data.minPrice !== undefined && data.maxPrice !== undefined) {
+      return data.maxPrice >= data.minPrice
+    }
+    return true
+  },
+  {
+    message: 'Maximum price must be greater than or equal to minimum price',
+    path: ['maxPrice'],
+  },
+)
 
 // Bulk Create Schema with array validation
 export const BulkCreateMedicineSchema = z.object({

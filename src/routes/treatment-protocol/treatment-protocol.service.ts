@@ -1,7 +1,9 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import { TreatmentProtocol } from '@prisma/client'
 import { TreatmentProtocolRepository } from '../../repositories/treatment-protocol.repository'
+import { ENTITY_NAMES } from '../../shared/constants/api.constants'
 import { PaginatedResponse } from '../../shared/schemas/pagination.schema'
+import { SharedErrorHandlingService } from '../../shared/services/error-handling.service'
 import { PaginationService } from '../../shared/services/pagination.service'
 import { CreateTreatmentProtocol, UpdateTreatmentProtocol } from './treatment-protocol.model'
 
@@ -10,43 +12,68 @@ export class TreatmentProtocolService {
   constructor(
     private readonly treatmentProtocolRepository: TreatmentProtocolRepository,
     private readonly paginationService: PaginationService,
+    private readonly errorHandlingService: SharedErrorHandlingService,
   ) {}
 
-  // Create new treatment protocol
+  // Create new treatment protocol with enhanced validation
   async createTreatmentProtocol(data: CreateTreatmentProtocol, userId: number): Promise<TreatmentProtocol> {
-    // Check if protocol with same name already exists
-    const existingProtocol = await this.treatmentProtocolRepository.findTreatmentProtocolByName(data.name)
-    if (existingProtocol) {
-      throw new ConflictException('Treatment protocol with this name already exists')
-    }
+    try {
+      // Validate business rules
+      const validation = await this.treatmentProtocolRepository.validateProtocolBusinessRules({
+        name: data.name,
+        targetDisease: data.targetDisease,
+        medicines: data.medicines,
+      })
 
-    return this.treatmentProtocolRepository.createTreatmentProtocol({
-      ...data,
-      createdById: userId,
-      updatedById: userId,
-    })
+      if (!validation.isValid) {
+        throw new Error(`Validation failed: ${validation.errors.join(', ')}`)
+      }
+
+      // Log warnings if any
+      if (validation.warnings.length > 0) {
+        console.warn('Treatment protocol creation warnings:', validation.warnings)
+      }
+
+      return this.treatmentProtocolRepository.createTreatmentProtocol({
+        ...data,
+        createdById: userId,
+        updatedById: userId,
+      })
+    } catch (error) {
+      this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.TREATMENT_PROTOCOL)
+    }
   }
 
   // Get treatment protocol by ID
   async getTreatmentProtocolById(id: number): Promise<TreatmentProtocol> {
-    const protocol = await this.treatmentProtocolRepository.findTreatmentProtocolById(id)
-    if (!protocol) {
-      throw new NotFoundException('Treatment protocol not found')
-    }
-    return protocol
+    const validatedId = this.errorHandlingService.validateId(id)
+    const protocol = await this.treatmentProtocolRepository.findTreatmentProtocolById(validatedId)
+    return this.errorHandlingService.validateEntityExists(protocol, ENTITY_NAMES.TREATMENT_PROTOCOL, validatedId)
   }
 
   // Update treatment protocol
   async updateTreatmentProtocol(id: number, data: UpdateTreatmentProtocol, userId: number): Promise<TreatmentProtocol> {
-    // Check if protocol exists
-    await this.getTreatmentProtocolById(id)
+    try {
+      // Check if protocol exists
+      await this.getTreatmentProtocolById(id)
 
-    // If updating name, check if another protocol with same name exists
-    if (data.name) {
-      const existingProtocol = await this.treatmentProtocolRepository.findTreatmentProtocolByName(data.name)
-      if (existingProtocol && existingProtocol.id !== id) {
-        throw new ConflictException('Treatment protocol with this name already exists')
+      // If updating name, check if another protocol with same name exists
+      if (data.name) {
+        const existingProtocol = await this.treatmentProtocolRepository.findTreatmentProtocolByName(data.name)
+        this.errorHandlingService.validateNameUniqueness(
+          existingProtocol,
+          data.name,
+          ENTITY_NAMES.TREATMENT_PROTOCOL,
+          id,
+        )
       }
+
+      return this.treatmentProtocolRepository.updateTreatmentProtocol(id, {
+        ...data,
+        updatedById: userId,
+      })
+    } catch (error) {
+      this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.TREATMENT_PROTOCOL)
     }
 
     return this.treatmentProtocolRepository.updateTreatmentProtocol(id, {
@@ -55,10 +82,20 @@ export class TreatmentProtocolService {
     })
   }
 
-  // Delete treatment protocol
+  // Delete treatment protocol with dependency checking
   async deleteTreatmentProtocol(id: number): Promise<TreatmentProtocol> {
     // Check if protocol exists
     await this.getTreatmentProtocolById(id)
+
+    // Validate that protocol can be safely deleted
+    const deleteValidation = await this.treatmentProtocolRepository.validateProtocolCanBeDeleted(id)
+
+    if (!deleteValidation.canDelete) {
+      throw new Error(
+        `Cannot delete treatment protocol: ${deleteValidation.activePatientTreatments} active patient treatments are using this protocol. ` +
+          `Total treatments using this protocol: ${deleteValidation.totalPatientTreatments}`,
+      )
+    }
 
     return this.treatmentProtocolRepository.deleteTreatmentProtocol(id)
   }
@@ -300,9 +337,7 @@ export class TreatmentProtocolService {
 
     // Check if new name already exists
     const existingProtocol = await this.treatmentProtocolRepository.findTreatmentProtocolByName(newName)
-    if (existingProtocol) {
-      throw new ConflictException('Treatment protocol with this name already exists')
-    }
+    this.errorHandlingService.validateNameUniqueness(existingProtocol, newName, ENTITY_NAMES.TREATMENT_PROTOCOL)
 
     // Get the original protocol with medicines
     const protocolWithMedicines = await this.treatmentProtocolRepository.findTreatmentProtocolById(id, {
@@ -464,5 +499,32 @@ export class TreatmentProtocolService {
     )
 
     return { protocols, comparison }
+  }
+
+  // Get protocol cost estimation
+  async getProtocolCostEstimation(id: number): Promise<{
+    protocolId: number
+    protocolName: string
+    totalCost: number
+    medicinesCost: Array<{
+      medicineId: number
+      medicineName: string
+      unitPrice: number
+      dosage: string
+      duration: string
+      estimatedCost: number
+    }>
+  }> {
+    // Check if protocol exists
+    const protocol = await this.getTreatmentProtocolById(id)
+
+    // Calculate cost using repository method
+    const costCalculation = await this.treatmentProtocolRepository.calculateProtocolCost(id)
+
+    return {
+      protocolId: id,
+      protocolName: protocol.name,
+      ...costCalculation,
+    }
   }
 }

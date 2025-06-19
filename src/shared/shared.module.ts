@@ -10,7 +10,9 @@ import { PermissionsGuard } from './guards/permissions.guard'
 import { AccessTokenGuard } from './guards/access-token.guard'
 import { APIKeyGuard } from './guards/api-key.guard'
 import { PaginationService } from './services/pagination.service'
-const sharedServices = [PrismaService, HashingService, TokenService, PaginationService]
+import { SharedErrorHandlingService } from './services/error-handling.service'
+
+const sharedServices = [PrismaService, HashingService, TokenService, PaginationService, SharedErrorHandlingService]
 const sharedGuards = [AccessTokenGuard, APIKeyGuard]
 
 @Global()
@@ -29,7 +31,7 @@ const sharedGuards = [AccessTokenGuard, APIKeyGuard]
     {
       provide: APP_GUARD,
       useClass: PermissionsGuard,
-    }
+    },
   ],
   exports: [...sharedServices, ...sharedGuards],
   imports: [JwtModule],

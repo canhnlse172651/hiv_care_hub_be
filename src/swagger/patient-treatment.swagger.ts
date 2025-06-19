@@ -394,10 +394,19 @@ export const ApiSearchPatientTreatments = () =>
       summary: 'Search patient treatments',
       description: 'Search patient treatments by patient name, doctor name, protocol name, or notes',
     }),
-    ApiParam({
-      name: 'query',
+    ApiQuery({
+      name: 'q',
+      required: false,
       description: 'Search query',
       type: String,
+      example: 'treatment name or patient name',
+    }),
+    ApiQuery({
+      name: 'limit',
+      required: false,
+      description: 'Maximum number of results',
+      type: Number,
+      example: 50,
     }),
     ApiResponse({
       status: 200,
@@ -419,14 +428,16 @@ export const ApiGetPatientTreatmentsByDateRange = () =>
       summary: 'Get patient treatments by date range',
       description: 'Retrieve patient treatments within a specific date range',
     }),
-    ApiParam({
+    ApiQuery({
       name: 'startDate',
+      required: true,
       description: 'Start date (YYYY-MM-DD)',
       type: String,
       example: '2024-01-01',
     }),
-    ApiParam({
+    ApiQuery({
       name: 'endDate',
+      required: true,
       description: 'End date (YYYY-MM-DD)',
       type: String,
       example: '2024-12-31',

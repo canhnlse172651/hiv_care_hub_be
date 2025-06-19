@@ -363,4 +363,110 @@ export class MedicineRepository extends BaseRepository<
       orderBy: { name: 'asc' },
     })
   }
+
+  // Business Logic Validation Methods
+
+  /**
+   * Check if medicine can be safely deleted
+   * A medicine cannot be deleted if it's used in any treatment protocols
+   */
+  async validateMedicineCanBeDeleted(id: number): Promise<{
+    canDelete: boolean
+    relatedProtocols: { id: number; name: string }[]
+    relatedActiveTreatments: number
+  }> {
+    const validatedId = this.validateId(id)
+
+    // Check if medicine is used in any treatment protocols
+    const relatedProtocols = await this.prismaService.protocolMedicine.findMany({
+      where: { medicineId: validatedId },
+      include: {
+        protocol: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    })
+
+    // Check if there are active patient treatments using this medicine
+    const activeTreatmentsCount = await this.prismaService.patientTreatment.count({
+      where: {
+        OR: [
+          { protocol: { medicines: { some: { medicineId: validatedId } } } },
+          // For JSON field search, we'll use string contains for now
+          {
+            customMedications: {
+              string_contains: `"medicineId":${validatedId}`,
+            },
+          },
+        ],
+        AND: [
+          { endDate: { gte: new Date() } }, // Active treatments
+        ],
+      },
+    })
+
+    const protocols = relatedProtocols.map((rp) => ({
+      id: rp.protocol.id,
+      name: rp.protocol.name,
+    }))
+
+    return {
+      canDelete: protocols.length === 0 && activeTreatmentsCount === 0,
+      relatedProtocols: protocols,
+      relatedActiveTreatments: activeTreatmentsCount,
+    }
+  }
+
+  /**
+   * Validate medicine data consistency
+   */
+  async validateMedicineBusinessRules(data: { name: string; unit: string; dose: string; price: number }): Promise<{
+    isValid: boolean
+    errors: string[]
+    warnings: string[]
+  }> {
+    const errors: string[] = []
+    const warnings: string[] = []
+
+    // Check for duplicate names (case-insensitive)
+    const existingMedicine = await this.findFirst({
+      name: { equals: data.name, mode: 'insensitive' },
+    })
+
+    if (existingMedicine) {
+      errors.push(`Medicine with name '${data.name}' already exists`)
+    }
+
+    // Validate unit and dose compatibility
+    const dosageNumber = parseFloat(data.dose.replace(/[^\d.]/g, ''))
+    if (isNaN(dosageNumber)) {
+      warnings.push('Dose should contain numeric value for better processing')
+    }
+
+    // Validate price consistency
+    if (data.price <= 0) {
+      errors.push('Medicine price must be greater than 0')
+    }
+
+    if (data.price > 999999) {
+      warnings.push('Medicine price seems unusually high')
+    }
+
+    // Check for reasonable unit values
+    const commonUnits = ['mg', 'ml', 'g', 'tablet', 'capsule', 'injection', 'drop', 'spray']
+    if (!commonUnits.some((unit) => data.unit.toLowerCase().includes(unit.toLowerCase()))) {
+      warnings.push(
+        'Unit value might not be standard. Common units: mg, ml, g, tablet, capsule, injection, drop, spray',
+      )
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings,
+    }
+  }
 }

@@ -1,11 +1,11 @@
 import { createZodDto } from 'nestjs-zod'
 import {
   CreateMedicineSchema,
-  QueryMedicineSchema,
-  UpdateMedicineSchema,
   MedicineStatsQuerySchema,
   PriceDistributionQuerySchema,
+  QueryMedicineSchema,
   UnitUsageQuerySchema,
+  UpdateMedicineSchema,
 } from './medicine.model'
 
 // Create Medicine DTO

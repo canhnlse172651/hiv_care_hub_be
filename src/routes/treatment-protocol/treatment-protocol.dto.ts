@@ -1,17 +1,17 @@
 import { createZodDto } from 'nestjs-zod'
 import {
-  CreateTreatmentProtocolSchema,
-  QueryTreatmentProtocolSchema,
-  UpdateTreatmentProtocolSchema,
   AdvancedSearchTreatmentProtocolSchema,
-  CloneTreatmentProtocolSchema,
   BulkCreateTreatmentProtocolSchema,
-  FindTreatmentProtocolByNameSchema,
-  UsageStatsQuerySchema,
-  PopularProtocolsQuerySchema,
+  CloneTreatmentProtocolSchema,
   CreateCustomProtocolFromTreatmentSchema,
+  CreateTreatmentProtocolSchema,
+  FindTreatmentProtocolByNameSchema,
+  PopularProtocolsQuerySchema,
   ProtocolComparisonSchema,
   ProtocolTrendAnalysisSchema,
+  QueryTreatmentProtocolSchema,
+  UpdateTreatmentProtocolSchema,
+  UsageStatsQuerySchema,
 } from './treatment-protocol.model'
 
 // Create Treatment Protocol DTO
