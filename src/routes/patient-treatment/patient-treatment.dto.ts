@@ -1,16 +1,24 @@
 import { createZodDto } from 'nestjs-zod'
+import { z } from 'zod'
 import {
-  BulkCreatePatientTreatmentSchema,
-  CustomMedicationsQuerySchema,
-  UpdatePatientTreatmentSchema,
-  PatientTreatmentQuerySchema,
   BasicQueryPatientTreatmentSchema,
+  BulkCreatePatientTreatmentSchema,
+  CreatePatientTreatmentSchema,
+  CustomMedicationsQuerySchema,
+  PatientTreatmentQuerySchema,
   SearchPatientTreatmentSchema,
   SimplePatientTreatmentsByPatientSchema,
+  UpdatePatientTreatmentSchema,
 } from './patient-treatment.model'
+
+// Type definitions
+export type CreatePatientTreatmentDtoType = z.infer<typeof CreatePatientTreatmentSchema>
 
 // DTOs using createZodDto for automatic validation and Swagger documentation
 // Only including DTOs that are actually used in the controller
+
+// Create Patient Treatment DTO
+export class CreatePatientTreatmentDto extends createZodDto(CreatePatientTreatmentSchema) {}
 
 // Update Patient Treatment DTO
 export class UpdatePatientTreatmentDto extends createZodDto(UpdatePatientTreatmentSchema) {}

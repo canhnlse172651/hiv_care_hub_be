@@ -26,24 +26,28 @@ export const ApiGetAllTreatmentProtocols = () =>
       required: false,
       description: 'Search query for protocol name, description, or target disease',
       type: String,
+      example: 'HIV treatment',
     }),
     ApiQuery({
       name: 'targetDisease',
       required: false,
       description: 'Filter by target disease',
       type: String,
+      example: 'HIV',
     }),
     ApiQuery({
       name: 'sortBy',
       required: false,
       description: 'Field to sort by',
       enum: ['name', 'targetDisease', 'createdAt'],
+      example: 'name',
     }),
     ApiQuery({
       name: 'sortOrder',
       required: false,
       description: 'Sort order',
       enum: ['asc', 'desc'],
+      example: 'asc',
     }),
     ApiResponse({
       status: 200,
@@ -69,6 +73,7 @@ export const ApiGetTreatmentProtocolById = () =>
       name: 'id',
       description: 'Treatment Protocol ID',
       type: Number,
+      example: 1,
     }),
     ApiResponse({
       status: 200,
@@ -148,6 +153,30 @@ export const ApiCreateTreatmentProtocol = () =>
         },
         required: ['name', 'targetDisease', 'medicines'],
       },
+      examples: {
+        example: {
+          summary: 'Create Treatment Protocol',
+          value: {
+            name: 'HIV Treatment Protocol A',
+            description: 'Standard HIV treatment protocol for newly diagnosed patients',
+            targetDisease: 'HIV',
+            medicines: [
+              {
+                medicineId: 1,
+                dosage: '600mg once daily',
+                duration: 'MORNING',
+                notes: 'Take with food',
+              },
+              {
+                medicineId: 2,
+                dosage: '200mg twice daily',
+                duration: 'MORNING',
+                notes: 'Take before meals',
+              },
+            ],
+          },
+        },
+      },
     }),
     ApiResponse({
       status: 201,
@@ -181,6 +210,7 @@ export const ApiUpdateTreatmentProtocol = () =>
       name: 'id',
       description: 'Treatment Protocol ID',
       type: Number,
+      example: 1,
     }),
     ApiBody({
       description: 'Updated treatment protocol data',
@@ -277,6 +307,7 @@ export const ApiDeleteTreatmentProtocol = () =>
       name: 'id',
       description: 'Treatment Protocol ID',
       type: Number,
+      example: 1,
     }),
     ApiResponse({
       status: 200,
@@ -307,6 +338,7 @@ export const ApiSearchTreatmentProtocols = () =>
       description: 'Search query',
       type: String,
       required: true,
+      example: 'HIV treatment protocol',
     }),
     ApiResponse({
       status: 200,
@@ -333,42 +365,49 @@ export const ApiAdvancedSearchTreatmentProtocols = () =>
       required: false,
       description: 'Search query',
       type: String,
+      example: 'HIV treatment',
     }),
     ApiQuery({
       name: 'targetDisease',
       required: false,
       description: 'Filter by target disease',
       type: String,
+      example: 'HIV',
     }),
     ApiQuery({
       name: 'createdById',
       required: false,
       description: 'Filter by creator ID',
       type: Number,
+      example: 1,
     }),
     ApiQuery({
       name: 'minMedicineCount',
       required: false,
       description: 'Minimum number of medicines',
       type: Number,
+      example: 1,
     }),
     ApiQuery({
       name: 'maxMedicineCount',
       required: false,
       description: 'Maximum number of medicines',
       type: Number,
+      example: 10,
     }),
     ApiQuery({
       name: 'limit',
       required: false,
       description: 'Number of items per page',
       type: Number,
+      example: 10,
     }),
     ApiQuery({
       name: 'page',
       required: false,
       description: 'Page number',
       type: Number,
+      example: 1,
     }),
     ApiResponse({
       status: 200,
@@ -395,6 +434,7 @@ export const ApiFindTreatmentProtocolByName = () =>
       description: 'Protocol name',
       type: String,
       required: true,
+      example: 'HIV Treatment Protocol A',
     }),
     ApiResponse({
       status: 200,
@@ -424,6 +464,7 @@ export const ApiGetProtocolUsageStats = () =>
       name: 'id',
       description: 'Protocol ID',
       type: Number,
+      example: 1,
     }),
     ApiResponse({
       status: 200,
@@ -480,6 +521,7 @@ export const ApiGetProtocolEffectivenessMetrics = () =>
       name: 'id',
       description: 'Treatment Protocol ID',
       type: Number,
+      example: 1,
     }),
     ApiResponse({
       status: 200,
@@ -599,6 +641,7 @@ export const ApiGetProtocolTrendAnalysis = () =>
       required: false,
       description: 'Filter by specific disease',
       type: String,
+      example: 'HIV',
     }),
     ApiQuery({
       name: 'limit',
@@ -642,6 +685,7 @@ export const ApiCreateCustomProtocolFromTreatment = () =>
       name: 'treatmentId',
       description: 'Patient Treatment ID to base the new protocol on',
       type: Number,
+      example: 1,
     }),
     ApiBody({
       description: 'Custom protocol data',
@@ -718,6 +762,7 @@ export const ApiFindTreatmentProtocolsPaginated = () =>
       required: false,
       description: 'Search across multiple fields',
       type: String,
+      example: 'HIV treatment',
     }),
     ApiQuery({
       name: 'filters',
@@ -810,6 +855,7 @@ export const ApiCloneTreatmentProtocol = () =>
       name: 'id',
       description: 'Treatment Protocol ID to clone',
       type: Number,
+      example: 1,
     }),
     ApiBody({
       description: 'Clone protocol data',
