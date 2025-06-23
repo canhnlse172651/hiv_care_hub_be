@@ -24,7 +24,7 @@ yarn install
 ```
 
 3. Tạo file .env trong thư mục gốc và cấu hình các biến môi trường:
-```env
+```env`````````````````````````````````````````````````````````````````
 DATABASE_URL="postgresql://hivcarehub_db_user:N79ZtU5SaUHsUkZXXSG2wx530STsdDjw@dpg-d0j3fop5pdvs73ekvs9g-a.oregon-postgres.render.com/hivcarehub_db"
 
 # JWT Configuration
@@ -45,9 +45,6 @@ npx prisma generate
 # Đồng bộ schema với database
 npx prisma db push
 
-# Chạy seed data
-npm run prisma:seed
-```
 
 ## Chạy ứng dụng
 
@@ -106,21 +103,7 @@ Sau khi chạy seed, các tài khoản sau sẽ được tạo:
 - `npx prisma generate`: Tạo Prisma Client
 - `npx prisma db push`: Đồng bộ schema với database
 
-copy all of them to paste .env
--------------------------------------
 
-DATABASE_URL="postgresql://hivcarehub_db_user:N79ZtU5SaUHsUkZXXSG2wx530STsdDjw@dpg-d0j3fop5pdvs73ekvs9g-a.oregon-postgres.render.com/hivcarehub_db"
-
-# JWT Configuration
-ACCESS_TOKEN_SECRET="your-access-token-secret-key-here"
-ACCESS_TOKEN_EXPIRES_IN="15m"
-REFRESH_TOKEN_SECRET="your-refresh-token-secret-key-here"
-REFRESH_TOKEN_EXPIRES_IN="7d"
-
-# API Security
-SECRET_API_KEY="your-api-key-here"
-
-----------------------------------------
 
 
 some infor to access DB host 
@@ -138,4 +121,17 @@ External Database URL = postgresql://hivcarehub_db_user:N79ZtU5SaUHsUkZXXSG2wx53
 
 
 
-npx prisma db push   =>  update change db host
+rule of create branch name on github
+
+Every one follow this format
+
+this system has 4 role (staff,admin,client,doctor)
+type : feature/bugfix/hotfix/release
+name : name of feature (short) 
+des  : explain detail the des of isuue  
+
+role-{type}/{name/des}  
+-> ex : admin-feature/manage-user
+-> ex : doctor-bugfix/change-shift-error
+
+

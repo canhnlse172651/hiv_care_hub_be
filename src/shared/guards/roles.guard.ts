@@ -64,7 +64,9 @@ export class RolesGuard implements CanActivate {
       // Convert requiredRoles to array if it's not already
       const rolesArray = Array.isArray(requiredRoles) ? requiredRoles : [requiredRoles]
 
-      const hasRole = rolesArray.some((role) => userWithRole.role.name === role)
+      // Convert database role name to uppercase for comparison
+      const userRoleName = userWithRole.role.name.toUpperCase()
+      const hasRole = rolesArray.some((role) => userRoleName === (role as string))
 
       if (!hasRole) {
         throw new ForbiddenException('User does not have required role')

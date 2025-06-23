@@ -1,6 +1,14 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, Patch, ParseIntPipe } from '@nestjs/common'
 import { UserService } from './user.service'
-import { CreateUserDtoType, UpdateUserDtoType, UserResponseType, QueryUserDtoType, QueryUserDto, CreateUserDto, UpdateUserDto } from './user.dto'
+import {
+  CreateUserDtoType,
+  UpdateUserDtoType,
+  UserResponseType,
+  QueryUserDtoType,
+  QueryUserDto,
+  CreateUserDto,
+  UpdateUserDto,
+} from './user.dto'
 import CustomZodValidationPipe from '../../common/custom-zod-validate'
 import { Roles } from '../../shared/decorators/roles.decorator'
 import { Role } from '../../shared/constants/role.constant'
@@ -18,7 +26,6 @@ import {
   ApiDeleteUser,
   ApiRestoreUser,
 } from '../../swagger/user.swagger'
-import { unknown } from 'zod'
 
 @ApiTags('Users')
 @ApiBearerAuth()
@@ -85,9 +92,7 @@ export class UserController {
     method: HTTPMethod.GET,
   })
   @ApiGetAllUsers()
-  async getUsers(
-    @Query() query: unknown,
-  ): Promise<PaginatedResponse<UserResponseType>> {
+  async getUsers(@Query() query: unknown): Promise<PaginatedResponse<UserResponseType>> {
     return this.userService.getUsers(query)
   }
 
