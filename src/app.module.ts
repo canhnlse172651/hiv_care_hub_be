@@ -4,20 +4,21 @@ import { ZodSerializerInterceptor } from 'nestjs-zod'
 import { AppController } from './app.controller'
 import { AppService } from './app.service'
 import CustomZodValidationPipe from './common/custom-zod-validate'
+import { AppoinmentModule } from './routes/appoinment/appoinment.module'
 import { AuthModule } from './routes/auth/auth.module'
+import { BlogModule } from './routes/blog/blog.module'
+import { CateBlogModule } from './routes/category-blog/cate-blog.module'
 import { DoctorModule } from './routes/doctor/doctor.module'
 import { MedicineModule } from './routes/medicine/medicine.module'
+import { TestPatientTreatmentModule } from './routes/patient-treatment/modules/test/patient-treatment-test.module'
 import { PatientTreatmentModule } from './routes/patient-treatment/patient-treatment.module'
 import { PermissionModule } from './routes/permission/permission.module'
 import { RoleModule } from './routes/role/role.module'
+import { ServiceModule } from './routes/service/service.module'
 import { TreatmentProtocolModule } from './routes/treatment-protocol/treatment-protocol.module'
 import { UserModule } from './routes/user/user.module'
 import { CatchEverythingFilter } from './shared/fillters/catch-everything.fillter'
 import { SharedModule } from './shared/shared.module'
-import { CateBlogModule } from './routes/category-blog/cate-blog.module'
-import { BlogModule } from './routes/blog/blog.module'
-import { ServiceModule } from './routes/service/service.module'
-import { AppoinmentModule } from './routes/appoinment/appoinment.module'
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { AppoinmentModule } from './routes/appoinment/appoinment.module'
     MedicineModule,
     TreatmentProtocolModule,
     PatientTreatmentModule,
+    TestPatientTreatmentModule, // Add test module
     CateBlogModule,
     BlogModule,
     ServiceModule,
