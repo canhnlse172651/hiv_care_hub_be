@@ -35,7 +35,7 @@ REFRESH_TOKEN_EXPIRES_IN="7d"
 
 # API Security
 SECRET_API_KEY="your-api-key-here"
-```
+`````````````````````````````````````````````````````````````````````````
 
 4. Cài đặt và đồng bộ Prisma:
 ```bash
