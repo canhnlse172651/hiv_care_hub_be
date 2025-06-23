@@ -24,17 +24,32 @@ yarn install
 ```
 
 3. Tạo file .env trong thư mục gốc và cấu hình các biến môi trường:
-```env`````````````````````````````````````````````````````````````````
-DATABASE_URL="postgresql://hivcarehub_db_user:N79ZtU5SaUHsUkZXXSG2wx530STsdDjw@dpg-d0j3fop5pdvs73ekvs9g-a.oregon-postgres.render.com/hivcarehub_db"
+DATABASE_URL="postgresql://admin:O7RRqHqRduxpYAaYvxUqNdmP2Xg959Ip@dpg-d17dhah5pdvs7388kaq0-a.singapore-postgres.render.com/hivcarehub_database"
 
-# JWT Configuration
-ACCESS_TOKEN_SECRET="your-access-token-secret-key-here"
-ACCESS_TOKEN_EXPIRES_IN="15m"
-REFRESH_TOKEN_SECRET="your-refresh-token-secret-key-here"
+
+ACCESS_TOKEN_SECRET="your-access-token-secret-key-here" 
+ACCESS_TOKEN_EXPIRES_IN="15m" 
+REFRESH_TOKEN_SECRET="your-refresh-token-secret-key-here" 
 REFRESH_TOKEN_EXPIRES_IN="7d"
 
-# API Security
 SECRET_API_KEY="your-api-key-here"
+
+PORT = 5432
+Database = hivcarehub_database
+Username = admin
+Password = O7RRqHqRduxpYAaYvxUqNdmP2Xg959Ip
+
+# External Database URL = postgresql://admin:O7RRqHqRduxpYAaYvxUqNdmP2Xg959Ip@dpg-d17dhah5pdvs7388kaq0-a.singapore-postgres.render.com/hivcarehub_database
+
+
+
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_SECURE=false
+EMAIL_USER=canhnlse172651@gmail.com
+EMAIL_PASSWORD=clhi zaaz wxwv kkvx
+EMAIL_FROM=canhnlse172651@gmail.com
+
 `````````````````````````````````````````````````````````````````````````
 
 4. Cài đặt và đồng bộ Prisma:
