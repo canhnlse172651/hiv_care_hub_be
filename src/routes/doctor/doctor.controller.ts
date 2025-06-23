@@ -1,27 +1,15 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Post,
-  Put,
-  Query,
-  ParseIntPipe,
-} from '@nestjs/common'
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, ParseIntPipe } from '@nestjs/common'
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger'
 import { DoctorService } from './doctor.service'
 import { Doctor } from '@prisma/client'
-import { Roles } from '../../shared/decorators/roles.decorator'
-import { Role } from '../../shared/constants/role.constant'
 import { PaginatedResponse } from '../../shared/schemas/pagination.schema'
 import {
   CreateDoctorDto,
   UpdateDoctorDto,
   QueryDoctorDto,
- 
   GetDoctorScheduleDto,
   GenerateScheduleDto,
+  GetDoctorByDateDto,
 } from './doctor.dto'
 import {
   ApiGetAllDoctors,
@@ -31,10 +19,14 @@ import {
   ApiDeleteDoctor,
   ApiGetDoctorSchedule,
   ApiGenerateSchedule,
+  ApiAssignDoctorsManually,
+  ApiSwapShifts,
+  ApiGetDoctorsByDate,
 } from '../../swagger/doctor.swagger'
+import { ManualScheduleAssignmentType, SwapShiftsType } from './doctor.model'
 
 @ApiBearerAuth()
-@ApiTags('Doctor Management')
+@ApiTags('Doctors')
 @Controller('doctors')
 export class DoctorController {
   constructor(private readonly doctorService: DoctorService) {}
@@ -79,10 +71,7 @@ export class DoctorController {
 
   @Get(':id/schedule')
   @ApiGetDoctorSchedule()
-  async getDoctorSchedule(
-    @Param('id', ParseIntPipe) id: number,
-    @Query() query: unknown,
-  ) {
+  async getDoctorSchedule(@Param('id', ParseIntPipe) id: number, @Query() query: unknown) {
     const dto = GetDoctorScheduleDto.create(query)
     return this.doctorService.getDoctorSchedule(id, dto)
   }
@@ -93,5 +82,28 @@ export class DoctorController {
   async generateSchedule(@Body() body: unknown) {
     const dto = GenerateScheduleDto.create(body)
     return this.doctorService.generateSchedule(dto.doctorsPerShift, new Date(dto.startDate))
+  }
+
+  @Post('schedule/manual')
+  @ApiAssignDoctorsManually()
+  async assignDoctorsManually(@Body() data: ManualScheduleAssignmentType) {
+    return this.doctorService.assignDoctorsManually(data)
+  }
+
+  @Post('schedule/swap')
+  // @Roles(Role.Admin)
+  @ApiSwapShifts()
+  async swapShifts(@Body() data: SwapShiftsType) {
+    return this.doctorService.swapShifts(data)
+  }
+
+  @ApiGetDoctorsByDate()
+  @Get('schedule/by-date')
+  @Get('schedule/by-date')
+  async getDoctorsByDate(@Query('date') date: string): Promise<Doctor[]> {
+    const parsedDate = new Date(date)
+    console.log('date', date)
+    console.log('parsedDate', parsedDate)
+    return this.doctorService.getDoctorsByDate(parsedDate)
   }
 }

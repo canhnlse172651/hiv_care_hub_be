@@ -7,147 +7,164 @@ async function main() {
   // Create roles
   const adminRole = await prisma.role.create({
     data: {
-      name: 'Admin',
+      name: 'ADMIN',
       description: 'System administrator',
       permissions: {
         create: [
+          // User Management
           {
             name: 'manage_users',
             description: 'Can manage users',
-            path: '/api/users',
+            path: '/users',
             method: HTTPMethod.GET,
           },
           {
             name: 'manage_users_create',
             description: 'Can create users',
-            path: '/api/users',
+            path: '/users',
             method: HTTPMethod.POST,
           },
           {
             name: 'manage_users_update',
             description: 'Can update users',
-            path: '/api/users',
+            path: '/users/:id',
             method: HTTPMethod.PUT,
           },
           {
             name: 'manage_users_delete',
             description: 'Can delete users',
-            path: '/api/users',
+            path: '/users/:id',
             method: HTTPMethod.DELETE,
           },
           {
+            name: 'manage_users_restore',
+            description: 'Can restore deleted users',
+            path: '/users/:id/restore',
+            method: HTTPMethod.PATCH,
+          },
+          // Role Management
+          {
             name: 'manage_roles',
             description: 'Can manage roles',
-            path: '/api/roles',
+            path: '/roles',
             method: HTTPMethod.GET,
           },
           {
             name: 'manage_roles_create',
             description: 'Can create roles',
-            path: '/api/roles',
+            path: '/roles',
             method: HTTPMethod.POST,
           },
           {
             name: 'manage_roles_update',
             description: 'Can update roles',
-            path: '/api/roles',
+            path: '/roles/:id',
             method: HTTPMethod.PUT,
           },
           {
             name: 'manage_roles_delete',
             description: 'Can delete roles',
-            path: '/api/roles',
+            path: '/roles/:id',
             method: HTTPMethod.DELETE,
           },
           {
+            name: 'manage_user_roles',
+            description: 'Can manage user roles',
+            path: '/roles/user/:userId',
+            method: HTTPMethod.GET,
+          },
+          {
+            name: 'manage_user_roles_update',
+            description: 'Can update user roles',
+            path: '/roles/user/:userId/roles',
+            method: HTTPMethod.PUT,
+          },
+          // Permission Management
+          {
+            name: 'manage_permissions',
+            description: 'Can manage permissions',
+            path: '/permissions',
+            method: HTTPMethod.GET,
+          },
+          {
+            name: 'manage_permissions_create',
+            description: 'Can create permissions',
+            path: '/permissions',
+            method: HTTPMethod.POST,
+          },
+          {
+            name: 'manage_permissions_update',
+            description: 'Can update permissions',
+            path: '/permissions/:id',
+            method: HTTPMethod.PUT,
+          },
+          {
+            name: 'manage_permissions_delete',
+            description: 'Can delete permissions',
+            path: '/permissions/:id',
+            method: HTTPMethod.DELETE,
+          },
+          {
+            name: 'manage_user_permissions_add',
+            description: 'Can add permissions to user',
+            path: '/permissions/user/:userId',
+            method: HTTPMethod.POST,
+          },
+          {
+            name: 'manage_user_permissions_remove',
+            description: 'Can remove permissions from user',
+            path: '/permissions/user/:userId',
+            method: HTTPMethod.DELETE,
+          },
+          // Doctor Management
+          {
             name: 'manage_doctors',
             description: 'Can manage doctors',
-            path: '/api/doctors',
+            path: '/doctors',
             method: HTTPMethod.GET,
           },
           {
             name: 'manage_doctors_create',
             description: 'Can create doctors',
-            path: '/api/doctors',
+            path: '/doctors',
             method: HTTPMethod.POST,
           },
           {
             name: 'manage_doctors_update',
             description: 'Can update doctors',
-            path: '/api/doctors',
+            path: '/doctors/:id',
             method: HTTPMethod.PUT,
           },
           {
             name: 'manage_doctors_delete',
             description: 'Can delete doctors',
-            path: '/api/doctors',
+            path: '/doctors/:id',
             method: HTTPMethod.DELETE,
           },
+          // Schedule Management
           {
             name: 'manage_schedules',
             description: 'Can manage schedules',
-            path: '/api/schedules',
-            method: HTTPMethod.GET,
-          },
-          {
-            name: 'manage_schedules_create',
-            description: 'Can create schedules',
-            path: '/api/schedules',
-            method: HTTPMethod.POST,
-          },
-          {
-            name: 'manage_schedules_update',
-            description: 'Can update schedules',
-            path: '/api/schedules',
-            method: HTTPMethod.PUT,
-          },
-          {
-            name: 'manage_schedules_delete',
-            description: 'Can delete schedules',
-            path: '/api/schedules',
-            method: HTTPMethod.DELETE,
-          },
-          {
-            name: 'view_reports',
-            description: 'Can view reports',
-            path: '/api/reports',
+            path: '/doctors/schedule',
             method: HTTPMethod.GET,
           },
           {
             name: 'generate_schedules',
             description: 'Can generate automatic schedules',
-            path: '/api/doctors/schedule/generate',
+            path: '/doctors/schedule/generate',
             method: HTTPMethod.POST,
           },
           {
-            name: 'approve_time_off',
-            description: 'Can approve time off requests',
-            path: '/api/doctors/time-off',
-            method: HTTPMethod.PUT,
-          },
-          {
-            name: 'manage_specializations',
-            description: 'Can manage specializations',
-            path: '/api/specializations',
-            method: HTTPMethod.GET,
-          },
-          {
-            name: 'manage_specializations_create',
-            description: 'Can create specializations',
-            path: '/api/specializations',
+            name: 'manage_schedules_manual',
+            description: 'Can manually assign schedules',
+            path: '/doctors/schedule/manual',
             method: HTTPMethod.POST,
           },
           {
-            name: 'manage_specializations_update',
-            description: 'Can update specializations',
-            path: '/api/specializations',
-            method: HTTPMethod.PUT,
-          },
-          {
-            name: 'manage_specializations_delete',
-            description: 'Can delete specializations',
-            path: '/api/specializations',
-            method: HTTPMethod.DELETE,
+            name: 'manage_schedules_swap',
+            description: 'Can swap schedules',
+            path: '/doctors/schedule/swap',
+            method: HTTPMethod.POST,
           },
         ],
       },
@@ -156,51 +173,104 @@ async function main() {
 
   const doctorRole = await prisma.role.create({
     data: {
-      name: 'Doctor',
+      name: 'DOCTOR',
       description: 'Medical doctor',
       permissions: {
         create: [
           {
-            name: 'view_schedule',
+            name: 'view_own_schedule',
             description: 'Can view own schedule',
-            path: '/api/doctors/schedule',
+            path: '/doctors/:id/schedule',
             method: HTTPMethod.GET,
           },
           {
             name: 'request_time_off',
             description: 'Can request time off',
-            path: '/api/doctors/time-off',
+            path: '/doctors/time-off',
             method: HTTPMethod.POST,
           },
           {
             name: 'view_patients',
             description: 'Can view patients',
-            path: '/api/patients',
+            path: '/patients',
             method: HTTPMethod.GET,
           },
           {
             name: 'manage_patients',
             description: 'Can manage patients',
-            path: '/api/patients',
+            path: '/patients',
             method: HTTPMethod.GET,
           },
           {
             name: 'manage_patients_create',
             description: 'Can create patients',
-            path: '/api/patients',
+            path: '/patients',
             method: HTTPMethod.POST,
           },
           {
             name: 'manage_patients_update',
             description: 'Can update patients',
-            path: '/api/patients',
+            path: '/patients/:id',
             method: HTTPMethod.PUT,
           },
           {
             name: 'manage_patients_delete',
             description: 'Can delete patients',
-            path: '/api/patients',
+            path: '/patients/:id',
             method: HTTPMethod.DELETE,
+          },
+        ],
+      },
+    },
+  })
+
+  const staffRole = await prisma.role.create({
+    data: {
+      name: 'STAFF',
+      description: 'Hospital staff',
+      permissions: {
+        create: [
+          {
+            name: 'view_schedules',
+            description: 'Can view all schedules',
+            path: '/doctors/schedule',
+            method: HTTPMethod.GET,
+          },
+          {
+            name: 'manage_appointments',
+            description: 'Can manage appointments',
+            path: '/appointments',
+            method: HTTPMethod.GET,
+          },
+          {
+            name: 'manage_appointments_create',
+            description: 'Can create appointments',
+            path: '/appointments',
+            method: HTTPMethod.POST,
+          },
+          {
+            name: 'manage_appointments_update',
+            description: 'Can update appointments',
+            path: '/appointments/:id',
+            method: HTTPMethod.PUT,
+          },
+          {
+            name: 'manage_appointments_delete',
+            description: 'Can delete appointments',
+            path: '/appointments/:id',
+            method: HTTPMethod.DELETE,
+          },
+          {
+            name: 'view_patients',
+            description: 'Can view patients',
+            path: '/patients',
+            method: HTTPMethod.GET,
+          },
+          {
+            name: 'manage_patients',
+            description: 'Can manage patients',
+            path: '/patients',
+            method: HTTPMethod.GET,
           },
         ],
       },
@@ -209,26 +279,26 @@ async function main() {
 
   const patientRole = await prisma.role.create({
     data: {
-      name: 'Patient',
+      name: 'PATIENT',
       description: 'Patient',
       permissions: {
         create: [
           {
             name: 'view_doctors',
             description: 'Can view doctors',
-            path: '/api/doctors',
+            path: '/doctors',
             method: HTTPMethod.GET,
           },
           {
             name: 'book_appointment',
             description: 'Can book appointments',
-            path: '/api/appointments',
+            path: '/appointments',
             method: HTTPMethod.POST,
           },
           {
             name: 'view_own_records',
             description: 'Can view own medical records',
-            path: '/api/patients/records',
+            path: '/patients/records',
             method: HTTPMethod.GET,
           },
         ],
@@ -280,36 +350,63 @@ async function main() {
         status: 'ACTIVE',
       },
     }),
+  ])
+
+  // Create staff users
+  const staffUsers = await Promise.all([
     prisma.user.create({
       data: {
-        email: 'doctor4@example.com',
-        password: await bcrypt.hash('doctor123', 10),
-        name: 'Dr. Emily Davis',
+        email: 'staff1@example.com',
+        password: await bcrypt.hash('staff123', 10),
+        name: 'Jane Wilson',
         phoneNumber: '1234567894',
-        roleId: doctorRole.id,
+        roleId: staffRole.id,
         status: 'ACTIVE',
       },
     }),
     prisma.user.create({
       data: {
-        email: 'doctor5@example.com',
-        password: await bcrypt.hash('doctor123', 10),
-        name: 'Dr. Robert Wilson',
+        email: 'staff2@example.com',
+        password: await bcrypt.hash('staff123', 10),
+        name: 'Robert Davis',
         phoneNumber: '1234567895',
-        roleId: doctorRole.id,
+        roleId: staffRole.id,
         status: 'ACTIVE',
       },
     }),
   ])
 
-  // Create doctors with different specializations and maxShiftsPerDay
+  // Create patient users
+  const patientUsers = await Promise.all([
+    prisma.user.create({
+      data: {
+        email: 'patient1@example.com',
+        password: await bcrypt.hash('patient123', 10),
+        name: 'Alice Thompson',
+        phoneNumber: '1234567896',
+        roleId: patientRole.id,
+        status: 'ACTIVE',
+      },
+    }),
+    prisma.user.create({
+      data: {
+        email: 'patient2@example.com',
+        password: await bcrypt.hash('patient123', 10),
+        name: 'Bob Anderson',
+        phoneNumber: '1234567897',
+        roleId: patientRole.id,
+        status: 'ACTIVE',
+      },
+    }),
+  ])
+
+  // Create doctors with different specializations
   const doctors = await Promise.all([
     prisma.doctor.create({
       data: {
         userId: doctorUsers[0].id,
         specialization: 'General Medicine',
         certifications: ['MD', 'Board Certified'],
-       
       },
     }),
     prisma.doctor.create({
@@ -317,7 +414,6 @@ async function main() {
         userId: doctorUsers[1].id,
         specialization: 'Pediatrics',
         certifications: ['MD', 'Pediatric Board Certified'],
-       
       },
     }),
     prisma.doctor.create({
@@ -325,31 +421,12 @@ async function main() {
         userId: doctorUsers[2].id,
         specialization: 'Internal Medicine',
         certifications: ['MD', 'Internal Medicine Board Certified'],
-        
-      },
-    }),
-    prisma.doctor.create({
-      data: {
-        userId: doctorUsers[3].id,
-        specialization: 'Family Medicine',
-        certifications: ['MD', 'Family Medicine Board Certified'],
-       
-      },
-    }),
-    prisma.doctor.create({
-      data: {
-        userId: doctorUsers[4].id,
-        specialization: 'Emergency Medicine',
-        certifications: ['MD', 'Emergency Medicine Board Certified'],
-       
       },
     }),
   ])
 
   console.log('Seed data created successfully')
 }
-
-
 
 main()
   .catch((e) => {
