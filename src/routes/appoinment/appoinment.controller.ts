@@ -15,6 +15,7 @@ import {
   ApiFindAppointmentById,
   ApiFindAppointmentByUserId,
   ApiFindAppointmentsPaginated,
+  ApiFindAppointmentsPaginatedByStaff,
   ApiUpdateAppointment,
   ApiUpdateAppointmentStatus,
 } from 'src/swagger/appoinment.swagger'
@@ -69,12 +70,6 @@ export class AppoinmentController {
     return this.appoinmentService.deleteAppointment(id)
   }
 
-  @ApiFindAppointmentById()
-  @Get(':id')
-  findAppointmentById(@Param('id', ParseIntPipe) id: number): Promise<AppointmentResponseType> {
-    return this.appoinmentService.findAppointmentById(id)
-  }
-
   @ApiFindAppointmentByUserId()
   @Roles(Role.Patient, Role.Admin)
   @Get('user/:id')
@@ -90,9 +85,22 @@ export class AppoinmentController {
   }
 
   @ApiFindAppointmentsPaginated()
-  @Roles(Role.Admin, Role.Staff)
+  @Roles(Role.Admin)
   @Get()
   findAppointmentsPaginated(@Query() query: unknown): Promise<PaginatedResponse<AppointmentResponseType>> {
     return this.appoinmentService.findAppointmentsPaginated(query)
+  }
+
+  @ApiFindAppointmentsPaginatedByStaff()
+  @Roles(Role.Staff)
+  @Get('staff')
+  findAppointmentsPaginatedByStaff(@Query() query: unknown): Promise<PaginatedResponse<AppointmentResponseType>> {
+    return this.appoinmentService.findAppointmentsPaginatedByStaff(query)
+  }
+
+  @ApiFindAppointmentById()
+  @Get(':id')
+  findAppointmentById(@Param('id', ParseIntPipe) id: number): Promise<AppointmentResponseType> {
+    return this.appoinmentService.findAppointmentById(id)
   }
 }
