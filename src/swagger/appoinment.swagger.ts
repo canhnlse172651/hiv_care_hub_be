@@ -169,18 +169,71 @@ export const ApiFindAppointmentByDoctorId = () => {
 
 export const ApiFindAppointmentsPaginated = () => {
   return applyDecorators(
-    ApiOperation({ summary: 'Find All Appointments Paginated', description: 'Find Appointments Paginated' }),
+    ApiOperation({
+      summary: 'Find All Appointments Paginated by Admin',
+      description: 'Find Appointments Paginated by Admin',
+    }),
     ApiQuery({ name: 'page', type: 'number', description: 'Page number', example: 1, required: false }),
     ApiQuery({ name: 'limit', type: 'number', description: 'Limit', example: 10, required: false }),
-    // ApiQuery({ name: 'search', type: 'string', description: 'Search query', required: false }),
-    // ApiQuery({
-    //   name: 'searchFields',
-    //   type: 'array',
-    //   description: 'Fields to search (e.g. notes, status, type)',
-    //   required: false,
-    //   isArray: true,
-    //   example: ['notes'],
-    // }),
+    ApiQuery({
+      name: 'sortBy',
+      type: 'string',
+      description: 'Sort by',
+      required: false,
+      enum: ['id', 'createdAt', 'updatedAt', 'appointmentTime', 'status', 'type'],
+    }),
+    ApiQuery({ name: 'sortOrder', type: 'string', description: 'Sort order', required: false, enum: ['asc', 'desc'] }),
+    ApiQuery({ name: 'serviceId', type: 'number', description: 'Service ID', required: false }),
+    ApiQuery({
+      name: 'status',
+      type: 'string',
+      description: 'Status',
+      required: false,
+      enum: ['PENDING', 'CHECKIN', 'PAID', 'PROCESS', 'CONFIRMED', 'COMPLETED', 'CANCELLED'],
+    }),
+    ApiQuery({
+      name: 'type',
+      type: 'string',
+      description: 'Appointment Type',
+      required: false,
+      enum: ['ONLINE', 'OFFLINE'],
+    }),
+    ApiQuery({
+      name: 'dateFrom',
+      type: 'string',
+      format: 'date-time',
+      description: 'Filter from date (appointmentTime >= dateFrom)',
+      required: false,
+      example: '2024-03-20T00:00:00Z',
+    }),
+    ApiQuery({
+      name: 'dateTo',
+      type: 'string',
+      format: 'date-time',
+      description: 'Filter to date (appointmentTime <= dateTo)',
+      required: false,
+      example: '2024-03-21T00:00:00Z',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Appointments found successfully',
+      schema: { type: 'array', items: AppointmentResponseSchema },
+    }),
+    ApiResponse({ status: 400, description: 'Bad Request' }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions' }),
+    ApiResponse({ status: 404, description: 'Appointments not found' }),
+  )
+}
+
+export const ApiFindAppointmentsPaginatedByStaff = () => {
+  return applyDecorators(
+    ApiOperation({
+      summary: 'Find All Appointments Paginated by Staff',
+      description: 'Find Appointments Paginated by Staff',
+    }),
+    ApiQuery({ name: 'page', type: 'number', description: 'Page number', example: 1, required: false }),
+    ApiQuery({ name: 'limit', type: 'number', description: 'Limit', example: 10, required: false }),
     ApiQuery({
       name: 'sortBy',
       type: 'string',

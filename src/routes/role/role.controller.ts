@@ -23,10 +23,7 @@ import {
 @Controller('roles')
 @Auth([AuthType.Bearer])
 export class RoleController {
-  constructor(
-    private readonly roleService: RolesService,
-   
-  ) {}
+  constructor(private readonly roleService: RolesService) {}
 
   @Get()
   @ApiGetAllRoles()
@@ -36,7 +33,7 @@ export class RoleController {
     method: HTTPMethod.GET,
   })
   async getAllRoles(@Query() query: unknown) {
-    return this.roleService.findAllRoles(query);
+    return this.roleService.findAllRoles(query)
   }
 
   @Get(':id')

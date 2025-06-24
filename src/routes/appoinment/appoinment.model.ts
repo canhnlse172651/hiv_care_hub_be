@@ -44,7 +44,7 @@ export const AppointmentSchema = z.object({
 
 export const CreateAppointmentSchema = z.object({
   userId: z.number(),
-  doctorId: z.number(),
+  doctorId: z.number().optional(),
   serviceId: z.number(),
   appointmentTime: z.preprocess(
     (val) => (typeof val === 'string' || val instanceof Date ? new Date(val) : val),
