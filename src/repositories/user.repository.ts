@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common'
 import { PrismaService } from 'src/shared/services/prisma.service'
 import { RegisterBodyType, RegisterResType} from '../routes/auth/auth.model'
-import { User } from '@prisma/client'
 import { UserResponseType } from '../routes/user/user.dto'
 import { UserWithPasswordType } from '../routes/auth/auth.model'
+import { User } from '@prisma/client'
 @Injectable()
 export class AuthRepository {
   constructor(private readonly prismaService: PrismaService) {}
@@ -13,7 +13,7 @@ export class AuthRepository {
     return this.prismaService.user
   }
 
-  async createUser(user: Omit<RegisterBodyType, 'confirmPassword'> & { roleId: number }): Promise<RegisterResType> {
+  async createUser(user: Omit<RegisterBodyType, 'confirmPassword'| 'code'> & { roleId: number }): Promise<RegisterResType> {
     return this.prismaService.user.create({
       data: user,
       select: {
@@ -254,6 +254,35 @@ export class AuthRepository {
         createdAt: true,
         updatedAt: true,
       },
+    })
+  }
+  
+
+  async createVerificationCode(data: {
+    email: string
+    code: string  
+    type: 'FORGOT_PASSWORD' | 'REGISTER'
+    expiresAt: Date
+  }) {
+    return this.prismaService.verificationCode.upsert({
+      where: { email: data.email },
+      create: {
+        email: data.email,
+        code: data.code,
+        type: data.type,
+        expiresAt: data.expiresAt,
+      },
+      update: {
+        code: data.code,
+        type: data.type,
+        expiresAt: data.expiresAt,
+      },
+    })
+  }
+
+  async findVerificationCode(uniqueValue : {email: string, type: 'FORGOT_PASSWORD' | 'REGISTER', code: string}) {
+    return this.prismaService.verificationCode.findUnique({
+      where: uniqueValue,
     })
   }
 }

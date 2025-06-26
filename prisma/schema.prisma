@@ -76,7 +76,7 @@ enum ServiceType {
   TREATMENT
 }
 
-enum VerificationCodeCodeType {
+enum VerificationType {
   REGISTER
   FORGOT_PASSWORD
 }
@@ -189,13 +189,15 @@ model VerificationCode {
   userId    Int?
   user      User?                  @relation(fields: [userId], references: [id])
   code      String                 @db.VarChar(50)
-  type      VerificationCodeCodeType
+  type      VerificationType
   expiresAt DateTime
   createdAt DateTime               @default(now())
 
   @@index([email, code, type])
   @@index([expiresAt])
 }
+
+
 
 model Message {
   id         Int      @id @default(autoincrement())

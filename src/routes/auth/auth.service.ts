@@ -4,7 +4,12 @@ import { TokenService } from 'src/shared/services/token.service'
 import { HashingService } from 'src/shared/services/hashing.service'
 import { isNotFoundPrismaError, isUniqueConstraintPrismaError } from 'src/shared/helpers'
 import { AuthRepository } from '../../repositories/user.repository'
-import { LoginBodyType, RegisterBodyType } from './auth.model'
+import { LoginBodyType, RegisterBodyType, SentOtpType } from './auth.model'
+import { generateOtp } from 'src/shared/utils/otp.utils'
+import { addMilliseconds } from 'date-fns'
+import envConfig from 'src/shared/config'
+import ms from 'ms'
+import { EmailService } from 'src/shared/services/email.service'
 
 @Injectable()
 export class AuthService {
@@ -13,10 +18,41 @@ export class AuthService {
     private readonly rolesService: RolesService,
     private readonly hashingService: HashingService,
     private readonly tokenService: TokenService,
+    private readonly emailService: EmailService,
   ) {}
 
   async register(body: RegisterBodyType) {
     try {
+
+      const verificationCode = await this.authRepository.findVerificationCode({
+        email: body.email,
+        type: 'REGISTER',
+        code: body.code,
+      })
+
+      if (!verificationCode) {
+        throw new UnprocessableEntityException({
+          message: 'Invalid verification code',
+          field: 'code',
+        })
+      }
+
+      // Add detailed logging for expiration check
+      const now = new Date()
+     
+
+      // Alternative check using getTime() for more reliable comparison
+      const isExpired = verificationCode.expiresAt.getTime() < now.getTime()
+   
+
+      if(isExpired) {
+        throw new UnprocessableEntityException({
+          message: 'Verification code has expired',
+          field: 'code',
+        })
+      }
+      
+      
       const clientRoleId = await this.rolesService.getClientRoleId()
       const hashedPassword = await this.hashingService.hash(body.password)
       return await this.authRepository.createUser({
@@ -25,6 +61,7 @@ export class AuthService {
         phoneNumber: body.phoneNumber,
         password: hashedPassword,
         roleId: clientRoleId,
+        
       })
     } catch (error) {
       if (isUniqueConstraintPrismaError(error)) {
@@ -56,10 +93,7 @@ export class AuthService {
     }
 
     const tokens = await this.generateTokens({ userId: user.id })
-    console.log('=== Generated Tokens ===')
-    console.log('Access Token:', tokens.accessToken)
-    console.log('Refresh Token:', tokens.refreshToken)
-    console.log('=====================')
+ 
 
     return {
       ...tokens,
@@ -159,6 +193,71 @@ export class AuthService {
         throw error
       }
       throw new UnauthorizedException('Invalid refresh token')
+    }
+  }
+
+
+  async sentOtp(body: SentOtpType) {
+    try {
+      console.log('Starting sentOtp with body:', body)
+
+      // check email already exists on database
+      console.log('Checking if email exists...')
+      const user = await this.authRepository.findUserByEmail(body.email)
+      console.log('User found:', user)
+      
+      if (user) {
+        throw new ConflictException('Email already exists')
+      }
+
+      // generate otp
+      console.log('Generating OTP...')
+      const otp = generateOtp()
+      console.log('Generated OTP:', otp)
+
+      // Validate environment variable
+      const expirationTime = envConfig.OTP_EXPIRES_IN || '5m'
+      console.log('Raw OTP_EXPIRATION_TIME from env:', envConfig.OTP_EXPIRES_IN)
+      console.log('Using expiration time:', expirationTime)
+      console.log('Calculated milliseconds:', ms(expirationTime))
+      console.log('OTP expiration time:', expirationTime)
+
+      console.log('Creating verification code with params:', {
+        email: body.email,
+        type: body.type,
+        expiresAt: addMilliseconds(new Date(), ms(expirationTime))
+      })
+
+      const verificationCode = await this.authRepository.createVerificationCode({
+        email: body.email,
+        code: otp.toString(),
+        type: body.type,
+        expiresAt: addMilliseconds(new Date(), ms(expirationTime)),
+      })
+
+      // Send OTP via email
+      try {
+        await this.emailService.sendOTP({
+          email: body.email,
+          code: otp.toString()
+        })
+        console.log('OTP email sent successfully')
+      } catch (emailError) {
+        console.error('Failed to send OTP email:', emailError)
+        // Don't throw error, just log it for now
+      }
+
+      console.log('Verification code created:', verificationCode)
+      return {
+        message: 'OTP sent successfully to your email',
+        email: body.email,
+        type: body.type
+      }
+
+    } catch (error) {
+      console.error('Error in sentOtp:', error)
+      console.error('Error stack:', error.stack)
+      throw error
     }
   }
 }
