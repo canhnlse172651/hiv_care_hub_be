@@ -12,12 +12,13 @@ import { PaginationService } from '../../shared/services/pagination.service'
 import { createPaginationSchema, PaginatedResponse } from '../../shared/schemas/pagination.schema'
 import { generateRandomPassword } from 'src/shared/utils/password.utils'
 import { QueryUserSchema } from './user.model'
-
+import { EmailService } from 'src/shared/services/email.service';
 @Injectable()
 export class UserService {
   constructor(
     private readonly userRepository: AuthRepository,
     private readonly paginationService: PaginationService,
+    private readonly emailService: EmailService,
   ) {}
 
   async createUser(data: CreateUserDtoType): Promise<UserResponseType> {
@@ -40,7 +41,13 @@ export class UserService {
       password,
     })
 
-   
+    // Send email with password
+    await this.emailService.sendWelcomeEmail({
+      email: user.email,
+      name: user.name,
+      password: password,
+    })
+
     return user
   }
 

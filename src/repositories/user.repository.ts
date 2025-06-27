@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { PrismaService } from 'src/shared/services/prisma.service'
-import { RegisterBodyType, RegisterResType} from '../routes/auth/auth.model'
+import { RegisterBodyType, RegisterResType, UserType} from '../routes/auth/auth.model'
 import { UserResponseType } from '../routes/user/user.dto'
 import { UserWithPasswordType } from '../routes/auth/auth.model'
 import { User } from '@prisma/client'
@@ -30,7 +30,22 @@ export class AuthRepository {
         createdAt: true,
         updatedAt: true,
       },
-    })
+    }) as Promise<RegisterResType>
+  }
+
+  async createUserInclueRole(
+    user: Pick<UserType, 'email' | 'name' | 'password' | 'phoneNumber' | 'avatar' | 'roleId'>,
+  ): Promise<UserType & { role: { name: string; id: number; description: string; isActive: boolean; permissions: any[] } }> {
+    return this.prismaService.user.create({
+      data: user,
+      include: {
+        role: {
+          include: {
+            permissions: true
+          }
+        },
+      },
+    }) as Promise<UserType & { role: { name: string; id: number; description: string; isActive: boolean; permissions: any[] } }>
   }
 
   async findUserByEmail(email: string): Promise<UserWithPasswordType | null> {
@@ -60,7 +75,7 @@ export class AuthRepository {
           }
         }
       },
-    })
+    }) as Promise<UserWithPasswordType | null>
   }
 
   async findUserById(id: number): Promise<UserResponseType | null> {
@@ -82,7 +97,7 @@ export class AuthRepository {
         createdAt: true,
         updatedAt: true,
       },
-    })
+    }) as Promise<UserResponseType | null>
   }
 
   async createRefreshToken(data: { token: string; userId: number; expiresAt: Date }) {
@@ -184,7 +199,7 @@ export class AuthRepository {
         createdAt: true,
         updatedAt: true,
       },
-    })
+    }) as Promise<UserResponseType>
   }
 
   async deleteUser(id: number): Promise<UserResponseType> {
@@ -208,7 +223,7 @@ export class AuthRepository {
         createdAt: true,
         updatedAt: true,
       },
-    })
+    }) as Promise<UserResponseType>
   }
 
   async restoreUser(id: number): Promise<UserResponseType> {
@@ -232,7 +247,7 @@ export class AuthRepository {
         createdAt: true,
         updatedAt: true,
       },
-    })
+    }) as Promise<UserResponseType>
   }
 
   async updateUser(id: number, data: Partial<User>): Promise<UserResponseType> {
@@ -254,7 +269,7 @@ export class AuthRepository {
         createdAt: true,
         updatedAt: true,
       },
-    })
+    }) as Promise<UserResponseType>
   }
   
 

@@ -65,6 +65,7 @@
   export const LoginBodySchema = z.object({
     email: z.string().email(),
     password: z.string().min(1),
+   
   })
 
   export type LoginBodyType = z.infer<typeof LoginBodySchema>
@@ -110,3 +111,10 @@
   }).strict()
 
   export type SentOtpType = z.infer<typeof sentOtpSchema>
+
+
+  export const GoogleAuthRedirectUrlSchema = z.object({
+    url: z.string(),
+  })
+
+  export type GoogleAuthRedirectUrlType = z.infer<typeof GoogleAuthRedirectUrlSchema>

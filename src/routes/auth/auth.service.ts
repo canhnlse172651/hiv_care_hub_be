@@ -75,6 +75,8 @@ export class AuthService {
   }
 
   async login(body: LoginBodyType) {
+
+    console.log('body', body)
     const user = await this.authRepository.findUserByEmail(body.email)
 
     if (!user) {
