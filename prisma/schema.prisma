@@ -76,7 +76,7 @@ enum ServiceType {
   TREATMENT
 }
 
-enum VerificationCodeCodeType {
+enum VerificationType {
   REGISTER
   FORGOT_PASSWORD
 }
@@ -91,10 +91,11 @@ model User {
   id          Int          @id @default(autoincrement())
   email       String       @unique @db.VarChar(500)
   name        String       @db.VarChar(500)
-  password    String       @db.VarChar(500)
-  phoneNumber String       @db.VarChar(50)
+  password    String?      @db.VarChar(500)
+  phoneNumber String?      @db.VarChar(50)
   avatar      String?      @db.VarChar(1000)
   totpSecret  String?      @unique @db.VarChar(1000)
+  googleId    String?      @unique @db.VarChar(500)
   status      UserStatus   @default(INACTIVE)
   roleId      Int
   role        Role         @relation(fields: [roleId], references: [id])
@@ -189,7 +190,7 @@ model VerificationCode {
   userId    Int?
   user      User?                  @relation(fields: [userId], references: [id])
   code      String                 @db.VarChar(50)
-  type      VerificationCodeCodeType
+  type      VerificationType
   expiresAt DateTime
   createdAt DateTime               @default(now())
 

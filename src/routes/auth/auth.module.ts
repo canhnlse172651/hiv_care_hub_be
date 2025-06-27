@@ -5,10 +5,12 @@ import { RolesService } from '../role/role.service'
 import { AuthRepository } from '../../repositories/user.repository'
 import { RoleRepository } from '../../repositories/role.repository'
 import { PermissionRepository } from '../../repositories/permission.repository'
+import { GoogleService } from './google.service'
+import { EmailService } from '../../shared/services/email.service'
 
 @Module({
-  providers: [AuthService, RolesService, AuthRepository, RoleRepository, PermissionRepository],
+  providers: [AuthService, RolesService, AuthRepository, RoleRepository, PermissionRepository, GoogleService, EmailService],
   controllers: [AuthController],
-  exports: [AuthService, RolesService],
+  exports: [AuthService, RolesService, GoogleService],
 })
 export class AuthModule {}
