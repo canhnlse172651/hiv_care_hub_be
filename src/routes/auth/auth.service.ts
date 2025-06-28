@@ -23,36 +23,32 @@ export class AuthService {
 
   async register(body: RegisterBodyType) {
     try {
+      // const verificationCode = await this.authRepository.findVerificationCode({
+      //   email: body.email,
+      //   type: 'REGISTER',
+      //   // code: body.code,
+      // })
 
-      const verificationCode = await this.authRepository.findVerificationCode({
-        email: body.email,
-        type: 'REGISTER',
-        code: body.code,
-      })
-
-      if (!verificationCode) {
-        throw new UnprocessableEntityException({
-          message: 'Invalid verification code',
-          field: 'code',
-        })
-      }
+      // if (!verificationCode) {
+      //   throw new UnprocessableEntityException({
+      //     message: 'Invalid verification code',
+      //     field: 'code',
+      //   })
+      // }
 
       // Add detailed logging for expiration check
       const now = new Date()
-     
 
       // Alternative check using getTime() for more reliable comparison
-      const isExpired = verificationCode.expiresAt.getTime() < now.getTime()
-   
+      // const isExpired = verificationCode.expiresAt.getTime() < now.getTime()
 
-      if(isExpired) {
-        throw new UnprocessableEntityException({
-          message: 'Verification code has expired',
-          field: 'code',
-        })
-      }
-      
-      
+      // if (isExpired) {
+      //   throw new UnprocessableEntityException({
+      //     message: 'Verification code has expired',
+      //     field: 'code',
+      //   })
+      // }
+
       const clientRoleId = await this.rolesService.getClientRoleId()
       const hashedPassword = await this.hashingService.hash(body.password)
       return await this.authRepository.createUser({
@@ -61,7 +57,6 @@ export class AuthService {
         phoneNumber: body.phoneNumber,
         password: hashedPassword,
         roleId: clientRoleId,
-        
       })
     } catch (error) {
       if (isUniqueConstraintPrismaError(error)) {
@@ -75,7 +70,6 @@ export class AuthService {
   }
 
   async login(body: LoginBodyType) {
-
     console.log('body', body)
     const user = await this.authRepository.findUserByEmail(body.email)
 
@@ -95,7 +89,6 @@ export class AuthService {
     }
 
     const tokens = await this.generateTokens({ userId: user.id })
- 
 
     return {
       ...tokens,
@@ -103,8 +96,8 @@ export class AuthService {
         id: user.id,
         name: user.name,
         email: user.email,
-        role: user.role?.name || 'UNKNOWN'
-      }
+        role: user.role?.name || 'UNKNOWN',
+      },
     }
   }
 
@@ -144,8 +137,6 @@ export class AuthService {
 
       // Delete old token first
       const deletedToken = await this.authRepository.deleteRefreshToken(refreshToken)
-
-      
 
       // Generate new tokens
       const newTokens = await this.generateTokens({ userId: decodedToken.userId })
@@ -198,7 +189,6 @@ export class AuthService {
     }
   }
 
-
   async sentOtp(body: SentOtpType) {
     try {
       console.log('Starting sentOtp with body:', body)
@@ -207,7 +197,7 @@ export class AuthService {
       console.log('Checking if email exists...')
       const user = await this.authRepository.findUserByEmail(body.email)
       console.log('User found:', user)
-      
+
       if (user) {
         throw new ConflictException('Email already exists')
       }
@@ -227,7 +217,7 @@ export class AuthService {
       console.log('Creating verification code with params:', {
         email: body.email,
         type: body.type,
-        expiresAt: addMilliseconds(new Date(), ms(expirationTime))
+        expiresAt: addMilliseconds(new Date(), ms(expirationTime)),
       })
 
       const verificationCode = await this.authRepository.createVerificationCode({
@@ -241,7 +231,7 @@ export class AuthService {
       try {
         await this.emailService.sendOTP({
           email: body.email,
-          code: otp.toString()
+          code: otp.toString(),
         })
         console.log('OTP email sent successfully')
       } catch (emailError) {
@@ -253,9 +243,8 @@ export class AuthService {
       return {
         message: 'OTP sent successfully to your email',
         email: body.email,
-        type: body.type
+        type: body.type,
       }
-
     } catch (error) {
       console.error('Error in sentOtp:', error)
       console.error('Error stack:', error.stack)

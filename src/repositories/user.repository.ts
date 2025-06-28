@@ -295,7 +295,7 @@ export class AuthRepository {
     })
   }
 
-  async findVerificationCode(uniqueValue : {email: string, type: 'FORGOT_PASSWORD' | 'REGISTER', code: string}) {
+  async findVerificationCode(uniqueValue : {email: string, type: 'FORGOT_PASSWORD' | 'REGISTER'}) {
     return this.prismaService.verificationCode.findUnique({
       where: uniqueValue,
     })
