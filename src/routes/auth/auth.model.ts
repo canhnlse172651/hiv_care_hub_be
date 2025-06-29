@@ -39,6 +39,7 @@ export const RegisterBodySchema = z
     name: z.string().min(3).max(100),
     phoneNumber: z.string().min(9).max(15),
     confirmPassword: z.string().min(6).max(100),
+    code: z.string().min(6).max(6),
   })
   .strict()
 
