@@ -1,8 +1,8 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, Get, Query } from '@nestjs/common'
+import { Body, Controller, HttpCode, HttpStatus, Post, Get, Query, UseGuards, Req } from '@nestjs/common'
 import { ApiTags } from '@nestjs/swagger'
 import { AuthService } from './auth.service'
-import { ApiRegister, ApiLogin, ApiRefreshToken, ApiLogout } from '../../swagger/auth.swagger'
-import { RegisterDto, LoginDto, RefreshTokenDto, LogoutDto, SentOtpDto } from './auth.dto'
+import { ApiRegister, ApiLogin, ApiRefreshToken, ApiLogout, ApiSentOtp, ApiGoogleLink, ApiGoogleCallback, ApiForgotPassword } from '../../swagger/auth.swagger'
+import { RegisterDto, LoginDto, RefreshTokenDto, LogoutDto, SentOtpDto, ForgotPasswordBodyDto } from './auth.dto'
 import { GoogleService } from './google.service'
 @ApiTags('Authentication')
 @Controller('auth')
@@ -17,13 +17,7 @@ export class AuthController {
   }
 
   
-  @Post('sent-otp')
-  // @ApiSentOtp()
-  async sentOtp(@Body() body: unknown) {
-    const validatedData = SentOtpDto.create(body);
-    return this.authService.sentOtp(validatedData);
-  }
-
+  
   @Post('login')
   @ApiLogin()
   async login(@Body() body: unknown) {
@@ -46,13 +40,29 @@ export class AuthController {
     return this.authService.logout(validatedData.refreshToken);
   }
 
+  @Post('sent-otp')
+  @ApiSentOtp()
+  async sentOtp(@Body() body: unknown) {
+    const validatedData = SentOtpDto.create(body);
+    return this.authService.sentOtp(validatedData);
+  }
+
   @Get('google-link')
+  @ApiGoogleLink()
   async googleLink() {
     return this.googleService.getAuthorizationUrl();
   }
 
   @Get('google/callback')
+  @ApiGoogleCallback()
   async googleCallback(@Query() query: any) {
     return this.googleService.googleCallback(query);
+  }
+
+  @Post('forgot-password')
+  @ApiForgotPassword()
+  async forgotPassword(@Body() body: unknown) {
+    const validatedData = ForgotPasswordBodyDto.create(body);
+    return this.authService.forgotPassword(validatedData);
   }
 }

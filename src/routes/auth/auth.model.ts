@@ -116,3 +116,27 @@ export const GoogleAuthRedirectUrlSchema = z.object({
 })
 
 export type GoogleAuthRedirectUrlType = z.infer<typeof GoogleAuthRedirectUrlSchema>
+
+
+
+export const ForgotPasswordBodySchema = z
+  .object({
+    email: z.string().email(),
+    code: z.string().length(6),
+    newPassword: z.string().min(6).max(100),
+    confirmNewPassword: z.string().min(6).max(100),
+  })
+  .strict()
+  .superRefine(({ confirmNewPassword, newPassword }, ctx) => {
+    if (confirmNewPassword !== newPassword) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Mật khẩu và mật khẩu xác nhận phải giống nhau',
+        path: ['confirmNewPassword'],
+      })
+    }
+  })
+
+  export type ForgotPasswordBodyType = z.infer<typeof ForgotPasswordBodySchema>
+
+
