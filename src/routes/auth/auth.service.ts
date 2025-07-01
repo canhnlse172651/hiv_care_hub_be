@@ -4,7 +4,7 @@ import { TokenService } from 'src/shared/services/token.service'
 import { HashingService } from 'src/shared/services/hashing.service'
 import { isNotFoundPrismaError, isUniqueConstraintPrismaError } from 'src/shared/helpers'
 import { AuthRepository } from '../../repositories/user.repository'
-import { LoginBodyType, RegisterBodyType, SentOtpType } from './auth.model'
+import { ForgotPasswordBodyType, LoginBodyType, RegisterBodyType, SentOtpType } from './auth.model'
 import { generateOtp } from 'src/shared/utils/otp.utils'
 import { addMilliseconds } from 'date-fns'
 import envConfig from 'src/shared/config'
@@ -23,41 +23,52 @@ export class AuthService {
 
   async register(body: RegisterBodyType) {
     try {
-      // const verificationCode = await this.authRepository.findVerificationCode({
-      //   email: body.email,
-      //   type: 'REGISTER',
-      //   // code: body.code,
-      // })
+      const verificationCode = await this.authRepository.findVerificationCode({
+        email: body.email,
+        type: 'REGISTER',
+        code: body.code,
+      })
 
-      // if (!verificationCode) {
-      //   throw new UnprocessableEntityException({
-      //     message: 'Invalid verification code',
-      //     field: 'code',
-      //   })
-      // }
+      if (!verificationCode) {
+        throw new UnprocessableEntityException({
+          message: 'Invalid verification code',
+          field: 'code',
+        })
+      }
 
       // Add detailed logging for expiration check
       const now = new Date()
 
-      // Alternative check using getTime() for more reliable comparison
-      // const isExpired = verificationCode.expiresAt.getTime() < now.getTime()
+      const isExpired = verificationCode.expiresAt.getTime() < now.getTime()
 
-      // if (isExpired) {
-      //   throw new UnprocessableEntityException({
-      //     message: 'Verification code has expired',
-      //     field: 'code',
-      //   })
-      // }
+      if (isExpired) {
+        throw new UnprocessableEntityException({
+          message: 'Verification code has expired',
+          field: 'code',
+        })
+      }
 
       const clientRoleId = await this.rolesService.getClientRoleId()
       const hashedPassword = await this.hashingService.hash(body.password)
-      return await this.authRepository.createUser({
-        email: body.email,
-        name: body.name,
-        phoneNumber: body.phoneNumber,
-        password: hashedPassword,
-        roleId: clientRoleId,
-      })
+     const [user] = await Promise.all([
+       
+         this.authRepository.createUser({
+          email: body.email,
+          name: body.name,
+          phoneNumber: body.phoneNumber,
+          password: hashedPassword,
+          roleId: clientRoleId,
+        }),
+        this.authRepository.deleteVerificationCode({
+          email: body.email,
+          code: body.code,
+          type: 'REGISTER',
+        }),
+      ])
+     
+      return user
+
+
     } catch (error) {
       if (isUniqueConstraintPrismaError(error)) {
         console.log('error service  ', error)
@@ -68,6 +79,8 @@ export class AuthService {
       throw error
     }
   }
+
+  
 
   async login(body: LoginBodyType) {
     console.log('body', body)
@@ -191,36 +204,27 @@ export class AuthService {
 
   async sentOtp(body: SentOtpType) {
     try {
-      console.log('Starting sentOtp with body:', body)
-
       // check email already exists on database
-      console.log('Checking if email exists...')
-      const user = await this.authRepository.findUserByEmail(body.email)
-      console.log('User found:', user)
 
-      if (user) {
+      const user = await this.authRepository.findUserByEmail(body.email)
+
+    
+
+      if(body.type === 'REGISTER' && user){
         throw new ConflictException('Email already exists')
+      } 
+      if(body.type === 'FORGOT_PASSWORD' && !user){
+        throw new UnprocessableEntityException('Email not found')
       }
 
       // generate otp
-      console.log('Generating OTP...')
+
       const otp = generateOtp()
-      console.log('Generated OTP:', otp)
 
       // Validate environment variable
       const expirationTime = envConfig.OTP_EXPIRES_IN || '5m'
-      console.log('Raw OTP_EXPIRATION_TIME from env:', envConfig.OTP_EXPIRES_IN)
-      console.log('Using expiration time:', expirationTime)
-      console.log('Calculated milliseconds:', ms(expirationTime))
-      console.log('OTP expiration time:', expirationTime)
 
-      console.log('Creating verification code with params:', {
-        email: body.email,
-        type: body.type,
-        expiresAt: addMilliseconds(new Date(), ms(expirationTime)),
-      })
-
-      const verificationCode = await this.authRepository.createVerificationCode({
+       await this.authRepository.createVerificationCode({
         email: body.email,
         code: otp.toString(),
         type: body.type,
@@ -233,22 +237,69 @@ export class AuthService {
           email: body.email,
           code: otp.toString(),
         })
-        console.log('OTP email sent successfully')
       } catch (emailError) {
         console.error('Failed to send OTP email:', emailError)
         // Don't throw error, just log it for now
       }
-
-      console.log('Verification code created:', verificationCode)
-      return {
-        message: 'OTP sent successfully to your email',
-        email: body.email,
-        type: body.type,
-      }
     } catch (error) {
       console.error('Error in sentOtp:', error)
-      console.error('Error stack:', error.stack)
+
       throw error
+    }
+  }
+
+
+  async forgotPassword(body: ForgotPasswordBodyType) {
+    const { email, code, newPassword } = body
+    // 1. Kiểm tra email đã tồn tại trong database chưa
+    const user = await this.authRepository.findUserByEmail(email)
+    
+    if (!user) {
+      throw new UnprocessableEntityException('Email not found')
+    }
+    
+    //2. Kiểm tra mã OTP có hợp lệ không
+    const verificationCode = await this.authRepository.findVerificationCode({
+      email,
+      code,
+      type: 'FORGOT_PASSWORD',
+    })
+    
+    if (!verificationCode) {
+      throw new UnprocessableEntityException({
+        message: 'Invalid verification code',
+        field: 'code',
+      })
+    }
+
+    // Kiểm tra OTP có hết hạn chưa
+    const now = new Date()
+    const isExpired = verificationCode.expiresAt.getTime() < now.getTime()
+
+    if (isExpired) {
+      throw new UnprocessableEntityException({
+        message: 'Verification code has expired',
+        field: 'code',
+      })
+    }
+    
+    //3. Cập nhật lại mật khẩu mới và xóa đi OTP
+    const hashedPassword = await this.hashingService.hash(newPassword)
+    await Promise.all([
+      this.authRepository.updateUser(
+        user.id,
+        {
+          password: hashedPassword,
+        },
+      ),
+      this.authRepository.deleteVerificationCode({
+        email: body.email,
+        code: body.code,
+        type: 'FORGOT_PASSWORD',
+      }),
+    ])
+    return {
+      message: 'Change password successfully',
     }
   }
 }
