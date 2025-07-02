@@ -25,7 +25,12 @@ export class TwoFactorService {
 
   verifyTOTP({ email, token, secret }: { email: string; secret: string; token: string }): boolean {
     const totp = this.createTOTP(email, secret)
-    const delta = totp.validate({ token, window: 1 })
+    // Tăng window để xử lý sự khác biệt thời gian (30 giây trước và sau)
+    const delta = totp.validate({ token, window: 2 })
+   
     return delta !== null
   }
+
+  
+  
 }

@@ -58,8 +58,14 @@ export const LoginBodySchema = z.object({
   password: z.string().min(1),
   totpCode: z.string().length(6).nullable().optional(), // 2FA
   code: z.string().length(6).nullable().optional(), // OTP FORM EMAIL
+}).superRefine(({ totpCode, code }, ctx) => {
+  if(totpCode && code){
+    ctx.addIssue({
+      code: 'custom',
+      message: 'Không thể cùng lúc nhập mã OTP từ email và mã OTP từ 2FA',
+    })
+  }
 })
-
 // Login Response Schema
 export const LoginResSchema = z.object({
   accessToken: z.string(),
