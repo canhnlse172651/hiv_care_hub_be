@@ -72,7 +72,42 @@ export const ApiRegister = () => {
 export const ApiLogin = () => {
   return applyDecorators(
     ApiOperation({ summary: 'Login user' }),
-    ApiBody({ schema: zodToSwagger(LoginBodySchema) }),
+    ApiBody({
+      schema: {
+        type: 'object',
+        required: ['email', 'password'],
+        properties: {
+          email: {
+            type: 'string',
+            format: 'email',
+            example: 'admin@example.com',
+            description: 'User email address'
+          },
+          password: {
+            type: 'string',
+            minLength: 1,
+            example: 'admin123',
+            description: 'User password'
+          },
+          totpCode: {
+            type: 'string',
+            minLength: 6,
+            maxLength: 6,
+            example: '123456',
+            description: '2FA TOTP code (optional)',
+            nullable: true
+          },
+          code: {
+            type: 'string',
+            minLength: 6,
+            maxLength: 6,
+            example: '654321',
+            description: 'OTP code from email (optional)',
+            nullable: true
+          }
+        }
+      }
+    }),
     ApiResponse({ 
       status: 200, 
       description: 'User successfully logged in',
@@ -219,6 +254,42 @@ export const ApiSetup2FA = () => {
     }),
     ApiResponse({ status: 401, description: 'Unauthorized' }),
     ApiResponse({ status: 422, description: 'User not found or 2FA already enabled' })
+  )
+}
+
+export const ApiDisable2FA = () => {
+  return applyDecorators(
+    ApiOperation({ summary: 'Disable Two-Factor Authentication' }),
+    ApiBody({
+      schema: {
+        type: 'object',
+        required: ['code'],
+        properties: {
+          code: {
+            type: 'string',
+            minLength: 6,
+            maxLength: 6,
+            example: '123456',
+            description: 'TOTP code to verify before disabling 2FA'
+          }
+        }
+      }
+    }),
+    ApiResponse({ 
+      status: 200, 
+      description: '2FA disabled successfully',
+      schema: {
+        type: 'object',
+        properties: {
+          message: { 
+            type: 'string', 
+            example: '2FA disabled successfully'
+          }
+        }
+      }
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({ status: 422, description: 'Invalid TOTP code or 2FA not enabled' })
   )
 }
 

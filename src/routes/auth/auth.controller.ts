@@ -11,6 +11,7 @@ import {
   ApiGoogleCallback,
   ApiForgotPassword,
   ApiSetup2FA,
+  ApiDisable2FA,
 } from '../../swagger/auth.swagger'
 import {
   RegisterDto,
@@ -21,6 +22,7 @@ import {
   ForgotPasswordBodyDto,
   TwoFaResDto,
   Setup2FaDto,
+  Disable2FaBodyDto,
 } from './auth.dto'
 import { GoogleService } from './google.service'
 import { ActiveUser } from 'src/shared/decorators/active-user.decorator'
@@ -96,5 +98,18 @@ export class AuthController {
   async setup2FA(@Body() body: {}, @ActiveUser() user: TokenPayload) {
     console.log('user 2 fa', user)
     return this.authService.setupTwoFactorAuth(user.userId)
+  }
+
+  @Auth([AuthType.Bearer])
+  @ApiBearerAuth()
+  @Post('disable-2fa')
+  @ApiDisable2FA()
+  async disable2FA(@Body() body: unknown, @ActiveUser() user: TokenPayload) {
+    const validatedData = Disable2FaBodyDto.create(body)
+    console.log('user 2 fa', user)
+    return this.authService.disableTwoFactorAuth({
+      userId: user.userId,
+      ...validatedData
+    })
   }
 }
