@@ -10,15 +10,15 @@ import { AuthRepository } from '../../repositories/user.repository'
 import { Prisma } from '@prisma/client'
 import { PaginationService } from '../../shared/services/pagination.service'
 import { createPaginationSchema, PaginatedResponse } from '../../shared/schemas/pagination.schema'
-import { sendEmail } from 'src/shared/utils/email.utils'
 import { generateRandomPassword } from 'src/shared/utils/password.utils'
 import { QueryUserSchema } from './user.model'
-
+import { EmailService } from 'src/shared/services/email.service';
 @Injectable()
 export class UserService {
   constructor(
     private readonly userRepository: AuthRepository,
     private readonly paginationService: PaginationService,
+    private readonly emailService: EmailService,
   ) {}
 
   async createUser(data: CreateUserDtoType): Promise<UserResponseType> {
@@ -42,17 +42,10 @@ export class UserService {
     })
 
     // Send email with password
-    await sendEmail({
-      to: user.email,
-      subject: 'Your HIVCareHub Account',
-      text: `Welcome to HIVCareHub!\n\nYour account has been created.\n\nEmail: ${user.email}\nTemporary Password: ${password}\n\nPlease change your password after logging in.`,
-      html: `
-        <h1>Welcome to HIVCareHub!</h1>
-        <p>Your account has been created.</p>
-        <p><strong>Email:</strong> ${user.email}</p>
-        <p><strong>Temporary Password:</strong> ${password}</p>
-        <p>Please change your password after logging in.</p>
-      `,
+    await this.emailService.sendWelcomeEmail({
+      email: user.email,
+      name: user.name,
+      password: password,
     })
 
     return user

@@ -22,41 +22,11 @@ export const ApiGetAllPatientTreatments = () =>
       example: 10,
     }),
     ApiQuery({
-      name: 'patientId',
+      name: 'search',
       required: false,
-      description: 'Filter by patient ID',
-      type: Number,
-      example: 123,
-    }),
-    ApiQuery({
-      name: 'doctorId',
-      required: false,
-      example: '2024-12-31',
-    }),
-    ApiQuery({
-      name: 'endDate',
-      required: false,
-      description: 'Filter by end date (YYYY-MM-DD)',
+      description: 'Search query to filter treatments',
       type: String,
-      example: '2024-12-31',
-    }),
-    ApiQuery({
-      name: 'sortBy',
-      required: false,
-      description: 'Field to sort by',
-      enum: ['startDate', 'endDate', 'total', 'createdAt'],
-      example: 'createdAt',
-    }),
-    ApiQuery({
-      name: 'sortOrder',
-      required: false,
-      description: 'Sort order',
-      enum: ['asc', 'desc'],
-      example: 'desc',
-    }),
-    ApiResponse({
-      type: Number,
-      example: 789,
+      example: 'patient name or notes',
     }),
     ApiQuery({
       name: 'startDate',
@@ -134,7 +104,15 @@ export const ApiCreatePatientTreatment = () =>
   applyDecorators(
     ApiOperation({
       summary: 'Create new patient treatment',
-      description: 'Create a new patient treatment entry',
+      description:
+        'Create a new patient treatment entry. Use autoEndExisting=true to automatically end any existing active treatments for the patient.',
+    }),
+    ApiQuery({
+      name: 'autoEndExisting',
+      required: false,
+      description: 'Automatically end existing active treatments for the patient before creating new one',
+      type: Boolean,
+      example: false,
     }),
     ApiBody({
       description: 'Patient treatment data',
@@ -554,7 +532,63 @@ export const ApiSearchPatientTreatments = () =>
     }),
     ApiResponse({
       status: 200,
-      description: 'Patient treatments found successfully',
+      description: 'Patient treatments found successfully (paginated)',
+      schema: {
+        type: 'object',
+        properties: {
+          data: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                id: { type: 'number' },
+                notes: { type: 'string' },
+                startDate: { type: 'string', format: 'date-time' },
+                endDate: { type: 'string', format: 'date-time', nullable: true },
+                total: { type: 'number' },
+                patient: {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'number' },
+                    name: { type: 'string' },
+                    email: { type: 'string' },
+                  },
+                },
+                doctor: {
+                  type: 'object',
+                  properties: {
+                    user: {
+                      type: 'object',
+                      properties: {
+                        id: { type: 'number' },
+                        name: { type: 'string' },
+                      },
+                    },
+                  },
+                },
+                protocol: {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'number' },
+                    name: { type: 'string' },
+                  },
+                },
+              },
+            },
+          },
+          meta: {
+            type: 'object',
+            properties: {
+              total: { type: 'number', example: 150 },
+              page: { type: 'number', example: 1 },
+              limit: { type: 'number', example: 10 },
+              totalPages: { type: 'number', example: 15 },
+              hasNextPage: { type: 'boolean', example: true },
+              hasPreviousPage: { type: 'boolean', example: false },
+            },
+          },
+        },
+      },
     }),
     ApiResponse({
       status: 401,
@@ -607,42 +641,63 @@ export const ApiGetPatientTreatmentsByDateRange = () =>
 export const ApiGetActivePatientTreatments = () =>
   applyDecorators(
     ApiOperation({
-      summary: 'Get active patient treatments',
-      description: 'Retrieve currently active patient treatments (treatments without end date or end date in future)',
+      summary: 'Get active patient treatments (Unified API)',
+      description: `
+      **Enhanced unified endpoint for retrieving active patient treatments**
+      
+      🔄 **Unified Logic**: This endpoint replaces separate endpoints for general and patient-specific queries
+      📊 **Advanced Pagination**: Built-in pagination with comprehensive metadata
+      🔍 **Flexible Filtering**: Filter by patient, doctor, or protocol
+      ⚡ **Optimized Performance**: Uses repository-level optimizations and caching
+      
+      **Active Treatment Criteria:**
+      - Treatments with no end date (ongoing)
+      - Treatments with end date in the future
+      
+      **Business Rules Applied:**
+      - Only treatments that are currently active based on date validation
+      - Consistent cost calculations across all results
+      - Enhanced error handling and validation
+      
+      **Usage Examples:**
+      - Get all active treatments: \`/active\`
+      - Filter by patient: \`/active?patientId=123\`
+      - With pagination: \`/active?page=1&limit=10\`
+      - Multiple filters: \`/active?patientId=123&doctorId=456&page=1\`
+      `,
     }),
     ApiQuery({
       name: 'page',
       required: false,
-      description: 'Page number',
+      description: 'Page number for pagination (default: 1)',
       type: Number,
       example: 1,
     }),
     ApiQuery({
       name: 'limit',
       required: false,
-      description: 'Number of items per page',
+      description: 'Number of items per page (default: 10, max: 100)',
       type: Number,
       example: 10,
     }),
     ApiQuery({
       name: 'sortBy',
       required: false,
-      description: 'Field to sort by (e.g., createdAt, patientId, total)',
-      type: String,
-      example: 'createdAt',
+      description: 'Field to sort by',
+      enum: ['startDate', 'endDate', 'total', 'createdAt'],
+      example: 'startDate',
     }),
     ApiQuery({
       name: 'sortOrder',
       required: false,
-      description: 'Sort order (asc or desc)',
-      type: String,
+      description: 'Sort order',
       enum: ['asc', 'desc'],
       example: 'desc',
     }),
     ApiQuery({
       name: 'patientId',
       required: false,
-      description: 'Filter by specific patient ID',
+      description: 'Filter by specific patient ID (unified patient-specific queries)',
       type: Number,
       example: 123,
     }),
@@ -663,6 +718,43 @@ export const ApiGetActivePatientTreatments = () =>
     ApiResponse({
       status: 200,
       description: 'Active patient treatments retrieved successfully',
+      schema: {
+        type: 'object',
+        properties: {
+          data: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                id: { type: 'number' },
+                patientId: { type: 'number' },
+                protocolId: { type: 'number' },
+                doctorId: { type: 'number' },
+                startDate: { type: 'string', format: 'date-time' },
+                endDate: { type: 'string', format: 'date-time', nullable: true },
+                notes: { type: 'string', nullable: true },
+                total: { type: 'number', description: 'Total cost calculated with enhanced logic' },
+                customMedications: { type: 'object', nullable: true },
+                patient: { type: 'object' },
+                protocol: { type: 'object' },
+                doctor: { type: 'object' },
+                createdBy: { type: 'object' },
+              },
+            },
+          },
+          meta: {
+            type: 'object',
+            properties: {
+              total: { type: 'number', description: 'Total number of active treatments' },
+              page: { type: 'number' },
+              limit: { type: 'number' },
+              totalPages: { type: 'number' },
+              hasNextPage: { type: 'boolean' },
+              hasPreviousPage: { type: 'boolean' },
+            },
+          },
+        },
+      },
     }),
     ApiResponse({
       status: 401,
@@ -670,7 +762,11 @@ export const ApiGetActivePatientTreatments = () =>
     }),
     ApiResponse({
       status: 403,
-      description: 'Forbidden',
+      description: 'Forbidden - insufficient permissions',
+    }),
+    ApiResponse({
+      status: 500,
+      description: 'Internal server error',
     }),
   )
 
@@ -988,5 +1084,328 @@ export const ApiBulkCreatePatientTreatments = () =>
     ApiResponse({
       status: 403,
       description: 'Forbidden',
+    }),
+  )
+
+export const ApiEndActivePatientTreatments = () =>
+  applyDecorators(
+    ApiOperation({
+      summary: 'End all active treatments for a patient',
+      description:
+        'Sets endDate to current date for all active treatments of a specific patient. Ensures only one protocol can be active per patient at a time.',
+    }),
+    ApiParam({
+      name: 'patientId',
+      description: 'Patient ID to end active treatments for',
+      type: Number,
+      example: 123,
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Active treatments ended successfully',
+      schema: {
+        type: 'object',
+        properties: {
+          success: {
+            type: 'boolean',
+            example: true,
+            description: 'Whether the operation was successful',
+          },
+          message: {
+            type: 'string',
+            example: 'Successfully ended 2 active treatment(s) for patient 123',
+            description: 'Success message with details',
+          },
+          deactivatedCount: {
+            type: 'number',
+            example: 2,
+            description: 'Number of treatments that were ended',
+          },
+          endDate: {
+            type: 'string',
+            format: 'date-time',
+            example: '2025-06-21T10:30:00Z',
+            description: 'The end date that was set for all treatments',
+          },
+          activeTreatments: {
+            type: 'array',
+            description: 'The treatments that were ended (for reference)',
+            items: {
+              type: 'object',
+              properties: {
+                id: { type: 'number' },
+                patientId: { type: 'number' },
+                protocolId: { type: 'number' },
+                startDate: { type: 'string', format: 'date-time' },
+                notes: { type: 'string' },
+              },
+            },
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'Patient not found',
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Insufficient permissions',
+    }),
+  )
+
+export const ApiGetActivePatientTreatmentsByPatient = () =>
+  applyDecorators(
+    ApiOperation({
+      summary: 'Get active treatments for a specific patient (Enhanced)',
+      description: `
+      **Enhanced patient-specific active treatment endpoint**
+      
+      🎯 **Patient-Focused**: Returns detailed active treatments for a specific patient
+      📊 **Enhanced Status**: Includes treatment timing and status indicators
+      ⚖️ **Business Rule Compliance**: Enforces "1 patient = 1 active protocol" rule
+      🔒 **Security**: Patients can only access their own treatment records
+      
+      **Enhanced Features:**
+      - \`isCurrent\`: Indicates the single currently active treatment
+      - \`treatmentStatus\`: upcoming, active, or ending_soon
+      - \`daysRemaining\`: Days until treatment ends (if applicable)
+      - \`isStarted\`: Whether treatment has begun
+      
+      **Business Logic:**
+      - Only ONE treatment will have \`isCurrent: true\` at any time
+      - Treatments are sorted by priority (current first, then by start date)
+      - Validates single active protocol rule per patient
+      - Enhanced date validation and status calculation
+      
+      **Access Control:**
+      - Admin/Doctor/Staff: Can access any patient's treatments
+      - Patient role: Can only access their own treatments (patientId must match user ID)
+      `,
+    }),
+    ApiParam({
+      name: 'patientId',
+      description: 'Patient ID to get active treatments for',
+      type: Number,
+      example: 123,
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Active treatments retrieved successfully with enhanced status information',
+      schema: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            id: { type: 'number' },
+            patientId: { type: 'number' },
+            protocolId: { type: 'number' },
+            doctorId: { type: 'number' },
+            startDate: { type: 'string', format: 'date-time' },
+            endDate: { type: 'string', format: 'date-time', nullable: true },
+            notes: { type: 'string', nullable: true },
+            total: { type: 'number', description: 'Enhanced cost calculation' },
+            customMedications: { type: 'object', nullable: true },
+            isCurrent: {
+              type: 'boolean',
+              description:
+                'TRUE for the single currently active treatment (business rule: 1 patient = 1 active protocol)',
+            },
+            isStarted: {
+              type: 'boolean',
+              description: 'Whether the treatment has started based on start date',
+            },
+            daysRemaining: {
+              type: 'number',
+              nullable: true,
+              description: 'Days remaining until treatment ends (null for indefinite treatments)',
+            },
+            treatmentStatus: {
+              type: 'string',
+              enum: ['upcoming', 'active', 'ending_soon'],
+              description: 'Current status of the treatment',
+            },
+            protocol: {
+              type: 'object',
+              description: 'Full protocol details including medicines',
+            },
+            doctor: {
+              type: 'object',
+              description: 'Doctor information including user details',
+            },
+            patient: {
+              type: 'object',
+              description: 'Patient information',
+            },
+            testResults: {
+              type: 'array',
+              description: 'Associated test results (if available)',
+            },
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Forbidden - Patients can only access their own treatment records',
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'Patient not found',
+    }),
+    ApiResponse({
+      status: 401,
+      description: 'Unauthorized',
+    }),
+  )
+
+// Enhanced API Documentation for Active Patient Treatments
+export const ApiGetActivePatientTreatmentsSummary = () =>
+  applyDecorators(
+    ApiOperation({
+      summary: 'Get comprehensive active treatment summary',
+      description: `
+      **Advanced analytics endpoint for active patient treatments**
+      
+      📊 **Comprehensive Statistics**: Provides overview of all active treatments
+      🎯 **Patient-Specific Details**: Optional patient-specific breakdown
+      📈 **Status Analytics**: Breakdown by treatment status (upcoming, active, ending_soon)
+      ⚡ **Performance Optimized**: Single query for complex analytics
+      
+      **Features:**
+      - Total active treatments count
+      - Status breakdown (upcoming/active/ending soon)
+      - Recent treatments preview
+      - Optional patient-specific details
+      - Business rule validation insights
+      
+      **Usage:**
+      - General summary: \`/active/summary\`
+      - Patient-specific: \`/active/summary?patientId=123\`
+      `,
+    }),
+    ApiQuery({
+      name: 'patientId',
+      required: false,
+      description: 'Optional patient ID for patient-specific summary',
+      type: Number,
+      example: 123,
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Active treatment summary retrieved successfully',
+      schema: {
+        type: 'object',
+        properties: {
+          totalActiveTreatments: { type: 'number' },
+          treatmentsByStatus: {
+            type: 'object',
+            properties: {
+              upcoming: { type: 'number' },
+              active: { type: 'number' },
+              ending_soon: { type: 'number' },
+            },
+          },
+          recentTreatments: {
+            type: 'array',
+            items: { type: 'object' },
+          },
+          patientSpecific: {
+            type: 'object',
+            nullable: true,
+            properties: {
+              patientId: { type: 'number' },
+              activeTreatments: { type: 'array' },
+              hasActiveTreatment: { type: 'boolean' },
+              nextUpcoming: { type: 'object', nullable: true },
+            },
+          },
+        },
+      },
+    }),
+  )
+
+export const ApiGetActivePatientTreatmentsPaginated = () =>
+  applyDecorators(
+    ApiOperation({
+      summary: 'Get active treatments with enhanced pagination and search',
+      description: `
+      **Advanced paginated search for active patient treatments**
+      
+      🔍 **Enhanced Search**: Search across patient names, doctor names, protocol names, and notes
+      📄 **Smart Pagination**: Comprehensive pagination with metadata
+      🎛️ **Flexible Filtering**: Multiple filter options with patient/search combinations
+      📊 **Rich Results**: Full treatment details with relationships
+      
+      **Search Capabilities:**
+      - Patient name search
+      - Doctor name search  
+      - Protocol name search
+      - Treatment notes search
+      - Case-insensitive matching
+      
+      **Usage Examples:**
+      - Basic pagination: \`/active/paginated?skip=0&take=10\`
+      - With search: \`/active/paginated?search=HIV&skip=0&take=10\`
+      - Patient-specific: \`/active/paginated?patientId=123&search=protocol\`
+      `,
+    }),
+    ApiQuery({
+      name: 'patientId',
+      required: false,
+      description: 'Filter by specific patient ID',
+      type: Number,
+      example: 123,
+    }),
+    ApiQuery({
+      name: 'search',
+      required: false,
+      description: 'Search term for patient name, doctor name, protocol name, or notes',
+      type: String,
+      example: 'HIV protocol',
+    }),
+    ApiQuery({
+      name: 'skip',
+      required: false,
+      description: 'Number of records to skip (default: 0)',
+      type: Number,
+      example: 0,
+    }),
+    ApiQuery({
+      name: 'take',
+      required: false,
+      description: 'Number of records to take (default: 10, max: 100)',
+      type: Number,
+      example: 10,
+    }),
+    ApiQuery({
+      name: 'orderBy',
+      required: false,
+      description: 'Sort configuration (JSON object)',
+      type: String,
+      example: '{"startDate": "desc"}',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Paginated active treatments with search results',
+      schema: {
+        type: 'object',
+        properties: {
+          data: {
+            type: 'array',
+            items: { type: 'object' },
+          },
+          pagination: {
+            type: 'object',
+            properties: {
+              total: { type: 'number' },
+              skip: { type: 'number' },
+              take: { type: 'number' },
+              hasNext: { type: 'boolean' },
+              hasPrevious: { type: 'boolean' },
+            },
+          },
+        },
+      },
     }),
   )

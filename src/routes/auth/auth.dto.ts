@@ -1,5 +1,7 @@
 import { createZodDto } from 'nestjs-zod';
-import { RegisterBodySchema, LoginBodySchema, RefreshTokenSchema, LogoutSchema } from './auth.model';
+import { RegisterBodySchema, LoginBodySchema, 
+  RefreshTokenSchema, LogoutSchema, sentOtpSchema, ForgotPasswordBodySchema, 
+  Disable2FaBodySchema,TwoFaResSchema, Setup2FaBodySchema } from './auth.model';
 
 // Register DTO
 export class RegisterDto extends createZodDto(RegisterBodySchema) {
@@ -28,3 +30,41 @@ export class LogoutDto extends createZodDto(LogoutSchema) {
     return LogoutSchema.parse(data);
   }
 }
+
+
+export class SentOtpDto extends createZodDto(sentOtpSchema) {
+  static create(data: unknown) {
+    return sentOtpSchema.parse(data);
+  }
+}
+
+
+
+export class ForgotPasswordBodyDto extends createZodDto(ForgotPasswordBodySchema) {
+  static create(data: unknown) {
+    return ForgotPasswordBodySchema.parse(data);
+  }
+}
+
+export class Disable2FaBodyDto extends createZodDto(Disable2FaBodySchema) {
+  static create(data: unknown) {
+    return Disable2FaBodySchema.parse(data);
+  }
+}
+
+
+
+export class TwoFaResDto extends createZodDto(TwoFaResSchema) {
+  static create(data: unknown) {
+    return TwoFaResSchema.parse(data);
+  }
+}
+
+export class Setup2FaDto extends createZodDto(Setup2FaBodySchema) {
+  static create(data: unknown) {
+    return Setup2FaBodySchema.parse(data);
+  }
+}
+
+
+

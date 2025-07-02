@@ -62,6 +62,7 @@ export class AppoinmentRepository {
       ...data,
       type: data.type as AppointmentType,
       status: data.status as AppointmentStatus,
+      doctorId: data.doctorId!,
     }
 
     const appointment = await this.prisma.appointment.create({
@@ -265,9 +266,11 @@ export class AppoinmentRepository {
       if (dateFrom || dateTo) {
         where.appointmentTime = {}
         if (dateFrom) {
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
           where.appointmentTime.gte = new Date(dateFrom)
         }
         if (dateTo) {
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
           where.appointmentTime.lte = new Date(dateTo)
         }
       }

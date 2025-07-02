@@ -1,6 +1,6 @@
 import { applyDecorators } from '@nestjs/common'
-import { ApiOperation, ApiResponse, ApiBody} from '@nestjs/swagger'
-import { LoginBodySchema, RefreshTokenSchema, LogoutSchema } from '../routes/auth/auth.model'
+import { ApiOperation, ApiResponse, ApiBody, ApiQuery} from '@nestjs/swagger'
+import { LoginBodySchema, RefreshTokenSchema, LogoutSchema, sentOtpSchema, ForgotPasswordBodySchema } from '../routes/auth/auth.model'
 import { zodToSwagger } from '../shared/utils/zod-to-swagger'
 
 // Swagger schemas
@@ -72,7 +72,42 @@ export const ApiRegister = () => {
 export const ApiLogin = () => {
   return applyDecorators(
     ApiOperation({ summary: 'Login user' }),
-    ApiBody({ schema: zodToSwagger(LoginBodySchema) }),
+    ApiBody({
+      schema: {
+        type: 'object',
+        required: ['email', 'password'],
+        properties: {
+          email: {
+            type: 'string',
+            format: 'email',
+            example: 'admin@example.com',
+            description: 'User email address'
+          },
+          password: {
+            type: 'string',
+            minLength: 1,
+            example: 'admin123',
+            description: 'User password'
+          },
+          totpCode: {
+            type: 'string',
+            minLength: 6,
+            maxLength: 6,
+            example: '123456',
+            description: '2FA TOTP code (optional)',
+            nullable: true
+          },
+          code: {
+            type: 'string',
+            minLength: 6,
+            maxLength: 6,
+            example: '654321',
+            description: 'OTP code from email (optional)',
+            nullable: true
+          }
+        }
+      }
+    }),
     ApiResponse({ 
       status: 200, 
       description: 'User successfully logged in',
@@ -105,6 +140,156 @@ export const ApiLogout = () => {
       description: 'User successfully logged out'
     }),
     ApiResponse({ status: 401, description: 'Invalid refresh token' })
+  )
+}
+
+export const ApiSentOtp = () => {
+  return applyDecorators(
+    ApiOperation({ summary: 'Send OTP to email for registration' }),
+    ApiBody({ schema: zodToSwagger(sentOtpSchema) }),
+    ApiResponse({ 
+      status: 200, 
+      description: 'OTP sent successfully',
+      schema: {
+        type: 'object',
+        properties: {
+          message: { type: 'string', example: 'OTP sent successfully to your email' },
+          email: { type: 'string', example: 'user@example.com' },
+          type: { type: 'string', enum: ['REGISTER', 'FORGOT_PASSWORD'], example: 'REGISTER' }
+        }
+      }
+    }),
+    ApiResponse({ status: 409, description: 'Email already exists' })
+  )
+}
+
+export const ApiGoogleLink = () => {
+  return applyDecorators(
+    ApiOperation({ summary: 'Get Google OAuth authorization URL' }),
+    ApiResponse({ 
+      status: 200, 
+      description: 'Google OAuth URL generated successfully',
+      schema: {
+        type: 'object',
+        properties: {
+          url: { type: 'string', example: 'https://accounts.google.com/o/oauth2/auth?...' }
+        }
+      }
+    })
+  )
+}
+
+export const ApiGoogleCallback = () => {
+  return applyDecorators(
+    ApiOperation({ summary: 'Handle Google OAuth callback' }),
+    ApiQuery({ name: 'code', description: 'Authorization code from Google', example: '4/0AfJohXn...' }),
+    ApiQuery({ name: 'state', description: 'State parameter for CSRF protection', example: 'abc123...' }),
+    ApiResponse({ 
+      status: 200, 
+      description: 'Google login successful',
+      schema: {
+        type: 'object',
+        properties: {
+          accessToken: { type: 'string', example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' },
+          refreshToken: { type: 'string', example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' },
+          user: {
+            type: 'object',
+            properties: {
+              id: { type: 'number', example: 1 },
+              name: { type: 'string', example: 'John Doe' },
+              email: { type: 'string', example: 'john@example.com' },
+              role: { type: 'string', example: 'PATIENT' },
+              avatar: { type: 'string', example: 'https://lh3.googleusercontent.com/...' }
+            }
+          },
+          isNewUser: { type: 'boolean', example: false }
+        }
+      }
+    }),
+    ApiResponse({ status: 400, description: 'Invalid authorization code' }),
+    ApiResponse({ status: 401, description: 'Google authentication failed' })
+  )
+}
+
+export const ApiForgotPassword = () => {
+  return applyDecorators(
+    ApiOperation({ summary: 'Reset password using OTP' }),
+    ApiBody({ schema: zodToSwagger(ForgotPasswordBodySchema) }),
+    ApiResponse({ 
+      status: 200, 
+      description: 'Password changed successfully',
+      schema: {
+        type: 'object',
+        properties: {
+          message: { type: 'string', example: 'Change password successfully' }
+        }
+      }
+    }),
+    ApiResponse({ status: 404, description: 'Email not found' }),
+    ApiResponse({ status: 422, description: 'Invalid OTP code' })
+  )
+}
+
+export const ApiSetup2FA = () => {
+  return applyDecorators(
+    ApiOperation({ summary: 'Setup Two-Factor Authentication' }),
+    ApiResponse({ 
+      status: 200, 
+      description: '2FA setup successful',
+      schema: {
+        type: 'object',
+        properties: {
+          secret: { 
+            type: 'string', 
+            example: 'JBSWY3DPEHPK3PXP',
+            description: 'TOTP secret key for generating codes'
+          },
+          uri: { 
+            type: 'string', 
+            example: 'otpauth://totp/Example:alice@google.com?secret=JBSWY3DPEHPK3PXP&issuer=Example',
+            description: 'URI for QR code generation'
+          }
+        }
+      }
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({ status: 422, description: 'User not found or 2FA already enabled' })
+  )
+}
+
+export const ApiDisable2FA = () => {
+  return applyDecorators(
+    ApiOperation({ summary: 'Disable Two-Factor Authentication' }),
+    ApiBody({
+      schema: {
+        type: 'object',
+        required: ['code'],
+        properties: {
+          code: {
+            type: 'string',
+            minLength: 6,
+            maxLength: 6,
+            example: '123456',
+            description: 'TOTP code to verify before disabling 2FA'
+          }
+        }
+      }
+    }),
+    ApiResponse({ 
+      status: 200, 
+      description: '2FA disabled successfully',
+      schema: {
+        type: 'object',
+        properties: {
+          message: { 
+            type: 'string', 
+            example: '2FA disabled successfully'
+          }
+        }
+      }
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({ status: 422, description: 'Invalid TOTP code or 2FA not enabled' })
   )
 }
 
