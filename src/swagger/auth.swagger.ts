@@ -195,6 +195,33 @@ export const ApiForgotPassword = () => {
   )
 }
 
+export const ApiSetup2FA = () => {
+  return applyDecorators(
+    ApiOperation({ summary: 'Setup Two-Factor Authentication' }),
+    ApiResponse({ 
+      status: 200, 
+      description: '2FA setup successful',
+      schema: {
+        type: 'object',
+        properties: {
+          secret: { 
+            type: 'string', 
+            example: 'JBSWY3DPEHPK3PXP',
+            description: 'TOTP secret key for generating codes'
+          },
+          uri: { 
+            type: 'string', 
+            example: 'otpauth://totp/Example:alice@google.com?secret=JBSWY3DPEHPK3PXP&issuer=Example',
+            description: 'URI for QR code generation'
+          }
+        }
+      }
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({ status: 422, description: 'User not found or 2FA already enabled' })
+  )
+}
+
 export const AuthSwagger = {
   tags: 'Auth',
   login: {
