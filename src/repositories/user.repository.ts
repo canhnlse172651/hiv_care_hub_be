@@ -300,13 +300,13 @@ export class AuthRepository {
     })
   }
 
-  async findVerificationCode(uniqueValue : {email: string, type: 'FORGOT_PASSWORD' | 'REGISTER', code?: string}) {
+  async findVerificationCode(uniqueValue : {email: string, type: 'FORGOT_PASSWORD' | 'REGISTER' | 'DISABLE_2FA' | 'LOGIN', code?: string}) {
     return this.prismaService.verificationCode.findFirst({
       where: uniqueValue,
     })
   }
 
-  async deleteVerificationCode(uniqueValue : {email: string, type: 'FORGOT_PASSWORD' | 'REGISTER', code?: string}) {
+  async deleteVerificationCode(uniqueValue : {email: string, type: 'FORGOT_PASSWORD' | 'REGISTER' | 'DISABLE_2FA' | 'LOGIN', code?: string}) {
     return this.prismaService.verificationCode.deleteMany({
       where: uniqueValue,
     })
