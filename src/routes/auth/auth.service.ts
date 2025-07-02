@@ -10,6 +10,7 @@ import { addMilliseconds } from 'date-fns'
 import envConfig from 'src/shared/config'
 import ms from 'ms'
 import { EmailService } from 'src/shared/services/email.service'
+import { TwoFactorService } from 'src/shared/services/2fa.service'
 
 @Injectable()
 export class AuthService {
@@ -19,6 +20,7 @@ export class AuthService {
     private readonly hashingService: HashingService,
     private readonly tokenService: TokenService,
     private readonly emailService: EmailService,
+    private readonly twoFactorService: TwoFactorService,
   ) {}
 
   async register(body: RegisterBodyType) {
@@ -227,7 +229,7 @@ export class AuthService {
        await this.authRepository.createVerificationCode({
         email: body.email,
         code: otp.toString(),
-        type: body.type,
+        type: body.type as 'FORGOT_PASSWORD' | 'REGISTER' | 'DISABLE_2FA' | 'LOGIN',
         expiresAt: addMilliseconds(new Date(), ms(expirationTime)),
       })
 
@@ -300,6 +302,32 @@ export class AuthService {
     ])
     return {
       message: 'Change password successfully',
+    }
+  }
+
+
+  async setupTwoFactorAuth(userId: number) {
+    try {
+      // 1. Lấy thông tin user, kiểm tra xem user có tồn tại hay không, và xem họ đã bật 2FA chưa
+      const user = await this.authRepository.findUserById(userId)
+      if (!user) {
+        throw new UnprocessableEntityException('User not found')
+      }
+      if (user.totpSecret) {
+        throw new UnprocessableEntityException('2FA already enabled')
+      }
+      // 2. Tạo ra secret và uri
+      const { secret, uri } = this.twoFactorService.generateTOTPSecret(user.email)
+      // 3. Cập nhật secret vào user trong database
+      await this.authRepository.updateUser(userId, { totpSecret: secret })
+      // 4. Trả về secret và uri
+      return {
+        secret,
+        uri,
+      }
+    } catch (error) {
+      console.error('Error in setupTwoFactorAuth:', error)
+      throw error
     }
   }
 }

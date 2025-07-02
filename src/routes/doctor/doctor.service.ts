@@ -202,6 +202,8 @@ export class DoctorService {
   }
 
   async getDoctorSchedule(id: number, schedule: GetDoctorScheduleDto) {
+
+    // get schedule by date range (to check list doctor working on specific shift or day)
     const doctor = await this.doctorRepository.findDoctorById(id)
     if (!doctor) {
       throw new NotFoundException('Doctor not found')
@@ -211,8 +213,10 @@ export class DoctorService {
     const startDate = schedule.startDate || new Date()
     const endDate = schedule.endDate || new Date(new Date().setDate(new Date().getDate() + 30))
 
-    return this.doctorRepository.getSchedulesByDateRange(startDate, endDate)
+    return this.doctorRepository.getDoctorSchedule(id, startDate, endDate)
   }
+
+  
 
   private getDayOfWeek(date: Date): DayOfWeek {
     // Convert to UTC to avoid timezone issues

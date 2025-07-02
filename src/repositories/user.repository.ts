@@ -91,6 +91,7 @@ export class AuthRepository {
         roleId: true,
         status: true,
         avatar: true,
+        totpSecret: true,
         createdById: true,
         updatedById: true,
         deletedAt: true,
@@ -276,11 +277,16 @@ export class AuthRepository {
   async createVerificationCode(data: {
     email: string
     code: string  
-    type: 'FORGOT_PASSWORD' | 'REGISTER'
+    type: 'FORGOT_PASSWORD' | 'REGISTER' | 'DISABLE_2FA' | 'LOGIN'
     expiresAt: Date
   }) {
     return this.prismaService.verificationCode.upsert({
-      where: { email: data.email },
+      where: { 
+        email_type: { 
+          email: data.email, 
+          type: data.type 
+        } 
+      },
       create: {
         email: data.email,
         code: data.code,
@@ -289,7 +295,6 @@ export class AuthRepository {
       },
       update: {
         code: data.code,
-        type: data.type,
         expiresAt: data.expiresAt,
       },
     })
