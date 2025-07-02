@@ -79,6 +79,8 @@ enum ServiceType {
 enum VerificationType {
   REGISTER
   FORGOT_PASSWORD
+  LOGIN
+  DISABLE_2FA
 }
 
 enum MedicationSchedule {
@@ -186,15 +188,17 @@ model RefreshToken {
 
 model VerificationCode {
   id        Int                    @id @default(autoincrement())
-  email     String                 @unique @db.VarChar(500)
-  userId    Int?
-  user      User?                  @relation(fields: [userId], references: [id])
+  email     String                 @db.VarChar(500)             
   code      String                 @db.VarChar(50)
   type      VerificationType
   expiresAt DateTime
   createdAt DateTime               @default(now())
-
-  @@index([email, code, type])
+  
+  // Relationship with User
+  userId    Int?
+  user      User?                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([email,type])
   @@index([expiresAt])
 }
 

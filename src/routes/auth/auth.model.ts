@@ -24,13 +24,6 @@ export const UserSchema = z.object({
     .optional(),
 })
 
-// Types derived from schemas
-export type UserType = z.infer<typeof UserSchema>
-
-export type UserResType = z.infer<typeof RegisterResSchema>
-
-export type UserWithPasswordType = z.infer<typeof UserSchema>
-
 // Register Schema
 export const RegisterBodySchema = z
   .object({
@@ -53,23 +46,19 @@ export const RegisterBodySchema = z
     }
   })
 
-export type RegisterBodyType = z.infer<typeof RegisterBodySchema>
-
 // Register Response Schema
 export const RegisterResSchema = UserSchema.omit({
   password: true,
   totpSecret: true,
 })
 
-export type RegisterResType = z.infer<typeof RegisterResSchema>
-
 // Login Schema
 export const LoginBodySchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
+  totpCode: z.string().length(6).nullable().optional(), // 2FA
+  code: z.string().length(6).nullable().optional(), // OTP FORM EMAIL
 })
-
-export type LoginBodyType = z.infer<typeof LoginBodySchema>
 
 // Login Response Schema
 export const LoginResSchema = z.object({
@@ -77,14 +66,10 @@ export const LoginResSchema = z.object({
   refreshToken: z.string(),
 })
 
-export type LoginResType = z.infer<typeof LoginResSchema>
-
 // Refresh Token Schema
 export const RefreshTokenSchema = z.object({
   refreshToken: z.string().min(1),
 })
-
-export type RefreshTokenType = z.infer<typeof RefreshTokenSchema>
 
 // Logout Schema
 export const LogoutSchema = z.object({
@@ -97,27 +82,19 @@ export const VerificationCodeSchema = z.object({
   id: z.number(),
   code: z.string().min(6).max(6),
   email: z.string().email(),
-  type: z.enum(['FORGOT_PASSWORD', 'REGISTER']),
+  type: z.enum(['FORGOT_PASSWORD', 'REGISTER', 'DISABLE_2FA', 'LOGIN']),
   expiresAt: z.date(),
   createdAt: z.date(),
 })
-
-export type VerificationCodeType = z.infer<typeof VerificationCodeSchema>
 
 export const sentOtpSchema = VerificationCodeSchema.pick({
   email: true,
   type: true,
 }).strict()
 
-export type SentOtpType = z.infer<typeof sentOtpSchema>
-
 export const GoogleAuthRedirectUrlSchema = z.object({
   url: z.string(),
 })
-
-export type GoogleAuthRedirectUrlType = z.infer<typeof GoogleAuthRedirectUrlSchema>
-
-
 
 export const ForgotPasswordBodySchema = z
   .object({
@@ -137,6 +114,49 @@ export const ForgotPasswordBodySchema = z
     }
   })
 
-  export type ForgotPasswordBodyType = z.infer<typeof ForgotPasswordBodySchema>
+export const Disable2FaBodySchema = z
+  .object({
+    code: z.string().length(6).optional(),
+    totpCode: z.string().length(6).optional(),
+  })
+  .superRefine(({ code, totpCode }, ctx) => {
+    if (code !== undefined && totpCode !== undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Không thể cùng lúc nhập mã OTP từ email và mã OTP từ 2FA',
+        path: ['totpCode'],
+      }),
+        ctx.addIssue({
+          code: 'custom',
+          message: 'Không thể cùng lúc nhập mã OTP từ email và mã OTP từ 2FA',
+          path: ['code'],
+        })
+    }
+  })
 
+export const TwoFaResSchema = z.object({
+   secret: z.string(),
+   url: z.string(),
+  })
 
+export const Setup2FaBodySchema = z.object({
+  userId: z.number().positive(),
+})
+
+export type Disable2FaBodyType = z.infer<typeof Disable2FaBodySchema>
+export type Setup2FaBodyType = z.infer<typeof Setup2FaBodySchema>
+
+// Types derived from schemas
+export type UserType = z.infer<typeof UserSchema>
+export type UserResType = z.infer<typeof RegisterResSchema>
+export type UserWithPasswordType = z.infer<typeof UserSchema>
+export type ForgotPasswordBodyType = z.infer<typeof ForgotPasswordBodySchema>
+export type GoogleAuthRedirectUrlType = z.infer<typeof GoogleAuthRedirectUrlSchema>
+export type VerificationCodeType = z.infer<typeof VerificationCodeSchema>
+export type RefreshTokenType = z.infer<typeof RefreshTokenSchema>
+export type SentOtpType = z.infer<typeof sentOtpSchema>
+export type LoginResType = z.infer<typeof LoginResSchema>
+export type LoginBodyType = z.infer<typeof LoginBodySchema>
+export type RegisterResType = z.infer<typeof RegisterResSchema>
+export type RegisterBodyType = z.infer<typeof RegisterBodySchema>
+export type TwoFaResType = z.infer<typeof TwoFaResSchema>
