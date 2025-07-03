@@ -31,7 +31,9 @@
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/swagger": "^11.2.0",
     "@react-email/components": "0.1.1",
+    "@types/multer": "^2.0.0",
     "@types/nodemailer": "^6.4.17",
+    "@types/uuid": "^10.0.0",
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
@@ -49,6 +51,7 @@
     "resend": "^4.6.0",
     "rxjs": "^7.8.1",
     "swagger-ui-express": "^5.0.1",
+    "uuid": "^11.1.0",
     "zod": "^3.25.28"
   },
   "devDependencies": {
