@@ -9,6 +9,7 @@ import { AuthModule } from './routes/auth/auth.module'
 import { BlogModule } from './routes/blog/blog.module'
 import { CateBlogModule } from './routes/category-blog/cate-blog.module'
 import { DoctorModule } from './routes/doctor/doctor.module'
+import { MediaModule } from './routes/media/media.module'
 import { MedicineModule } from './routes/medicine/medicine.module'
 import { TestPatientTreatmentModule } from './routes/patient-treatment/modules/test/patient-treatment-test.module'
 import { PatientTreatmentModule } from './routes/patient-treatment/patient-treatment.module'
@@ -28,6 +29,7 @@ import { SharedModule } from './shared/shared.module'
     PermissionModule,
     UserModule,
     DoctorModule,
+    MediaModule,
     MedicineModule,
     TreatmentProtocolModule,
     PatientTreatmentModule,
