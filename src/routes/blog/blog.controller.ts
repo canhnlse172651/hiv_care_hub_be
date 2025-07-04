@@ -26,7 +26,7 @@ export class BlogController {
   @ApiBearerAuth()
   @ApiCreateBlog()
   @Auth([AuthType.Bearer])
-  @Roles(Role.Admin)
+  @Roles(Role.Admin, Role.Staff)
   @Post()
   async createBlog(
     @Body(new CustomZodValidationPipe(CreateBlogDto))
@@ -62,7 +62,7 @@ export class BlogController {
   @ApiBearerAuth()
   @ApiUpdateBlog()
   @Auth([AuthType.Bearer])
-  @Roles(Role.Admin)
+  @Roles(Role.Admin, Role.Staff)
   @Patch(':id')
   async updateBlog(
     @Param('id', ParseIntPipe) id: number,
@@ -75,7 +75,7 @@ export class BlogController {
   @ApiBearerAuth()
   @ApiDeleteBlog()
   @Auth([AuthType.Bearer])
-  @Roles(Role.Admin)
+  @Roles(Role.Admin, Role.Staff)
   @Delete(':id')
   async removeBlog(@Param('id', ParseIntPipe) id: number): Promise<BlogResponseType> {
     return this.blogService.removeBlog(id)
@@ -84,7 +84,7 @@ export class BlogController {
   @ApiBearerAuth()
   @ApiChangeCateBlogStatus()
   @Auth([AuthType.Bearer])
-  @Roles(Role.Admin)
+  @Roles(Role.Admin, Role.Staff)
   @Patch(':id/change-status')
   async changeStatusBlog(
     @Param('id', ParseIntPipe) id: number,
