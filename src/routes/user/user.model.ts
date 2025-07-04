@@ -48,6 +48,7 @@ export const UserResSchema = z.object({
   createdAt: z.date(),
   updatedAt: z.date(),
   deletedAt: z.date().nullable(),
+  totpSecret: z.string().nullable(),
 })
 
 // Query User Schema

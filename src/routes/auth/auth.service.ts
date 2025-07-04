@@ -4,12 +4,14 @@ import { TokenService } from 'src/shared/services/token.service'
 import { HashingService } from 'src/shared/services/hashing.service'
 import { isNotFoundPrismaError, isUniqueConstraintPrismaError } from 'src/shared/helpers'
 import { AuthRepository } from '../../repositories/user.repository'
-import { ForgotPasswordBodyType, LoginBodyType, RegisterBodyType, SentOtpType } from './auth.model'
+import { ForgotPasswordBodyType, LoginBodyType, RegisterBodyType, SentOtpType, Disable2FaBodyType } from './auth.model'
 import { generateOtp } from 'src/shared/utils/otp.utils'
 import { addMilliseconds } from 'date-fns'
 import envConfig from 'src/shared/config'
 import ms from 'ms'
 import { EmailService } from 'src/shared/services/email.service'
+import { TwoFactorService } from 'src/shared/services/2fa.service'
+import { InvalidTOTPAndCodeException, TOTPNotEnabledException } from './error.model'
 
 @Injectable()
 export class AuthService {
@@ -19,6 +21,7 @@ export class AuthService {
     private readonly hashingService: HashingService,
     private readonly tokenService: TokenService,
     private readonly emailService: EmailService,
+    private readonly twoFactorService: TwoFactorService,
   ) {}
 
   async register(body: RegisterBodyType) {
@@ -80,8 +83,6 @@ export class AuthService {
     }
   }
 
-  
-
   async login(body: LoginBodyType) {
     console.log('body', body)
     const user = await this.authRepository.findUserByEmail(body.email)
@@ -100,6 +101,48 @@ export class AuthService {
         },
       ])
     }
+
+   // 2. Nếu user đã bật mã 2FA thì kiểm tra mã 2FA TOTP Code hoặc OTP Code (email)Add commentMore actions
+   if (user.totpSecret) {
+  
+    
+    // Nếu không có mã TOTP Code và Code thì thông báo cho client biết
+    if (!body.totpCode && !body.code) {
+      console.log('No TOTP code or OTP code provided')
+      throw InvalidTOTPAndCodeException
+    }
+
+    // Kiểm tra TOTP Code có hợp lệ hay không
+    if (body.totpCode) {
+      console.log('Verifying TOTP code...')
+      const isValid = this.twoFactorService.verifyTOTP({
+        email: user.email,
+        secret: user.totpSecret,
+        token: body.totpCode,
+      })
+      if (!isValid) {
+        console.log('TOTP verification failed')
+        throw InvalidTOTPAndCodeException
+      }
+    } else if (body.code) {
+      // Kiểm tra mã OTP có hợp lệ không
+      const verificationCode = await this.authRepository.findVerificationCode({
+        email: user.email,
+        code: body.code,
+        type: 'LOGIN',
+      })
+      console.log('Verification code found:', !!verificationCode)
+      if(!verificationCode){
+        console.log('Invalid verification code')
+        throw new UnprocessableEntityException('Invalid verification code')
+      }
+      if(verificationCode.expiresAt.getTime() < new Date().getTime()){
+        console.log('Verification code expired')
+        throw new UnprocessableEntityException('Verification code has expired')
+      }
+    }
+   
+  }
 
     const tokens = await this.generateTokens({ userId: user.id })
 
@@ -227,7 +270,7 @@ export class AuthService {
        await this.authRepository.createVerificationCode({
         email: body.email,
         code: otp.toString(),
-        type: body.type,
+        type: body.type as 'FORGOT_PASSWORD' | 'REGISTER' | 'DISABLE_2FA' | 'LOGIN',
         expiresAt: addMilliseconds(new Date(), ms(expirationTime)),
       })
 
@@ -300,6 +343,86 @@ export class AuthService {
     ])
     return {
       message: 'Change password successfully',
+    }
+  }
+
+
+  async setupTwoFactorAuth(userId: number) {
+    try {
+      // 1. Lấy thông tin user, kiểm tra xem user có tồn tại hay không, và xem họ đã bật 2FA chưa
+      const user = await this.authRepository.findUserById(userId)
+      if (!user) {
+        throw new UnprocessableEntityException('User not found')
+      }
+      if (user.totpSecret) {
+        throw new UnprocessableEntityException('2FA already enabled')
+      }
+      // 2. Tạo ra secret và uri
+      const { secret, uri } = this.twoFactorService.generateTOTPSecret(user.email)
+      // 3. Cập nhật secret vào user trong database
+      await this.authRepository.updateUser(userId, { totpSecret: secret })
+      // 4. Trả về secret và uri
+      return {
+        secret,
+        uri,
+      }
+    } catch (error) {
+      console.error('Error in setupTwoFactorAuth:', error)
+      throw error
+    }
+  }
+
+  async disableTwoFactorAuth(data: Disable2FaBodyType & {userId: number}) {
+    const { userId, totpCode, code } = data
+    // 1. Lấy thông tin user, kiểm tra xem user có tồn tại hay không, và xem họ đã bật 2FA chưa
+    const user = await this.authRepository.findUserById(userId)
+    if (!user) {
+      throw new UnprocessableEntityException('User not found')
+    }
+    if (!user.totpSecret) {
+      throw TOTPNotEnabledException
+    }
+
+    // 2. Kiểm tra mã TOTP có hợp lệ hay không
+    if (totpCode) {
+      const isValid = this.twoFactorService.verifyTOTP({
+        email: user.email,
+        secret: user.totpSecret,
+        token: totpCode,
+      })
+      if (!isValid) {
+        throw InvalidTOTPAndCodeException
+      }
+    } else if (code) {
+      // 3. Kiểm tra mã OTP email có hợp lệ hay không
+      const verificationCode = await this.authRepository.findVerificationCode({
+        email: user.email,
+        code,
+        type: 'DISABLE_2FA',
+      })
+      
+      if (!verificationCode) {
+        throw new UnprocessableEntityException('Invalid verification code')
+      }
+      
+      // Kiểm tra OTP có hết hạn chưa
+      const now = new Date()
+      const isExpired = verificationCode.expiresAt.getTime() < now.getTime()
+      
+      if (isExpired) {
+        throw new UnprocessableEntityException('Verification code has expired')
+      }
+    } else {
+      // Nếu không có TOTP code và OTP code thì throw error
+      throw InvalidTOTPAndCodeException
+    }
+
+    // 4. Cập nhật secret thành null
+    await this.authRepository.updateUser(userId, { totpSecret: null })
+
+    // 5. Trả về thông báo
+    return {
+      message: 'Tắt 2FA thành công',
     }
   }
 }
