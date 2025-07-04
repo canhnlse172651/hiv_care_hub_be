@@ -27,10 +27,10 @@ import { AuthType } from 'src/shared/constants/auth.constant'
 import { Roles } from 'src/shared/decorators/roles.decorator'
 import { Role } from 'src/shared/constants/role.constant'
 
-@ApiTags('Appoinments')
+@ApiTags('Appointments')
 @ApiBearerAuth()
 @Auth([AuthType.Bearer])
-@Controller('appoinments')
+@Controller('appointments')
 export class AppoinmentController {
   constructor(private readonly appoinmentService: AppoinmentService) {}
 
