@@ -1,5 +1,5 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, Get, Query, UseGuards, Req } from '@nestjs/common'
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger'
+import { Body, Controller, HttpCode, HttpStatus, Post, Get, Query, UseGuards, Req, Patch } from '@nestjs/common'
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger'
 import { AuthService } from './auth.service'
 import {
   ApiRegister,
@@ -12,6 +12,7 @@ import {
   ApiForgotPassword,
   ApiSetup2FA,
   ApiDisable2FA,
+  ApiUpdateProfile,
 } from '../../swagger/auth.swagger'
 import {
   RegisterDto,
@@ -23,6 +24,8 @@ import {
   TwoFaResDto,
   Setup2FaDto,
   Disable2FaBodyDto,
+  GetProfileDto,
+  UpdateProfileDto,
 } from './auth.dto'
 import { GoogleService } from './google.service'
 import { ActiveUser } from 'src/shared/decorators/active-user.decorator'
@@ -109,7 +112,26 @@ export class AuthController {
     console.log('user 2 fa', user)
     return this.authService.disableTwoFactorAuth({
       userId: user.userId,
-      ...validatedData
+      ...validatedData,
     })
+  }
+
+  @ApiBearerAuth()
+  @Auth([AuthType.Bearer])
+  @Get('profile')
+  @ApiOperation({ summary: 'Get user profile' })
+  @ApiResponse({ status: 200, description: 'Return user profile' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async getProfile(@ActiveUser() user: TokenPayload) {
+    return this.authService.getUserProfile(user.userId)
+  }
+
+  @ApiBearerAuth()
+  @Auth([AuthType.Bearer])
+  @Patch('update-profile')
+  @ApiUpdateProfile()
+  async updateProfile(@ActiveUser() user: TokenPayload, @Body() body: unknown) {
+    const validatedData = UpdateProfileDto.create(body)
+    return this.authService.updateUserProfile(user.userId, validatedData)
   }
 }
