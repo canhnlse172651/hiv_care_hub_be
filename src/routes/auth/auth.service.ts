@@ -421,7 +421,7 @@ export class AuthService {
   }
 
   async getUserProfile(userId: number) {
-    const user = await this.authRepository.findUserById(userId)
+    const user = await this.authRepository.findUserByIdWithDoctorId(userId)
     if (!user) {
       throw new UnprocessableEntityException('User not found')
     }
