@@ -1,4 +1,5 @@
 import { UserStatus } from '@prisma/client'
+import e from 'express'
 import { z } from 'zod'
 
 // Base User Schema
@@ -53,19 +54,21 @@ export const RegisterResSchema = UserSchema.omit({
 })
 
 // Login Schema
-export const LoginBodySchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(1),
-  totpCode: z.string().length(6).nullable().optional(), // 2FA
-  code: z.string().length(6).nullable().optional(), // OTP FORM EMAIL
-}).superRefine(({ totpCode, code }, ctx) => {
-  if(totpCode && code){
-    ctx.addIssue({
-      code: 'custom',
-      message: 'Không thể cùng lúc nhập mã OTP từ email và mã OTP từ 2FA',
-    })
-  }
-})
+export const LoginBodySchema = z
+  .object({
+    email: z.string().email(),
+    password: z.string().min(1),
+    totpCode: z.string().length(6).nullable().optional(), // 2FA
+    code: z.string().length(6).nullable().optional(), // OTP FORM EMAIL
+  })
+  .superRefine(({ totpCode, code }, ctx) => {
+    if (totpCode && code) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Không thể cùng lúc nhập mã OTP từ email và mã OTP từ 2FA',
+      })
+    }
+  })
 // Login Response Schema
 export const LoginResSchema = z.object({
   accessToken: z.string(),
@@ -81,6 +84,38 @@ export const RefreshTokenSchema = z.object({
 export const LogoutSchema = z.object({
   refreshToken: z.string().min(1),
 })
+
+//get profile schema
+export const GetProfileSchema = z.object({
+  id: z.number(),
+  email: z.string().email(),
+  name: z.string().min(3).max(100),
+  phoneNumber: z.string().min(9).max(15).nonempty('phoneNumber is required'),
+  avatar: z.string().nullable(),
+  status: z.nativeEnum(UserStatus),
+  roleId: z.number().positive(),
+  createdById: z.number().nullable(),
+  updatedById: z.number().nullable(),
+  deletedAt: z.date().nullable(),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+  role: z
+    .object({
+      name: z.string(),
+    })
+    .optional(),
+})
+
+//update profile schema
+export const UpdateProfileSchema = z
+  .object({
+    name: z.string().min(3).max(100).optional(),
+    phoneNumber: z.string().min(9).max(15).optional(),
+    avatar: z.string().nullable().optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, {
+    message: 'At least one field must be provided for update',
+  })
 
 export type LogoutType = z.infer<typeof LogoutSchema>
 
@@ -131,19 +166,19 @@ export const Disable2FaBodySchema = z
         code: 'custom',
         message: 'Không thể cùng lúc nhập mã OTP từ email và mã OTP từ 2FA',
         path: ['totpCode'],
-      }),
-        ctx.addIssue({
-          code: 'custom',
-          message: 'Không thể cùng lúc nhập mã OTP từ email và mã OTP từ 2FA',
-          path: ['code'],
-        })
+      })
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Không thể cùng lúc nhập mã OTP từ email và mã OTP từ 2FA',
+        path: ['code'],
+      })
     }
   })
 
 export const TwoFaResSchema = z.object({
-   secret: z.string(),
-   url: z.string(),
-  })
+  secret: z.string(),
+  url: z.string(),
+})
 
 export const Setup2FaBodySchema = z.object({
   userId: z.number().positive(),
@@ -166,3 +201,5 @@ export type LoginBodyType = z.infer<typeof LoginBodySchema>
 export type RegisterResType = z.infer<typeof RegisterResSchema>
 export type RegisterBodyType = z.infer<typeof RegisterBodySchema>
 export type TwoFaResType = z.infer<typeof TwoFaResSchema>
+export type GetProfileType = z.infer<typeof GetProfileSchema>
+export type UpdateProfileType = z.infer<typeof UpdateProfileSchema>
