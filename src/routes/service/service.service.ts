@@ -130,18 +130,16 @@ export class ServiceService {
   }
 
   async findAllActiveServicesBySlug(query?: any): Promise<PaginatedResponse<ServiceResType>> {
-    // Phân trang cho public get all active
-    const paginationOptions = createPaginationSchema(QueryServiceSchema).parse(query || {})
-    const where: any = { isActive: true }
-    if (paginationOptions.search) {
-      where.name = { contains: paginationOptions.search, mode: 'insensitive' }
+    const { type, isActive, ...rest } = query // Gom các trường filter vào object filters
+    const filters: Record<string, any> = {}
+    if (type !== undefined) filters.type = type
+    if (isActive !== undefined) filters.isActive = isActive
+    const newQuery = {
+      ...rest,
+      filters: Object.keys(filters).length > 0 ? JSON.stringify(filters) : undefined,
     }
-    const { searchFields, ...paginationOptionsWithoutSearchFields } = paginationOptions
-    return this.paginationService.paginate<ServiceResType>(
-      this.serviceRepository.getServiceModel(),
-      paginationOptionsWithoutSearchFields,
-      where,
-    )
+    const options = this.paginationService.getPaginationOptions(newQuery)
+    return await this.serviceRepository.findAllActiveServicesBySlug(options)
   }
 
   async findServiceBySlug(slug: string): Promise<ServiceResType> {
@@ -150,24 +148,16 @@ export class ServiceService {
     return mapServiceToResponse(service)
   }
 
-  async searchServices(query: any): Promise<PaginatedResponse<ServiceResType>> {
-    // Validate and parse query params for pagination and filter
-    const paginationOptions = createPaginationSchema(QueryServiceSchema).parse(query)
-    const where: any = {}
-    // Filters
-    if (paginationOptions.filters) {
-      Object.assign(where, paginationOptions.filters)
+  async searchServices(query?: any): Promise<PaginatedResponse<ServiceResType>> {
+    const { type, isActive, ...rest } = query // Gom các trường filter vào object filters
+    const filters: Record<string, any> = {}
+    if (type !== undefined) filters.type = type
+    if (isActive !== undefined) filters.isActive = isActive
+    const newQuery = {
+      ...rest,
+      filters: Object.keys(filters).length > 0 ? JSON.stringify(filters) : undefined,
     }
-    // Search by name
-    if (paginationOptions.search) {
-      where.name = { contains: paginationOptions.search, mode: 'insensitive' }
-    }
-    // Remove searchFields before passing to paginate
-    const { searchFields, ...paginationOptionsWithoutSearchFields } = paginationOptions
-    return this.paginationService.paginate<ServiceResType>(
-      this.serviceRepository.getServiceModel(),
-      paginationOptionsWithoutSearchFields,
-      where,
-    )
+    const options = this.paginationService.getPaginationOptions(newQuery)
+    return await this.serviceRepository.searchServices(options)
   }
 }

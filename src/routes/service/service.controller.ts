@@ -61,7 +61,7 @@ export class ServiceController {
     const result = await this.serviceService.findAllServices(query)
     return {
       ...result,
-      data: result.data.map(service => ({
+      data: result.data.map((service) => ({
         ...service,
         duration: service.duration ?? '',
       })),
@@ -119,9 +119,12 @@ export class ServiceController {
     }
   }
 
-  // @ApiGetAllServices()
-  // @Get('search')
-  // async searchServices(@Query() query: any): Promise<PaginatedResponse<ServiceResponseType>> {
-  //   return this.serviceService.searchServices(query)
-  // }
+  @ApiBearerAuth()
+  @Auth([AuthType.Bearer])
+  @Roles(Role.Admin)
+  @ApiGetAllServices()
+  @Get()
+  async searchServices(@Query() query: any): Promise<PaginatedResponse<ServiceResponseType>> {
+    return this.serviceService.searchServices(query)
+  }
 }
