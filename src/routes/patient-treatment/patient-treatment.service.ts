@@ -5,6 +5,10 @@ import { ENTITY_NAMES } from '../../shared/constants/api.constants'
 import { PaginatedResponse } from '../../shared/schemas/pagination.schema'
 import { SharedErrorHandlingService } from '../../shared/services/error-handling.service'
 import { PaginationService } from '../../shared/services/pagination.service'
+import { PatientTreatmentAnalyticsService } from './modules/analytics/patient-treatment-analytics.service'
+import { PatientTreatmentCoreService } from './modules/core/patient-treatment-core.service'
+import { PatientTreatmentManagementService } from './modules/management/patient-treatment-management.service'
+import { PatientTreatmentValidationService } from './modules/validation/patient-treatment-validation.service'
 import {
   BasicQueryPatientTreatmentSchema,
   BulkCreatePatientTreatment,
@@ -23,6 +27,10 @@ export class PatientTreatmentService {
     private readonly paginationService: PaginationService,
     private readonly errorHandlingService: SharedErrorHandlingService,
     private readonly followUpAppointmentService: FollowUpAppointmentService,
+    private readonly analyticsService: PatientTreatmentAnalyticsService,
+    private readonly validationService: PatientTreatmentValidationService, // Inject validation submodule
+    private readonly coreService: PatientTreatmentCoreService,
+    private readonly managementService: PatientTreatmentManagementService,
   ) {}
 
   // Create new patient treatment - Enhanced with flexible validation
@@ -2801,8 +2809,8 @@ export class PatientTreatmentService {
       (currentDate.getTime() - treatmentStartDate.getTime()) / (30 * 24 * 60 * 60 * 1000),
     )
 
+    // Xác định lịch tái khám dựa trên risk level và thời gian điều trị
     if (monthsSinceStart < 6) {
-      // New treatment - more frequent follow-ups
       switch (riskLevel) {
         case 'high':
           intervals = [14, 30, 60, 90, 120, 180] // Week 2, Month 1,2,3,4,6
@@ -2821,7 +2829,6 @@ export class PatientTreatmentService {
           break
       }
     } else {
-      // Established treatment - maintenance schedule
       switch (riskLevel) {
         case 'high':
           intervals = [90, 180, 270, 360] // Every 3 months
@@ -2853,6 +2860,56 @@ export class PatientTreatmentService {
     if (treatment.customMedications && Object.keys(treatment.customMedications).length > 0) {
       specialInstructions.push('Monitor custom medication interactions')
       if (riskLevel === 'low') riskLevel = 'medium'
+    }
+
+    // Sau khi riskLevel có thể bị thay đổi, cập nhật lại intervals và notes cho phù hợp
+    if (monthsSinceStart < 6) {
+      switch (riskLevel) {
+        case 'high':
+          intervals = [14, 30, 60, 90, 120, 180]
+          notes = 'New high-risk patient - intensive monitoring schedule'
+          if (!specialInstructions.includes('Weekly phone check for first month'))
+            specialInstructions.push('Weekly phone check for first month')
+          if (!specialInstructions.includes('Monitor for treatment failure signs'))
+            specialInstructions.push('Monitor for treatment failure signs')
+          break
+        case 'medium':
+          intervals = [30, 60, 90, 180]
+          notes = 'New patient - standard monitoring schedule'
+          if (!specialInstructions.includes('Assess adherence carefully'))
+            specialInstructions.push('Assess adherence carefully')
+          if (!specialInstructions.includes('Monitor for side effects'))
+            specialInstructions.push('Monitor for side effects')
+          break
+        case 'low':
+          intervals = [30, 90, 180]
+          notes = 'New low-risk patient - standard schedule'
+          if (!specialInstructions.includes('Regular adherence assessment'))
+            specialInstructions.push('Regular adherence assessment')
+          break
+      }
+    } else {
+      switch (riskLevel) {
+        case 'high':
+          intervals = [90, 180, 270, 360]
+          notes = 'Established high-risk patient - quarterly monitoring'
+          if (!specialInstructions.includes('Quarterly comprehensive assessment'))
+            specialInstructions.push('Quarterly comprehensive assessment')
+          if (!specialInstructions.includes('Monitor comorbidities')) specialInstructions.push('Monitor comorbidities')
+          break
+        case 'medium':
+          intervals = [180, 360]
+          notes = 'Established patient - bi-annual monitoring'
+          if (!specialInstructions.includes('Bi-annual comprehensive check-up'))
+            specialInstructions.push('Bi-annual comprehensive check-up')
+          break
+        case 'low':
+          intervals = [360]
+          notes = 'Stable patient - annual monitoring'
+          if (!specialInstructions.includes('Annual routine check-up'))
+            specialInstructions.push('Annual routine check-up')
+          break
+      }
     }
 
     return {

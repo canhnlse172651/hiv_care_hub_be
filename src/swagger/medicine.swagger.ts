@@ -32,8 +32,29 @@ export const ApiGetAllMedicines = () =>
       name: 'sortBy',
       required: false,
       description: 'Field to sort by',
-      enum: ['name', 'price', 'createdAt'],
+      enum: ['name', 'price', 'createdAt', 'unit'],
       example: 'name',
+    }),
+    ApiQuery({
+      name: 'minPrice',
+      required: false,
+      description: 'Minimum price filter',
+      type: Number,
+      example: 10.0,
+    }),
+    ApiQuery({
+      name: 'maxPrice',
+      required: false,
+      description: 'Maximum price filter',
+      type: Number,
+      example: 100.0,
+    }),
+    ApiQuery({
+      name: 'unit',
+      required: false,
+      description: 'Filter by unit type',
+      enum: ['mg', 'g', 'ml', 'tablet', 'capsule', 'drops', 'syrup', 'injection'],
+      example: 'mg',
     }),
     ApiQuery({
       name: 'sortOrder',
@@ -110,6 +131,7 @@ export const ApiCreateMedicine = () =>
           unit: {
             type: 'string',
             description: 'Medicine unit',
+            enum: ['mg', 'g', 'ml', 'tablet', 'capsule', 'drops', 'syrup', 'injection'],
             example: 'mg',
           },
           dose: {
@@ -120,6 +142,8 @@ export const ApiCreateMedicine = () =>
           price: {
             type: 'number',
             description: 'Medicine price',
+            minimum: 0.01,
+            maximum: 999999.99,
             example: 25.5,
           },
         },
@@ -190,6 +214,7 @@ export const ApiUpdateMedicine = () =>
           unit: {
             type: 'string',
             description: 'Medicine unit',
+            enum: ['mg', 'g', 'ml', 'tablet', 'capsule', 'drops', 'syrup', 'injection'],
             example: 'mg',
           },
           dose: {
@@ -200,6 +225,8 @@ export const ApiUpdateMedicine = () =>
           price: {
             type: 'number',
             description: 'Medicine price',
+            minimum: 0.01,
+            maximum: 999999.99,
             example: 25.5,
           },
         },
@@ -289,6 +316,226 @@ export const ApiSearchMedicines = () =>
     ApiResponse({
       status: 200,
       description: 'Medicines found successfully',
+    }),
+    ApiResponse({
+      status: 401,
+      description: 'Unauthorized',
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Forbidden',
+    }),
+  )
+
+export const ApiGetMedicineStats = () =>
+  applyDecorators(
+    ApiOperation({
+      summary: 'Get medicine statistics',
+      description: 'Retrieve statistical data about medicines including counts, usage patterns, and analysis',
+    }),
+    ApiQuery({
+      name: 'includeInactive',
+      required: false,
+      description: 'Include inactive medicines in statistics',
+      type: Boolean,
+      example: false,
+    }),
+    ApiQuery({
+      name: 'groupBy',
+      required: false,
+      description: 'Group statistics by field',
+      enum: ['unit', 'price', 'date'],
+      example: 'unit',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Medicine statistics retrieved successfully',
+    }),
+    ApiResponse({
+      status: 401,
+      description: 'Unauthorized',
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Forbidden',
+    }),
+  )
+
+export const ApiGetPriceDistribution = () =>
+  applyDecorators(
+    ApiOperation({
+      summary: 'Get price distribution analysis',
+      description: 'Analyze medicine price distribution with customizable buckets and ranges',
+    }),
+    ApiQuery({
+      name: 'buckets',
+      required: false,
+      description: 'Number of price buckets for distribution analysis',
+      type: Number,
+      minimum: 3,
+      maximum: 20,
+      example: 5,
+    }),
+    ApiQuery({
+      name: 'customRanges',
+      required: false,
+      description: 'Custom price ranges in JSON format',
+      type: String,
+      example:
+        '[{"min":0,"max":50,"label":"Low"},{"min":50,"max":200,"label":"Medium"},{"min":200,"max":1000,"label":"High"}]',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Price distribution analysis retrieved successfully',
+    }),
+    ApiResponse({
+      status: 400,
+      description: 'Invalid bucket count or custom ranges format',
+    }),
+    ApiResponse({
+      status: 401,
+      description: 'Unauthorized',
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Forbidden',
+    }),
+  )
+
+export const ApiGetUnitUsage = () =>
+  applyDecorators(
+    ApiOperation({
+      summary: 'Get unit usage statistics',
+      description: 'Analyze how different medicine units are used across the system',
+    }),
+    ApiQuery({
+      name: 'sortBy',
+      required: false,
+      description: 'Sort usage statistics by field',
+      enum: ['count', 'totalValue', 'averagePrice'],
+      example: 'count',
+    }),
+    ApiQuery({
+      name: 'sortOrder',
+      required: false,
+      description: 'Sort order for usage statistics',
+      enum: ['asc', 'desc'],
+      example: 'desc',
+    }),
+    ApiQuery({
+      name: 'limit',
+      required: false,
+      description: 'Limit number of unit usage results',
+      type: Number,
+      minimum: 1,
+      maximum: 50,
+      example: 10,
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Unit usage statistics retrieved successfully',
+    }),
+    ApiResponse({
+      status: 401,
+      description: 'Unauthorized',
+    }),
+    ApiResponse({
+      status: 403,
+      description: 'Forbidden',
+    }),
+  )
+
+export const ApiBulkCreateMedicines = () =>
+  applyDecorators(
+    ApiOperation({
+      summary: 'Bulk create medicines',
+      description: 'Create multiple medicines at once with validation and duplicate handling',
+    }),
+    ApiBody({
+      description: 'Bulk medicine creation data',
+      schema: {
+        type: 'object',
+        properties: {
+          medicines: {
+            type: 'array',
+            description: 'Array of medicines to create',
+            minItems: 1,
+            maxItems: 100,
+            items: {
+              type: 'object',
+              properties: {
+                name: {
+                  type: 'string',
+                  description: 'Medicine name',
+                  example: 'Efavirenz',
+                },
+                description: {
+                  type: 'string',
+                  description: 'Medicine description',
+                  example: 'Antiretroviral medication for HIV treatment',
+                },
+                unit: {
+                  type: 'string',
+                  description: 'Medicine unit',
+                  enum: ['mg', 'g', 'ml', 'tablet', 'capsule', 'drops', 'syrup', 'injection'],
+                  example: 'mg',
+                },
+                dose: {
+                  type: 'string',
+                  description: 'Medicine dose',
+                  example: '600mg',
+                },
+                price: {
+                  type: 'number',
+                  description: 'Medicine price',
+                  minimum: 0.01,
+                  maximum: 999999.99,
+                  example: 25.5,
+                },
+              },
+              required: ['name', 'unit', 'dose', 'price'],
+            },
+          },
+          skipDuplicates: {
+            type: 'boolean',
+            description: 'Skip medicines with duplicate names',
+            example: false,
+          },
+        },
+        required: ['medicines'],
+      },
+      examples: {
+        example: {
+          summary: 'Bulk Create Medicines',
+          value: {
+            medicines: [
+              {
+                name: 'Efavirenz',
+                description: 'Antiretroviral medication for HIV treatment',
+                unit: 'mg',
+                dose: '600mg',
+                price: 25.5,
+              },
+              {
+                name: 'Tenofovir',
+                description: 'Nucleotide reverse transcriptase inhibitor',
+                unit: 'mg',
+                dose: '300mg',
+                price: 45.0,
+              },
+            ],
+            skipDuplicates: false,
+          },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 201,
+      description: 'Medicines created successfully',
+    }),
+    ApiResponse({
+      status: 400,
+      description: 'Validation error or duplicate names found',
     }),
     ApiResponse({
       status: 401,

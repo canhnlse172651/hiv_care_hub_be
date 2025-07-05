@@ -7,14 +7,27 @@ import { Auth } from '../../shared/decorators/auth.decorator'
 import { Roles } from '../../shared/decorators/roles.decorator'
 import { PaginatedResponse } from '../../shared/schemas/pagination.schema'
 import {
+  ApiBulkCreateMedicines,
   ApiCreateMedicine,
   ApiDeleteMedicine,
   ApiGetAllMedicines,
   ApiGetMedicineById,
+  ApiGetMedicineStats,
+  ApiGetPriceDistribution,
+  ApiGetUnitUsage,
   ApiSearchMedicines,
   ApiUpdateMedicine,
 } from '../../swagger/medicine.swagger'
-import { CreateMedicineDto, UpdateMedicineDto } from './medicine.dto'
+import {
+  AdvancedSearchDto,
+  BulkCreateMedicineDto,
+  CreateMedicineDto,
+  MedicineStatsQueryDto,
+  PriceDistributionQueryDto,
+  QueryMedicineDto,
+  UnitUsageQueryDto,
+  UpdateMedicineDto,
+} from './medicine.dto'
 import { MedicineService } from './medicine.service'
 
 @ApiBearerAuth()
@@ -36,7 +49,8 @@ export class MedicineController {
   @Roles(Role.Admin, Role.Doctor)
   @ApiGetAllMedicines()
   async getAllMedicines(@Query() query: unknown): Promise<PaginatedResponse<Medicine>> {
-    return this.medicineService.getAllMedicines(query)
+    const validatedQuery = QueryMedicineDto.create(query)
+    return this.medicineService.getAllMedicines(validatedQuery)
   }
 
   @Get('search')
@@ -140,101 +154,23 @@ export class MedicineController {
   })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Number of results per page', example: 10 })
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number for pagination', example: 1 })
-  async advancedSearchMedicines(@Query() query: Record<string, string>) {
-    // Convert string parameters to appropriate types with proper type checking
-    const params: {
-      query?: string
-      minPrice?: number
-      maxPrice?: number
-      unit?: string
-      limit?: number
-      page?: number
-    } = {
-      query: query.query,
-      unit: query.unit,
-      minPrice: query.minPrice ? parseFloat(query.minPrice) : undefined,
-      maxPrice: query.maxPrice ? parseFloat(query.maxPrice) : undefined,
-      limit: query.limit ? parseInt(query.limit, 10) : undefined,
-      page: query.page ? parseInt(query.page, 10) : undefined,
-    }
-
-    return this.medicineService.advancedSearchMedicines(params)
+  async advancedSearchMedicines(@Query() query: unknown) {
+    const validatedQuery = AdvancedSearchDto.create(query)
+    return this.medicineService.advancedSearchMedicines(validatedQuery)
   }
 
   @Post('bulk')
   @Roles(Role.Admin, Role.Doctor)
-  @ApiOperation({
-    summary: 'Create multiple medicines',
-    description:
-      'Bulk create multiple medicines in a single operation. Supports duplicate detection and validation. Ideal for importing medicine catalogs or batch data entry.',
-  })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        medicines: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              name: { type: 'string' },
-              description: { type: 'string' },
-              unit: { type: 'string' },
-              dose: { type: 'string' },
-              price: { type: 'number' },
-            },
-            required: ['name', 'unit', 'dose', 'price'],
-          },
-        },
-        skipDuplicates: { type: 'boolean' },
-      },
-      required: ['medicines'],
-    },
-    examples: {
-      'Bulk Medicine Creation': {
-        summary: 'Example of bulk medicine creation',
-        value: {
-          medicines: [
-            {
-              name: 'Paracetamol 500mg',
-              description: 'Pain reliever and fever reducer',
-              unit: 'tablet',
-              dose: '500mg',
-              price: 5000,
-            },
-            {
-              name: 'Amoxicillin 250mg',
-              description: 'Antibiotic for bacterial infections',
-              unit: 'capsule',
-              dose: '250mg',
-              price: 8000,
-            },
-            {
-              name: 'Ibuprofen 400mg',
-              description: 'Anti-inflammatory medication',
-              unit: 'tablet',
-              dose: '400mg',
-              price: 7500,
-            },
-          ],
-          skipDuplicates: true,
-        },
-      },
-    },
-  })
-  async createManyMedicines(
-    @Body()
-    body: {
-      medicines: Array<{
-        name: string
-        description?: string
-        unit: string
-        dose: string
-        price: number
-      }>
-      skipDuplicates?: boolean
-    },
-  ) {
-    return this.medicineService.createManyMedicines(body.medicines, body.skipDuplicates || false)
+  @ApiBulkCreateMedicines()
+  async createManyMedicines(@Body() body: unknown) {
+    const validatedData = BulkCreateMedicineDto.create(body)
+    return this.medicineService.createManyMedicines(validatedData.medicines, validatedData.skipDuplicates || false)
+  }
+
+  @Get('analytics/stats')
+  @Roles(Role.Admin, Role.Doctor, Role.Staff)
+  @ApiGetMedicineStats()
+  async getMedicineStats() {
+    return this.medicineService.getMedicineUsageStats()
   }
 }
