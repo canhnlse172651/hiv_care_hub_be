@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common'
-import { PrismaService } from 'src/shared/services/prisma.service'
-import { PaginationService } from 'src/shared/services/pagination.service'
 import { Medicine, Prisma } from '@prisma/client'
-import { BaseRepository, PrismaModel } from './base.repository'
-import { createPaginationSchema, PaginatedResponse, PaginationOptions } from 'src/shared/schemas/pagination.schema'
+import { createPaginationSchema, PaginatedResponse, PaginationOptions } from '../shared/schemas/pagination.schema'
+import { PaginationService } from '../shared/services/pagination.service'
+import { PrismaService } from '../shared/services/prisma.service'
 import { z } from 'zod'
+import { BaseRepository, PrismaModel } from './base.repository'
 
 // Zod schemas for Medicine validation
 export const MedicineSearchSchema = z.object({

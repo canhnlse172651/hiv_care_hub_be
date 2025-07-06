@@ -4,6 +4,10 @@ import { SharedErrorHandlingService } from '../../shared/services/error-handling
 import { PaginationService } from '../../shared/services/pagination.service'
 import { PatientTreatmentService } from './patient-treatment.service'
 import { FollowUpAppointmentService } from './services/follow-up-appointment.service'
+import { PatientTreatmentAnalyticsService } from './modules/analytics/patient-treatment-analytics.service'
+import { PatientTreatmentValidationService } from './modules/validation/patient-treatment-validation.service'
+import { PatientTreatmentCoreService } from './modules/core/patient-treatment-core.service'
+import { PatientTreatmentManagementService } from './modules/management/patient-treatment-management.service'
 
 describe('PatientTreatmentService', () => {
   let service: PatientTreatmentService
@@ -20,8 +24,11 @@ describe('PatientTreatmentService', () => {
       findPatientTreatmentById: jest.fn(),
     }
     errorHandlingService = {
-      validateId: jest.fn((id) => id),
-      validateEntityExists: jest.fn((entity) => entity),
+      validateId: jest.fn((id: number | string) => id),
+      validateEntityExists: jest.fn(<T>(entity: T) => entity),
+      handlePrismaError: jest.fn((error) => {
+        throw error
+      }), // Bổ sung mock cho handlePrismaError
     }
     paginationService = {}
     followUpAppointmentService = {}
@@ -33,6 +40,10 @@ describe('PatientTreatmentService', () => {
         { provide: SharedErrorHandlingService, useValue: errorHandlingService },
         { provide: PaginationService, useValue: paginationService },
         { provide: FollowUpAppointmentService, useValue: followUpAppointmentService },
+        { provide: PatientTreatmentAnalyticsService, useValue: {} },
+        { provide: PatientTreatmentValidationService, useValue: {} },
+        { provide: PatientTreatmentCoreService, useValue: {} },
+        { provide: PatientTreatmentManagementService, useValue: {} },
       ],
     }).compile()
 
@@ -44,7 +55,10 @@ describe('PatientTreatmentService', () => {
   })
 
   it('should create new treatment with valid data', async () => {
-    const treatmentData = { patientId: 1, protocolId: 2, doctorId: 3, startDate: '2024-01-01' }
+    // Sử dụng ngày startDate hợp lệ (trong vòng 1 năm)
+    const today = new Date()
+    const startDate = today.toISOString().slice(0, 10) // yyyy-mm-dd
+    const treatmentData = { patientId: 1, protocolId: 2, doctorId: 3, startDate }
     const created = { id: 10, ...treatmentData }
     ;(patientTreatmentRepository.createPatientTreatment as jest.Mock).mockResolvedValue(created)
     const result = await service.createPatientTreatment(treatmentData, 99)
@@ -55,6 +69,101 @@ describe('PatientTreatmentService', () => {
     const treatmentData = { patientId: 1, protocolId: 2, doctorId: 3, startDate: '2024-01-01' }
     ;(patientTreatmentRepository.getActivePatientTreatments as jest.Mock).mockResolvedValue([{ id: 1, protocolId: 2 }])
     await expect(service.createPatientTreatment(treatmentData, 99)).rejects.toThrow('Business rule violation')
+  })
+
+  it('should update treatment successfully', async () => {
+    const treatment = { id: 10, patientId: 1, protocolId: 2, doctorId: 3, startDate: '2024-01-01' }
+    ;(patientTreatmentRepository.updatePatientTreatment as jest.Mock).mockResolvedValue({
+      ...treatment,
+      notes: 'Updated',
+    })
+    const result = await service.updatePatientTreatment(10, { notes: 'Updated' })
+    expect(result.notes).toBe('Updated')
+  })
+
+  it('should throw if treatment not found when updating', async () => {
+    // Đảm bảo mock error cho validateEntityExists để service throw
+    ;(errorHandlingService.validateEntityExists as jest.Mock).mockImplementation(() => {
+      throw new Error('Not found')
+    })
+    ;(patientTreatmentRepository.findPatientTreatmentById as jest.Mock).mockResolvedValue(null)
+    await expect(service.updatePatientTreatment(999, { notes: 'Updated' })).rejects.toThrow('Not found')
+  })
+
+  it('should find treatment by id', async () => {
+    const treatment = { id: 10, patientId: 1 }
+    ;(patientTreatmentRepository.findPatientTreatmentById as jest.Mock).mockResolvedValue(treatment)
+    const result = await service.getPatientTreatmentById(10)
+    expect(result).toEqual(treatment)
+  })
+
+  it('should throw if treatment not found when finding by id', async () => {
+    ;(errorHandlingService.validateEntityExists as jest.Mock).mockImplementation(() => {
+      throw new Error('Not found')
+    })
+    ;(patientTreatmentRepository.findPatientTreatmentById as jest.Mock).mockResolvedValue(null)
+    await expect(service.getPatientTreatmentById(999)).rejects.toThrow('Not found')
+  })
+
+  it('should auto end existing treatments if autoEndExisting=true', async () => {
+    const today = new Date()
+    const startDate = today.toISOString().slice(0, 10)
+    const oldTreatment = { id: 1, protocolId: 2, startDate: '2025-01-01' }
+    ;(patientTreatmentRepository.getActivePatientTreatments as jest.Mock).mockResolvedValueOnce([oldTreatment])
+    ;(patientTreatmentRepository.updatePatientTreatment as jest.Mock).mockResolvedValue({
+      ...oldTreatment,
+      endDate: today,
+    })
+    const treatmentData = { patientId: 1, protocolId: 3, doctorId: 3, startDate }
+    ;(patientTreatmentRepository.createPatientTreatment as jest.Mock).mockResolvedValue({ id: 2, ...treatmentData })
+    const result = await service.createPatientTreatment(treatmentData, 99, true)
+    expect(result.id).toBe(2)
+    expect(patientTreatmentRepository.updatePatientTreatment).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({ endDate: expect.any(Date) }),
+    )
+  })
+
+  it('should throw if startDate is more than 1 year in the past', async () => {
+    const oldDate = new Date(Date.now() - 370 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    const treatmentData = { patientId: 1, protocolId: 2, doctorId: 3, startDate: oldDate }
+    await expect(service.createPatientTreatment(treatmentData, 99)).rejects.toThrow(
+      'Start date cannot be more than 1 year in the past',
+    )
+  })
+
+  it('should throw if startDate is more than 2 years in the future', async () => {
+    const futureDate = new Date(Date.now() + 3 * 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    const treatmentData = { patientId: 1, protocolId: 2, doctorId: 3, startDate: futureDate }
+    await expect(service.createPatientTreatment(treatmentData, 99)).rejects.toThrow(
+      'Start date cannot be more than 2 years in the future',
+    )
+  })
+
+  it('should throw if endDate is before startDate', async () => {
+    const today = new Date()
+    const startDate = today.toISOString().slice(0, 10)
+    const endDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    const treatmentData = { patientId: 1, protocolId: 2, doctorId: 3, startDate, endDate }
+    await expect(service.createPatientTreatment(treatmentData, 99)).rejects.toThrow('End date must be after start date')
+  })
+
+  it('should parse customMedications if stringified JSON', async () => {
+    const today = new Date().toISOString().slice(0, 10)
+    const treatmentData = { patientId: 1, protocolId: 2, doctorId: 3, startDate: today, customMedications: '{"foo":1}' }
+    ;(patientTreatmentRepository.createPatientTreatment as jest.Mock).mockResolvedValue({
+      id: 11,
+      ...treatmentData,
+      customMedications: { foo: 1 },
+    })
+    const result = await service.createPatientTreatment(treatmentData, 99)
+    expect(result.customMedications).toEqual({ foo: 1 })
+  })
+
+  it('should throw if userId is invalid', async () => {
+    const today = new Date().toISOString().slice(0, 10)
+    const treatmentData = { patientId: 1, protocolId: 2, doctorId: 3, startDate: today }
+    await expect(service.createPatientTreatment(treatmentData, 0)).rejects.toThrow('Valid user ID is required')
   })
 
   // Có thể bổ sung thêm test cho autoEndExisting, validate ngày, custom protocol, ...

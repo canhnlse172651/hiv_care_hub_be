@@ -40,6 +40,7 @@ export class MedicineService {
       return this.medicineRepository.createMedicine(data)
     } catch (error) {
       this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.MEDICINE)
+      throw error // Đảm bảo luôn throw lại lỗi để test bắt được
     }
   }
 
@@ -59,12 +60,14 @@ export class MedicineService {
       // If updating name, check if another medicine with same name exists
       if (data.name) {
         const existingMedicine = await this.medicineRepository.findMedicineByName(data.name)
+        // Luôn gọi validateNameUniqueness nếu có existing khác
         this.errorHandlingService.validateNameUniqueness(existingMedicine, data.name, ENTITY_NAMES.MEDICINE, id)
       }
 
       return this.medicineRepository.updateMedicine(id, data)
     } catch (error) {
       this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.MEDICINE)
+      throw error // Đảm bảo luôn throw lại lỗi để test bắt được
     }
 
     return this.medicineRepository.updateMedicine(id, data)
@@ -232,17 +235,46 @@ export class MedicineService {
       sortOrder: 'desc',
     })
     const allMedicines = allMedicinesResult.data
+    // Helper chuyển price về number an toàn
+    function toNumberSafe(price: unknown): number {
+      if (typeof price === 'number') return price
+      if (price && typeof price === 'object' && typeof (price as any).toNumber === 'function') {
+        const num = Number((price as any).toNumber())
+        return isNaN(num) ? 0 : num
+      }
+      const parsed = Number(price)
+      return isNaN(parsed) ? 0 : parsed
+    }
+    // Khi tính toán cost/average: chỉ lấy thuốc có giá là số hợp lệ và > 0 (loại giá 0, NaN, undefined, null, không phải số)
+    const medicinesWithPositivePrice = allMedicines.filter((m) => {
+      const price = m.price
+      if (typeof price === 'number') {
+        return !isNaN(price) && price > 0
+      }
+      if (typeof price === 'string') {
+        const parsed = Number(price)
+        return !isNaN(parsed) && parsed > 0
+      }
+      if (typeof price === 'object' && price !== null && typeof (price as any).toNumber === 'function') {
+        const num = Number((price as any).toNumber())
+        return typeof num === 'number' && !isNaN(num) && num > 0
+      }
+      return false
+    })
     // Fake usage count for demo (should be replaced by real usage if available)
-    const topUsedMedicines = allMedicines
+    const topUsedMedicines = medicinesWithPositivePrice
       .map((m) => ({ medicineId: m.id, medicineName: m.name, usageCount: Math.floor(Math.random() * 100) }))
       .sort((a, b) => b.usageCount - a.usageCount)
       .slice(0, 10)
     // Cost analysis
-    const totalCost = allMedicines.reduce(
-      (sum, m) => sum + (typeof m.price === 'number' ? m.price : Number(m.price) || 0),
-      0,
-    )
-    const averageCost = allMedicines.length > 0 ? totalCost / allMedicines.length : 0
+    const totalCost = medicinesWithPositivePrice.reduce((sum, m) => {
+      if (typeof m.price === 'number') return sum + Number(m.price)
+      if (typeof m.price === 'string') return sum + Number(m.price)
+      if (typeof m.price === 'object' && m.price !== null && typeof (m.price as any).toNumber === 'function')
+        return sum + Number((m.price as any).toNumber())
+      return sum
+    }, 0)
+    const averageCost = medicinesWithPositivePrice.length > 0 ? totalCost / medicinesWithPositivePrice.length : 0
     // Logging
     console.log(`[MedicineService] getMedicineUsageStats executed in ${Date.now() - start}ms`)
     return {

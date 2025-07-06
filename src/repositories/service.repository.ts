@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common'
-import { PrismaService } from '../shared/services/prisma.service'
 import { Prisma } from '@prisma/client'
-import { createPaginationSchema, PaginatedResponse, PaginationOptions } from 'src/shared/schemas/pagination.schema'
-import { ServiceResType } from 'src/routes/service/service.model'
-import { PaginationService } from 'src/shared/services/pagination.service'
-import { QueryServiceSchema } from 'src/routes/service/service.query'
+import { ServiceResType } from '../routes/service/service.model'
+import { QueryServiceSchema } from '../routes/service/service.query'
+import { createPaginationSchema, PaginatedResponse, PaginationOptions } from '../shared/schemas/pagination.schema'
+import { PaginationService } from '../shared/services/pagination.service'
+import { PrismaService } from '../shared/services/prisma.service'
 
 @Injectable()
 export class ServiceRepository {

@@ -1,14 +1,14 @@
 import { Injectable } from '@nestjs/common'
-import { PrismaService } from '../shared/services/prisma.service'
+import { AppointmentStatus, AppointmentType } from '@prisma/client'
 import {
   AppointmentResponseType,
   CreateAppointmentDtoType,
   UpdateAppointmentDtoType,
 } from '../routes/appoinment/appoinment.dto'
-import { PaginationService } from '../shared/services/pagination.service'
+import { AppointmentFilterSchema } from '../routes/appoinment/appoinment.model'
 import { createPaginationSchema, PaginatedResponse, PaginationOptions } from '../shared/schemas/pagination.schema'
-import { AppointmentFilterSchema } from 'src/routes/appoinment/appoinment.model'
-import { AppointmentStatus, AppointmentType } from '@prisma/client'
+import { PaginationService } from '../shared/services/pagination.service'
+import { PrismaService } from '../shared/services/prisma.service'
 
 @Injectable()
 export class AppoinmentRepository {
@@ -183,7 +183,10 @@ export class AppoinmentRepository {
     } as AppointmentResponseType
   }
 
-  async findAppointmentByUserId(id: number, options: PaginationOptions<any>): Promise<PaginatedResponse<AppointmentResponseType>> {
+  async findAppointmentByUserId(
+    id: number,
+    options: PaginationOptions<any>,
+  ): Promise<PaginatedResponse<AppointmentResponseType>> {
     const paginationSchema = createPaginationSchema(AppointmentFilterSchema)
     const validatedOptions = paginationSchema.parse({
       page: options.page?.toString() || '1',
@@ -234,15 +237,13 @@ export class AppoinmentRepository {
       orderBy.createdAt = 'desc'
     }
 
-    return this.paginationService.paginate(
-      this.prisma.appointment,
-      validatedOptions,
-      where,
-      this.includeRelations,
-    )
+    return this.paginationService.paginate(this.prisma.appointment, validatedOptions, where, this.includeRelations)
   }
 
-  async findAppointmentByDoctorId(id: number, options: PaginationOptions<any>): Promise<PaginatedResponse<AppointmentResponseType>> {
+  async findAppointmentByDoctorId(
+    id: number,
+    options: PaginationOptions<any>,
+  ): Promise<PaginatedResponse<AppointmentResponseType>> {
     const paginationSchema = createPaginationSchema(AppointmentFilterSchema)
     const validatedOptions = paginationSchema.parse({
       page: options.page?.toString() || '1',
@@ -295,12 +296,7 @@ export class AppoinmentRepository {
       orderBy.createdAt = 'desc'
     }
 
-    return this.paginationService.paginate(
-      this.prisma.appointment,
-      validatedOptions,
-      where,
-      this.includeRelations,
-    )
+    return this.paginationService.paginate(this.prisma.appointment, validatedOptions, where, this.includeRelations)
   }
 
   async findAppointmentsPaginated(
