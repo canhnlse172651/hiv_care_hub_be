@@ -37,8 +37,13 @@ export class FollowUpAppointmentService {
       }
 
       // 2. Kiểm tra treatment đã có follow-up appointment chưa
-      const existingAppointments = await this.appointmentRepository.findAppointmentByUserId(treatment.patientId)
-      const hasFollowUp = existingAppointments.some(
+      const existingAppointments = await this.appointmentRepository.findAppointmentByUserId(treatment.patientId, {
+        page: 1,
+        limit: 1000,
+        sortOrder: 'asc',
+        // sortBy: 'appointmentTime',
+      })
+      const hasFollowUp = existingAppointments.data.some(
         (apt) =>
           apt.notes?.includes(`Follow-up for treatment ${treatmentId}`) ||
           (apt.appointmentTime >= treatment.startDate && apt.notes?.includes('follow-up')),
@@ -176,9 +181,14 @@ export class FollowUpAppointmentService {
    * Lấy follow-up appointments cho một patient
    */
   async getFollowUpAppointmentsByPatient(patientId: number) {
-    const appointments = await this.appointmentRepository.findAppointmentByUserId(patientId)
+    const appointments = await this.appointmentRepository.findAppointmentByUserId(patientId, {
+      page: 1,
+      limit: 1000,
+      sortOrder: 'asc',
+      // sortBy: 'appointmentTime',
+    })
 
-    return appointments.filter(
+    return appointments.data.filter(
       (apt) => apt.notes?.includes('Follow-up') || apt.notes?.includes('follow-up') || apt.notes?.includes('tái khám'),
     )
   }
