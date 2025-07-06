@@ -300,31 +300,61 @@ export class AppoinmentService {
     return existed
   }
 
-  async findAppointmentByUserId(id: number): Promise<AppointmentResponseType[]> {
+  async findAppointmentByUserId(id: number, query: unknown): Promise<PaginatedResponse<AppointmentResponseType>> {
     const user = await this.userRepository.findUserById(id)
     if (!user) throw new BadRequestException('User not found')
-    const existed = await this.appoinmentRepository.findAppointmentByUserId(id)
+    const { status, type, dateFrom, dateTo, ...rest } = query as any
+    const filters: Record<string, any> = {}
+    if (status !== undefined) filters.status = status
+    if (type !== undefined) filters.type = type
+    if (dateFrom !== undefined) filters.dateFrom = dateFrom
+    if (dateTo !== undefined) filters.dateTo = dateTo
+
+    const newQuery = {
+      ...rest,
+      filters: Object.keys(filters).length > 0 ? JSON.stringify(filters) : undefined,
+    }
+
+    const options = this.paginationService.getPaginationOptions(newQuery)
+    const existed = await this.appoinmentRepository.findAppointmentByUserId(id, options)
     return existed
   }
 
-  async findAppointmentByDoctorId(id: number): Promise<AppointmentResponseType[]> {
+  async findAppointmentByDoctorId(id: number, query: unknown): Promise<PaginatedResponse<AppointmentResponseType>> {
     const doctor = await this.userRepository.findUserById(id)
     if (!doctor) throw new BadRequestException('Doctor not found')
-    const existed = await this.appoinmentRepository.findAppointmentByDoctorId(id)
-    return existed.map((appointment) => {
-      if (appointment.isAnonymous) {
-        return {
-          ...appointment,
-          user: {
-            id: 0,
-            name: 'Ẩn danh',
-            email: '',
-            avatar: '',
-          },
+    const { serviceId, status, type, dateFrom, dateTo, ...rest } = query as any
+    const filters: Record<string, any> = {}
+    if (serviceId !== undefined) filters.serviceId = Number(serviceId)
+    if (status !== undefined) filters.status = status
+    if (type !== undefined) filters.type = type
+    if (dateFrom !== undefined) filters.dateFrom = dateFrom
+    if (dateTo !== undefined) filters.dateTo = dateTo
+
+    const newQuery = {
+      ...rest,
+      filters: Object.keys(filters).length > 0 ? JSON.stringify(filters) : undefined,
+    }
+
+    const options = this.paginationService.getPaginationOptions(newQuery)
+    const result = await this.appoinmentRepository.findAppointmentByDoctorId(id, options)
+    return {
+      ...result,
+      data: result.data = result.data.map((appointment) => {
+        if (appointment.isAnonymous) {
+          return {
+            ...appointment,
+            user: {
+              id: 0,
+              name: 'Ẩn danh',
+              email: '',
+              avatar: '',
+            },
+          }
         }
-      }
-      return appointment
-    })
+        return appointment
+      }),
+    }
   }
 
   async findAppointmentsPaginated(query: unknown): Promise<PaginatedResponse<AppointmentResponseType>> {
