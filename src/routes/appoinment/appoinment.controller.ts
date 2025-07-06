@@ -73,15 +73,15 @@ export class AppoinmentController {
   @ApiFindAppointmentByUserId()
   @Roles(Role.Patient, Role.Admin)
   @Get('user/:id')
-  findAppointmentByUserId(@Param('id', ParseIntPipe) id: number): Promise<AppointmentResponseType[]> {
-    return this.appoinmentService.findAppointmentByUserId(id)
+  findAppointmentByUserId(@Param('id', ParseIntPipe) id: number, @Query() query: unknown): Promise<PaginatedResponse<AppointmentResponseType>> {
+    return this.appoinmentService.findAppointmentByUserId(id, query)
   }
 
   @ApiFindAppointmentByDoctorId()
   @Roles(Role.Doctor, Role.Admin)
   @Get('doctor/:id')
-  findAppointmentByDoctorId(@Param('id', ParseIntPipe) id: number): Promise<AppointmentResponseType[]> {
-    return this.appoinmentService.findAppointmentByDoctorId(id)
+  findAppointmentByDoctorId(@Param('id', ParseIntPipe) id: number, @Query() query: unknown): Promise<PaginatedResponse<AppointmentResponseType>> {
+    return this.appoinmentService.findAppointmentByDoctorId(id, query)
   }
 
   @ApiFindAppointmentsPaginated()
