@@ -24,9 +24,7 @@ yarn install
 ```
 
 3. Tạo file .env trong thư mục gốc và cấu hình các biến môi trường:
-```env`````````````````````````````````````````````````````````````````
-DATABASE_URL="postgresql://hivcarehub_db_user:N79ZtU5SaUHsUkZXXSG2wx530STsdDjw@dpg-d0j3fop5pdvs73ekvs9g-a.oregon-postgres.render.com/hivcarehub_db"
-
+DATABASE_URL="postgresql://admin:O7RRqHqRduxpYAaYvxUqNdmP2Xg959Ip@dpg-d17dhah5pdvs7388kaq0-a.singapore-postgres.render.com/hivcarehub_database"
 # JWT Configuration
 ACCESS_TOKEN_SECRET="your-access-token-secret-key-here"
 ACCESS_TOKEN_EXPIRES_IN="15m"
@@ -35,6 +33,27 @@ REFRESH_TOKEN_EXPIRES_IN="7d"
 
 # API Security
 SECRET_API_KEY="your-api-key-here"
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_SECURE=false
+EMAIL_USER=canhnlse172651@gmail.com
+EMAIL_PASSWORD=clhi zaaz wxwv kkvx
+EMAIL_FROM=canhnlse172651@gmail.com
+
+OTP_EXPIRES_IN=5m
+
+RESEND_API_KEY="re_3k3F9bUd_JRHiB6bLn4wb4s5AtUvUJUaJ"
+
+GOOGLE_CLIENT_ID=1068154433719-sfci8raqgqkeaht84shgakel7ba5hs8r.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=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
+GOOGLE_REDIRECT_URI=http://localhost:5173/auth/google/callback
+GOOGLE_CLIENT_REDIRECT_URI=http://localhost:5173/oauth-google-callback
+
+APP_NAME="WDP_Be"
+
+PREFIX_STATIC_ENDPOINT=http://localhost:3000/media/static
+
+
 `````````````````````````````````````````````````````````````````````````
 
 4. Cài đặt và đồng bộ Prisma:
@@ -105,33 +124,5 @@ Sau khi chạy seed, các tài khoản sau sẽ được tạo:
 
 
 
-
-some infor to access DB host 
-
-PORT = 5432
-
-Database = hivcarehub_db
-
-Username = hivcarehub_db_user
-
-Password = N79ZtU5SaUHsUkZXXSG2wx530STsdDjw
-
-External Database URL = postgresql://hivcarehub_db_user:N79ZtU5SaUHsUkZXXSG2wx530STsdDjw@dpg-d0j3fop5pdvs73ekvs9g-a.oregon-postgres.render.com/hivcarehub_db
-
-
-
-
-rule of create branch name on github
-
-Every one follow this format
-
-this system has 4 role (staff,admin,client,doctor)
-type : feature/bugfix/hotfix/release
-name : name of feature (short) 
-des  : explain detail the des of isuue  
-
-role-{type}/{name/des}  
--> ex : admin-feature/manage-user
--> ex : doctor-bugfix/change-shift-error
 
 

@@ -2,6 +2,7 @@ import { createZodDto } from 'nestjs-zod';
 import { 
   CreateRoleSchema, 
   QueryRoleSchema, 
+  UpdateRoleSchema,
   UpdateRolePermissionsSchema, 
   UpdateUserRolesSchema,
   UpdateUserRoleSchema
@@ -11,6 +12,13 @@ import {
 export class CreateRoleDto extends createZodDto(CreateRoleSchema) {
   static create(data: unknown) {
     return CreateRoleSchema.parse(data);
+  }
+}
+
+// Update Role DTO
+export class UpdateRoleDto extends createZodDto(UpdateRoleSchema) {
+  static create(data: unknown) {
+    return UpdateRoleSchema.parse(data);
   }
 }
 

@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common'
 import { PrismaService } from 'src/shared/services/prisma.service'
-import { RegisterBodyType, RegisterResType} from '../routes/auth/auth.model'
-import { User } from '@prisma/client'
+import { RegisterBodyType, RegisterResType, UserType } from '../routes/auth/auth.model'
 import { UserResponseType } from '../routes/user/user.dto'
 import { UserWithPasswordType } from '../routes/auth/auth.model'
+import { User } from '@prisma/client'
 @Injectable()
 export class AuthRepository {
   constructor(private readonly prismaService: PrismaService) {}
@@ -13,7 +13,9 @@ export class AuthRepository {
     return this.prismaService.user
   }
 
-  async createUser(user: Omit<RegisterBodyType, 'confirmPassword'> & { roleId: number }): Promise<RegisterResType> {
+  async createUser(
+    user: Omit<RegisterBodyType, 'confirmPassword' | 'code'> & { roleId: number },
+  ): Promise<RegisterResType> {
     return this.prismaService.user.create({
       data: user,
       select: {
@@ -30,7 +32,26 @@ export class AuthRepository {
         createdAt: true,
         updatedAt: true,
       },
-    })
+    }) as Promise<RegisterResType>
+  }
+
+  async createUserInclueRole(
+    user: Pick<UserType, 'email' | 'name' | 'password' | 'phoneNumber' | 'avatar' | 'roleId'>,
+  ): Promise<
+    UserType & { role: { name: string; id: number; description: string; isActive: boolean; permissions: any[] } }
+  > {
+    return this.prismaService.user.create({
+      data: user,
+      include: {
+        role: {
+          include: {
+            permissions: true,
+          },
+        },
+      },
+    }) as Promise<
+      UserType & { role: { name: string; id: number; description: string; isActive: boolean; permissions: any[] } }
+    >
   }
 
   async findUserByEmail(email: string): Promise<UserWithPasswordType | null> {
@@ -56,11 +77,11 @@ export class AuthRepository {
         updatedAt: true,
         role: {
           select: {
-            name: true
-          }
-        }
+            name: true,
+          },
+        },
       },
-    })
+    }) as Promise<UserWithPasswordType | null>
   }
 
   async findUserById(id: number): Promise<UserResponseType | null> {
@@ -76,13 +97,48 @@ export class AuthRepository {
         roleId: true,
         status: true,
         avatar: true,
+        totpSecret: true,
         createdById: true,
         updatedById: true,
         deletedAt: true,
         createdAt: true,
         updatedAt: true,
       },
-    })
+    }) as Promise<UserResponseType | null>
+  }
+
+  async findUserByIdWithDoctorId(id: number): Promise<(UserResponseType & { doctorId?: number }) | null> {
+    const user = (await this.prismaService.user.findFirst({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        phoneNumber: true,
+        roleId: true,
+        status: true,
+        avatar: true,
+        totpSecret: true,
+        createdById: true,
+        updatedById: true,
+        deletedAt: true,
+        createdAt: true,
+        updatedAt: true,
+        doctor: {
+          select: {
+            id: true,
+          },
+        },
+      },
+    })) as (UserResponseType & { doctor?: { id: number } }) | null
+
+    if (!user) return null
+
+    const { doctor, ...rest } = user
+    return {
+      ...rest,
+      doctorId: doctor?.id,
+    }
   }
 
   async createRefreshToken(data: { token: string; userId: number; expiresAt: Date }) {
@@ -184,7 +240,7 @@ export class AuthRepository {
         createdAt: true,
         updatedAt: true,
       },
-    })
+    }) as Promise<UserResponseType>
   }
 
   async deleteUser(id: number): Promise<UserResponseType> {
@@ -208,7 +264,7 @@ export class AuthRepository {
         createdAt: true,
         updatedAt: true,
       },
-    })
+    }) as Promise<UserResponseType>
   }
 
   async restoreUser(id: number): Promise<UserResponseType> {
@@ -232,7 +288,7 @@ export class AuthRepository {
         createdAt: true,
         updatedAt: true,
       },
-    })
+    }) as Promise<UserResponseType>
   }
 
   async updateUser(id: number, data: Partial<User>): Promise<UserResponseType> {
@@ -254,6 +310,52 @@ export class AuthRepository {
         createdAt: true,
         updatedAt: true,
       },
+    }) as Promise<UserResponseType>
+  }
+
+  async createVerificationCode(data: {
+    email: string
+    code: string
+    type: 'FORGOT_PASSWORD' | 'REGISTER' | 'DISABLE_2FA' | 'LOGIN'
+    expiresAt: Date
+  }) {
+    return this.prismaService.verificationCode.upsert({
+      where: {
+        email_type: {
+          email: data.email,
+          type: data.type,
+        },
+      },
+      create: {
+        email: data.email,
+        code: data.code,
+        type: data.type,
+        expiresAt: data.expiresAt,
+      },
+      update: {
+        code: data.code,
+        expiresAt: data.expiresAt,
+      },
+    })
+  }
+
+  async findVerificationCode(uniqueValue: {
+    email: string
+    type: 'FORGOT_PASSWORD' | 'REGISTER' | 'DISABLE_2FA' | 'LOGIN'
+    code?: string
+  }) {
+    return this.prismaService.verificationCode.findFirst({
+      where: uniqueValue,
+    })
+  }
+
+  async deleteVerificationCode(uniqueValue: {
+    email: string
+    type: 'FORGOT_PASSWORD' | 'REGISTER' | 'DISABLE_2FA' | 'LOGIN'
+    code?: string
+  }) {
+    return this.prismaService.verificationCode.deleteMany({
+      where: uniqueValue,
     })
   }
 }

@@ -27,7 +27,7 @@ import { PaginatedResponse } from 'src/shared/schemas/pagination.schema'
 @ApiBearerAuth()
 @Controller('cate-blogs')
 @Auth([AuthType.Bearer])
-@Roles(Role.Admin)
+@Roles(Role.Admin, Role.Staff)
 export class CateBlogController {
   constructor(private readonly cateBlogService: CateBlogService) {}
 

@@ -1,10 +1,11 @@
-import { Injectable } from '@nestjs/common'
+import { BadRequestException, Injectable } from '@nestjs/common'
 import { TreatmentProtocol } from '@prisma/client'
 import { TreatmentProtocolRepository } from '../../repositories/treatment-protocol.repository'
 import { ENTITY_NAMES } from '../../shared/constants/api.constants'
 import { PaginatedResponse } from '../../shared/schemas/pagination.schema'
 import { SharedErrorHandlingService } from '../../shared/services/error-handling.service'
 import { PaginationService } from '../../shared/services/pagination.service'
+import { TreatmentProtocolAnalyticsService } from './modules/analytics.service'
 import { CreateTreatmentProtocol, UpdateTreatmentProtocol } from './treatment-protocol.model'
 
 @Injectable()
@@ -13,6 +14,7 @@ export class TreatmentProtocolService {
     private readonly treatmentProtocolRepository: TreatmentProtocolRepository,
     private readonly paginationService: PaginationService,
     private readonly errorHandlingService: SharedErrorHandlingService,
+    private readonly analyticsService: TreatmentProtocolAnalyticsService,
   ) {}
 
   // Create new treatment protocol with enhanced validation
@@ -26,7 +28,7 @@ export class TreatmentProtocolService {
       })
 
       if (!validation.isValid) {
-        throw new Error(`Validation failed: ${validation.errors.join(', ')}`)
+        throw new BadRequestException(`Validation failed: ${validation.errors.join(', ')}`)
       }
 
       // Log warnings if any
@@ -40,6 +42,11 @@ export class TreatmentProtocolService {
         updatedById: userId,
       })
     } catch (error) {
+      // If it's already an HTTP exception, re-throw it
+      if (error instanceof BadRequestException) {
+        throw error
+      }
+      // Handle other errors (like Prisma errors)
       this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.TREATMENT_PROTOCOL)
     }
   }
@@ -525,6 +532,44 @@ export class TreatmentProtocolService {
       protocolId: id,
       protocolName: protocol.name,
       ...costCalculation,
+    }
+  }
+
+  // ===============================
+  // STATISTICS AND ANALYTICS FOR TREATMENT PROTOCOL
+  // ===============================
+
+  /**
+   * Get protocol usage and cost analytics (top protocols, cost, usage rate)
+   */
+  async getTreatmentProtocolAnalytics(): Promise<{
+    totalProtocols: number
+    topProtocols: Array<{
+      protocolId: number
+      protocolName: string
+      usageCount: number
+    }>
+    totalCost: number
+    averageCost: number
+  }> {
+    const start = Date.now()
+    // Get all protocols (pagination with large limit)
+    const allProtocolsResult = await this.paginationService.paginate(
+      this.treatmentProtocolRepository.getTreatmentProtocolModel(),
+      { page: 1, limit: 10000, sortOrder: 'desc' },
+      {},
+      {},
+    )
+    const allProtocols = allProtocolsResult.data as Array<{ id: number; name: string }>
+    // Sử dụng submodule analytics
+    const topProtocols = this.analyticsService.getTopProtocols(allProtocols)
+    const { totalCost, averageCost } = this.analyticsService.getCostAnalysis(allProtocols)
+    console.log(`[TreatmentProtocolService] getTreatmentProtocolAnalytics executed in ${Date.now() - start}ms`)
+    return {
+      totalProtocols: allProtocols.length,
+      topProtocols,
+      totalCost,
+      averageCost,
     }
   }
 }

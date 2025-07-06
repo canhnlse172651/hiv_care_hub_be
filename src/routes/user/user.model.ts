@@ -21,9 +21,9 @@ export const UserSchema = z.object({
 // Create User Schema
 export const CreateUserSchema = z.object({
   email: z.string().email(),
-  name: z.string().min(3).max(100),
-  password: z.string().min(6).max(100),
-  phoneNumber: z.string().min(9).max(15),
+  name: z.string().min(3).max(100).optional(),
+  password: z.string().min(6).max(100).optional(),
+  phoneNumber: z.string().min(9).max(15).optional(),
   roleId: z.number().positive(),
 })
 
@@ -48,6 +48,7 @@ export const UserResSchema = z.object({
   createdAt: z.date(),
   updatedAt: z.date(),
   deletedAt: z.date().nullable(),
+  totpSecret: z.string().nullable(),
 })
 
 // Query User Schema

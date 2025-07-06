@@ -72,9 +72,6 @@ export class PermissionService {
         updateData.name = `${newMethod} ${newPath}`.replace(/\//g, ' ').trim()
       }
 
-      // Remove isActive field if it exists
-      delete updateData.isActive
-
       const updatedPermission = await this.permissionRepository.updatePermission(id, updateData)
 
       return updatedPermission
