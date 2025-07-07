@@ -238,18 +238,25 @@ export const ApiCreateDoctor = () => {
     ApiBody({
       schema: {
         type: 'object',
-        required: ['userId', 'name'],
+        required: ['userId'],
         properties: {
           userId: {
             type: 'number',
             description: 'User ID associated with the doctor',
             example: 1,
           },
-
           specialization: {
             type: 'string',
             description: 'Medical specialization of the doctor (optional)',
             example: 'Cardiology',
+          },
+          certifications: {
+            type: 'array',
+            items: {
+              type: 'string',
+            },
+            description: 'List of doctor certifications (optional)',
+            example: ['Medical License', 'Board Certification'],
           },
         },
       },
@@ -265,7 +272,7 @@ export const ApiCreateDoctor = () => {
     }),
     ApiResponse({
       status: 409,
-      description: 'Doctor with this email already exists',
+      description: 'Doctor with this user ID already exists',
     }),
   )
 }
@@ -295,13 +302,6 @@ export const ApiUpdateDoctor = () => {
             },
             description: 'List of doctor certifications',
             example: ['Medical License', 'Board Certification'],
-          },
-          maxShiftsPerDay: {
-            type: 'number',
-            description: 'Maximum number of shifts per day',
-            example: 2,
-            minimum: 1,
-            maximum: 3,
           },
         },
       },
@@ -659,16 +659,22 @@ export const ApiGetDoctorSchedule = () => {
 
 export const ApiAssignDoctorsManually = () => {
   return applyDecorators(
-    ApiOperation({ summary: 'Manually assign doctors to remaining shifts' }),
+    ApiOperation({ summary: 'Manually assign a doctor to a specific date and shift' }),
     ApiBody({
       schema: {
         type: 'object',
-        required: ['date', 'shift', 'doctorIds', 'doctorsPerShift'],
+        required: ['doctorId', 'date', 'shift'],
         properties: {
+          doctorId: {
+            type: 'number',
+            description: 'ID of the doctor to assign',
+            example: 1,
+            minimum: 1,
+          },
           date: {
             type: 'string',
             format: 'date-time',
-            description: 'Date of the shift',
+            description: 'Date of the shift (cannot be in the past)',
             example: '2024-03-20T00:00:00.000Z',
           },
           shift: {
@@ -677,55 +683,42 @@ export const ApiAssignDoctorsManually = () => {
             description: 'Shift to assign (MORNING or AFTERNOON)',
             example: 'MORNING',
           },
-          doctorIds: {
-            type: 'array',
-            items: {
-              type: 'number',
-            },
-            description: 'Array of doctor IDs to assign',
-            example: [1, 2],
-            minItems: 1,
-            maxItems: 5,
-          },
-          doctorsPerShift: {
-            type: 'number',
-            description: 'Number of doctors required per shift (should match the value from generate schedule)',
-            example: 2,
-            minimum: 1,
-          },
         },
       },
     }),
     ApiResponse({
       status: 200,
-      description: 'Doctors assigned successfully',
+      description: 'Doctor assigned successfully',
       schema: {
         type: 'object',
         properties: {
           message: {
             type: 'string',
-            example: 'Doctors assigned successfully',
+            example: 'Doctor assigned successfully',
           },
-          assignments: {
-            type: 'array',
-            items: DoctorScheduleResponseSchema,
-          },
-          remainingShifts: {
-            type: 'number',
-            example: 2,
-            description: 'Number of remaining shifts after assignment',
-          },
-          doctorsPerShift: {
-            type: 'number',
-            example: 2,
-            description: 'Number of doctors required per shift',
+          assignment: {
+            type: 'object',
+            properties: {
+              id: { type: 'number', example: 1 },
+              doctorId: { type: 'number', example: 1 },
+              date: { type: 'string', format: 'date-time', example: '2024-03-20T00:00:00.000Z' },
+              shift: { type: 'string', enum: ['MORNING', 'AFTERNOON'], example: 'MORNING' },
+              dayOfWeek: { type: 'string', enum: ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'], example: 'WEDNESDAY' },
+              doctor: {
+                type: 'object',
+                properties: {
+                  id: { type: 'number', example: 1 },
+                  specialization: { type: 'string', example: 'Cardiology' },
+                },
+              },
+            },
           },
         },
       },
     }),
     ApiResponse({
       status: 400,
-      description: 'Invalid request - Date in past, shift not in remaining shifts, or too many doctors assigned',
+      description: 'Invalid request - Date in past, doctor not found, or doctor already assigned to this shift',
     }),
     ApiResponse({
       status: 401,
