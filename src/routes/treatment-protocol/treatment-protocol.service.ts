@@ -98,7 +98,7 @@ export class TreatmentProtocolService {
     const deleteValidation = await this.treatmentProtocolRepository.validateProtocolCanBeDeleted(id)
 
     if (!deleteValidation.canDelete) {
-      throw new Error(
+      throw new BadRequestException(
         `Cannot delete treatment protocol: ${deleteValidation.activePatientTreatments} active patient treatments are using this protocol. ` +
           `Total treatments using this protocol: ${deleteValidation.totalPatientTreatments}`,
       )

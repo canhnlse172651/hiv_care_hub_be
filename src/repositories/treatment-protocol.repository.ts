@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common'
 import { MedicationSchedule, Prisma, ProtocolMedicine, TreatmentProtocol } from '@prisma/client'
-import { PaginatedResponse } from 'src/shared/schemas/pagination.schema'
-import { PaginationService } from 'src/shared/services/pagination.service'
-import { PrismaService } from 'src/shared/services/prisma.service'
 import { z } from 'zod'
+import { PaginatedResponse } from '../shared/schemas/pagination.schema'
+import { PaginationService } from '../shared/services/pagination.service'
+import { PrismaService } from '../shared/services/prisma.service'
 
 export const ProtocolMedicineSchema = z.object({
   medicineId: z.number().positive('Medicine ID must be positive'),

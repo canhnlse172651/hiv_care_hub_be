@@ -161,11 +161,16 @@ export const PriceRangeSchema = z
 export const AdvancedSearchSchema = z
   .object({
     query: z.string().min(1, 'Search query is required').max(255, 'Search query is too long').trim().optional(),
-    minPrice: z.number().min(0, 'Minimum price must be non-negative').optional(),
-    maxPrice: z.number().min(0, 'Maximum price must be non-negative').optional(),
+    minPrice: z.string().transform(Number).pipe(z.number().min(0, 'Minimum price must be non-negative')).optional(),
+    maxPrice: z.string().transform(Number).pipe(z.number().min(0, 'Maximum price must be non-negative')).optional(),
     unit: z.string().min(1, 'Unit filter cannot be empty').trim().toLowerCase().optional(),
-    limit: z.number().min(1, 'Limit must be at least 1').max(100, 'Limit cannot exceed 100').optional().default(10),
-    page: z.number().min(1, 'Page must be at least 1').optional().default(1),
+    limit: z
+      .string()
+      .transform(Number)
+      .pipe(z.number().min(1, 'Limit must be at least 1').max(100, 'Limit cannot exceed 100'))
+      .optional()
+      .default('10'),
+    page: z.string().transform(Number).pipe(z.number().min(1, 'Page must be at least 1')).optional().default('1'),
   })
   .refine(
     (data) => {

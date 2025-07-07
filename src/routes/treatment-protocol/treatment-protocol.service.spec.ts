@@ -17,6 +17,13 @@ describe('TreatmentProtocolService Analytics', () => {
         }),
       } as any,
       {} as any,
+      {
+        getTopProtocols: jest.fn().mockReturnValue([
+          { protocolId: 1, protocolName: 'P1', usageCount: 50 },
+          { protocolId: 2, protocolName: 'P2', usageCount: 30 },
+        ]),
+        getCostAnalysis: jest.fn().mockReturnValue({ totalCost: 2000, averageCost: 1000 }),
+      } as any,
     )
   })
 

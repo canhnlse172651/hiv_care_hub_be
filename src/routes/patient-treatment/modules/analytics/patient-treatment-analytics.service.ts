@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { Injectable, BadRequestException, InternalServerErrorException, ConflictException } from '@nestjs/common'
 import { PatientTreatmentRepository } from '../../../../repositories/patient-treatment.repository'
 
 @Injectable()
@@ -35,8 +35,7 @@ export class PatientTreatmentAnalyticsService {
 
       return stats
     } catch (error) {
-      console.error('Error getting patient treatment stats:', error)
-      throw error
+      throw new InternalServerErrorException('Error getting patient treatment stats')
     }
   }
 
@@ -67,8 +66,7 @@ export class PatientTreatmentAnalyticsService {
 
       return stats
     } catch (error) {
-      console.error('Error getting doctor workload stats:', error)
-      throw error
+      throw new InternalServerErrorException('Error getting doctor workload stats')
     }
   }
 
@@ -89,8 +87,7 @@ export class PatientTreatmentAnalyticsService {
         averageCostIncrease: 0,
       })
     } catch (error) {
-      console.error('Error getting custom medication stats:', error)
-      throw error
+      throw new InternalServerErrorException('Error getting custom medication stats')
     }
   }
 
@@ -113,8 +110,7 @@ export class PatientTreatmentAnalyticsService {
         effectivenessComparison: {},
       })
     } catch (error) {
-      console.error('Error comparing protocol vs custom treatments:', error)
-      throw error
+      throw new InternalServerErrorException('Error comparing protocol vs custom treatments')
     }
   }
 
@@ -136,8 +132,7 @@ export class PatientTreatmentAnalyticsService {
         adherenceScore: 'Good',
       })
     } catch (error) {
-      console.error('Error getting treatment compliance stats:', error)
-      throw error
+      throw new InternalServerErrorException('Error getting treatment compliance stats')
     }
   }
 
@@ -179,8 +174,7 @@ export class PatientTreatmentAnalyticsService {
 
       return analysis
     } catch (error) {
-      console.error('Error getting treatment cost analysis:', error)
-      throw error
+      throw new InternalServerErrorException('Error getting treatment cost analysis')
     }
   }
 
@@ -228,7 +222,6 @@ export class PatientTreatmentAnalyticsService {
         warnings: [],
       }
     } catch (error) {
-      console.error('Error calculating treatment cost:', error)
       return {
         isValid: false,
         calculatedTotal: 0,
@@ -326,8 +319,7 @@ export class PatientTreatmentAnalyticsService {
         monthlyTrends,
       }
     } catch (error) {
-      console.error('Error getting general treatment stats:', error)
-      throw error
+      throw new InternalServerErrorException('Error getting general treatment stats')
     }
   }
 }

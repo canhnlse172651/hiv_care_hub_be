@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
-import { PrismaService } from 'src/shared/services/prisma.service'
-import { Doctor, DoctorSchedule, Shift, DayOfWeek, Prisma } from '@prisma/client'
+import { DayOfWeek, Doctor, DoctorSchedule, Prisma, Shift } from '@prisma/client'
+import { PrismaService } from '../shared/services/prisma.service'
 
 @Injectable()
 export class DoctorRepository {
