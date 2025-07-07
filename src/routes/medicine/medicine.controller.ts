@@ -13,8 +13,6 @@ import {
   ApiGetAllMedicines,
   ApiGetMedicineById,
   ApiGetMedicineStats,
-  ApiGetPriceDistribution,
-  ApiGetUnitUsage,
   ApiSearchMedicines,
   ApiUpdateMedicine,
 } from '../../swagger/medicine.swagger'
@@ -22,10 +20,7 @@ import {
   AdvancedSearchDto,
   BulkCreateMedicineDto,
   CreateMedicineDto,
-  MedicineStatsQueryDto,
-  PriceDistributionQueryDto,
   QueryMedicineDto,
-  UnitUsageQueryDto,
   UpdateMedicineDto,
 } from './medicine.dto'
 import { MedicineService } from './medicine.service'

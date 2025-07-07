@@ -7,6 +7,7 @@ import {
   GetDoctorScheduleSchema,
   GenerateScheduleSchema,
   GetDoctorByDateSchema,
+  ManualScheduleAssignmentSchema,
 } from './doctor.model'
 
 // Create Doctor DTO
@@ -29,3 +30,6 @@ export class GenerateScheduleDto extends createZodDto(GenerateScheduleSchema) {}
 
 // Get Doctor By Date DTO
 export class GetDoctorByDateDto extends createZodDto(GetDoctorByDateSchema) {}
+
+// Manual Schedule Assignment DTO
+export class ManualScheduleAssignmentDto extends createZodDto(ManualScheduleAssignmentSchema) {}
