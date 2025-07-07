@@ -43,9 +43,20 @@ export class MedicineController {
   @Get()
   @Roles(Role.Admin, Role.Doctor)
   @ApiGetAllMedicines()
-  async getAllMedicines(@Query() query: unknown): Promise<PaginatedResponse<Medicine>> {
-    const validatedQuery = QueryMedicineDto.create(query)
-    return this.medicineService.getAllMedicines(validatedQuery)
+  async getAllMedicines(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('sortBy') sortBy?: string,
+    @Query('sortOrder') sortOrder?: string,
+  ): Promise<PaginatedResponse<Medicine>> {
+    return this.medicineService.getAllMedicines({
+      page: page ? Number(page) : 1,
+      limit: limit ? Number(limit) : 10,
+      search,
+      sortBy: sortBy || 'createdAt',
+      sortOrder: sortOrder || 'desc',
+    })
   }
 
   @Get('search')
@@ -149,9 +160,22 @@ export class MedicineController {
   })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Number of results per page', example: 10 })
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number for pagination', example: 1 })
-  async advancedSearchMedicines(@Query() query: unknown) {
-    const validatedQuery = AdvancedSearchDto.create(query)
-    return this.medicineService.advancedSearchMedicines(validatedQuery)
+  async advancedSearchMedicines(
+    @Query('query') query?: string,
+    @Query('minPrice') minPrice?: string,
+    @Query('maxPrice') maxPrice?: string,
+    @Query('unit') unit?: string,
+    @Query('limit') limit?: string,
+    @Query('page') page?: string,
+  ) {
+    return this.medicineService.advancedSearchMedicines({
+      query,
+      minPrice: minPrice ? Number(minPrice) : undefined,
+      maxPrice: maxPrice ? Number(maxPrice) : undefined,
+      unit,
+      limit: limit ? Number(limit) : 10,
+      page: page ? Number(page) : 1,
+    })
   }
 
   @Post('bulk')

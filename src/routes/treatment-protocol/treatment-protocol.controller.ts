@@ -60,7 +60,6 @@ export class TreatmentProtocolController {
   @Roles(Role.Admin, Role.Doctor, Role.Staff)
   @ApiGetAllTreatmentProtocols()
   async getAllTreatmentProtocols(@Query() query: unknown): Promise<PaginatedResponse<TreatmentProtocol>> {
-    // Don't validate here, let service handle pagination validation
     return this.treatmentProtocolService.getAllTreatmentProtocols(query)
   }
 
