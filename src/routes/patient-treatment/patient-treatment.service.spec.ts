@@ -160,10 +160,27 @@ describe('PatientTreatmentService', () => {
     expect(result.customMedications).toEqual({ foo: 1 })
   })
 
+  it('should parse customMedications if object', async () => {
+    const today = new Date().toISOString().slice(0, 10)
+    const treatmentData = { patientId: 2, protocolId: 3, doctorId: 4, startDate: today, customMedications: { bar: 2 } }
+    ;(patientTreatmentRepository.createPatientTreatment as jest.Mock).mockResolvedValue({
+      id: 12,
+      ...treatmentData,
+    })
+    const result = await service.createPatientTreatment(treatmentData, 100)
+    expect(result.customMedications).toEqual({ bar: 2 })
+  })
+
   it('should throw if userId is invalid', async () => {
     const today = new Date().toISOString().slice(0, 10)
     const treatmentData = { patientId: 1, protocolId: 2, doctorId: 3, startDate: today }
     await expect(service.createPatientTreatment(treatmentData, 0)).rejects.toThrow('Valid user ID is required')
+  })
+
+  it('should throw when updating treatment with invalid notes (too long)', async () => {
+    const longNotes = 'a'.repeat(2001) // giả sử giới hạn là 2000 ký tự
+    ;(patientTreatmentRepository.findPatientTreatmentById as jest.Mock).mockResolvedValue({ id: 13 })
+    await expect(service.updatePatientTreatment(13, { notes: longNotes })).rejects.toThrow()
   })
 
   // Có thể bổ sung thêm test cho autoEndExisting, validate ngày, custom protocol, ...

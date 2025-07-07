@@ -4,6 +4,7 @@ import {
   Injectable,
   InternalServerErrorException,
   NotFoundException,
+  HttpException,
 } from '@nestjs/common'
 import { PatientTreatment, Prisma } from '@prisma/client'
 import { ZodError } from 'zod'
@@ -230,32 +231,21 @@ export class PatientTreatmentCoreService {
 
       return newTreatment
     } catch (error) {
-      // Re-throw known errors
       if (
         error instanceof BadRequestException ||
         error instanceof ConflictException ||
         error instanceof NotFoundException ||
-        error instanceof InternalServerErrorException
+        error instanceof InternalServerErrorException ||
+        error instanceof HttpException
       ) {
         throw error
       }
-
-      // Handle unexpected errors
-      console.error('Unexpected error creating patient treatment:', error)
       throw new InternalServerErrorException('An unexpected error occurred while creating patient treatment')
     }
   }
 
   // Get all patient treatments with pagination
-  async getAllPatientTreatments(query: {
-    page: number
-    limit: number
-    search?: string
-    sortBy?: string
-    sortOrder?: string
-    startDate?: string
-    endDate?: string
-  }): Promise<PaginatedResponse<PatientTreatment>> {
+  async getAllPatientTreatments(query: any): Promise<PaginatedResponse<PatientTreatment>> {
     try {
       const { page = 1, limit = 10, search, sortBy = 'createdAt', sortOrder = 'desc', startDate, endDate } = query
 
@@ -300,22 +290,12 @@ export class PatientTreatmentCoreService {
         },
       }
     } catch (error) {
-      console.error('Error getting all patient treatments:', error)
-      throw error
+      throw new InternalServerErrorException('Error getting all patient treatments')
     }
   }
 
   // Get patient treatments by patient ID
-  async getPatientTreatmentsByPatientId(query: {
-    patientId: number
-    page: number
-    limit: number
-    sortBy?: string
-    sortOrder?: string
-    includeCompleted?: boolean
-    startDate?: string
-    endDate?: string
-  }): Promise<PaginatedResponse<PatientTreatment>> {
+  async getPatientTreatmentsByPatientId(query: any): Promise<PaginatedResponse<PatientTreatment>> {
     try {
       const { patientId, page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' } = query
 
@@ -340,17 +320,12 @@ export class PatientTreatmentCoreService {
         },
       }
     } catch (error) {
-      console.error('Error getting patient treatments by patient ID:', error)
-      throw error
+      throw new InternalServerErrorException('Error getting patient treatments by patient ID')
     }
   }
 
   // Get patient treatments by doctor ID
-  async getPatientTreatmentsByDoctorId(query: {
-    doctorId: number
-    page: number
-    limit: number
-  }): Promise<PaginatedResponse<PatientTreatment>> {
+  async getPatientTreatmentsByDoctorId(query: any): Promise<PaginatedResponse<PatientTreatment>> {
     try {
       const { doctorId, page = 1, limit = 10 } = query
 
@@ -375,8 +350,7 @@ export class PatientTreatmentCoreService {
         },
       }
     } catch (error) {
-      console.error('Error getting patient treatments by doctor ID:', error)
-      throw error
+      throw new InternalServerErrorException('Error getting patient treatments by doctor ID')
     }
   }
 
@@ -405,8 +379,7 @@ export class PatientTreatmentCoreService {
         },
       }
     } catch (error) {
-      console.error('Error searching patient treatments:', error)
-      throw error
+      throw new InternalServerErrorException('Error searching patient treatments')
     }
   }
 
@@ -415,19 +388,12 @@ export class PatientTreatmentCoreService {
     try {
       return await this.patientTreatmentRepository.getPatientTreatmentsByDateRange(startDate, endDate)
     } catch (error) {
-      console.error('Error getting patient treatments by date range:', error)
-      throw error
+      throw new InternalServerErrorException('Error getting patient treatments by date range')
     }
   }
 
   // Get active patient treatments
-  async getActivePatientTreatments(query: {
-    page: number
-    limit: number
-    patientId?: number
-    doctorId?: number
-    protocolId?: number
-  }): Promise<PaginatedResponse<PatientTreatment>> {
+  async getActivePatientTreatments(query: any): Promise<PaginatedResponse<PatientTreatment>> {
     try {
       const { page = 1, limit = 10, patientId, doctorId, protocolId } = query
 
@@ -466,18 +432,16 @@ export class PatientTreatmentCoreService {
         },
       }
     } catch (error) {
-      console.error('Error getting active patient treatments:', error)
-      throw error
+      throw new InternalServerErrorException('Error getting active patient treatments')
     }
   }
 
   // Get active patient treatments by patient
-  async getActivePatientTreatmentsByPatient(patientId: number): Promise<(PatientTreatment & { isCurrent: boolean })[]> {
+  async getActivePatientTreatmentsByPatient(patientId: number): Promise<any[]> {
     try {
       return await this.patientTreatmentRepository.getActivePatientTreatmentsByPatientId(patientId)
     } catch (error) {
-      console.error('Error getting active patient treatments by patient:', error)
-      throw error
+      throw new InternalServerErrorException('Error getting active patient treatments by patient')
     }
   }
 
@@ -490,8 +454,7 @@ export class PatientTreatmentCoreService {
       }
       return result
     } catch (error) {
-      console.error('Error getting patient treatment by ID:', error)
-      throw error
+      throw new InternalServerErrorException('Error getting patient treatment by ID')
     }
   }
 
@@ -501,8 +464,7 @@ export class PatientTreatmentCoreService {
       const validatedData = UpdatePatientTreatmentSchema.parse(data)
       return await this.patientTreatmentRepository.updatePatientTreatment(id, validatedData)
     } catch (error) {
-      console.error('Error updating patient treatment:', error)
-      throw error
+      throw new InternalServerErrorException('Error updating patient treatment')
     }
   }
 
@@ -511,8 +473,7 @@ export class PatientTreatmentCoreService {
     try {
       return await this.patientTreatmentRepository.deletePatientTreatment(id)
     } catch (error) {
-      console.error('Error deleting patient treatment:', error)
-      throw error
+      throw new InternalServerErrorException('Error deleting patient treatment')
     }
   }
 }

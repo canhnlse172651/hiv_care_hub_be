@@ -134,19 +134,6 @@ export class MedicineRepository extends BaseRepository<
   /**
    * Find medicines with pagination using PaginationService
    * Supports search, filtering, and sorting capabilities
-   *
-   * @param options - Pagination options with medicine-specific filters
-   * @returns Paginated response with medicines and metadata
-   *
-   * Supported filters:
-   * - name: Filter by medicine name (partial match, case-insensitive)
-   * - description: Filter by description (partial match, case-insensitive)
-   * - unit: Filter by unit (partial match, case-insensitive)
-   * - minPrice: Filter by minimum price
-   * - maxPrice: Filter by maximum price
-   *
-   * Supported search fields: name, description
-   * Supported sort fields: name, description, unit, dose, price, createdAt, updatedAt
    */
   async findMedicinesPaginated(
     options: PaginationOptions<{
@@ -157,6 +144,20 @@ export class MedicineRepository extends BaseRepository<
       maxPrice?: number
     }>,
   ): Promise<PaginatedResponse<Medicine>> {
+    // chấp nhận filters là object hoặc string
+    let filtersObj: any = undefined
+    if (options.filters) {
+      if (typeof options.filters === 'string') {
+        try {
+          filtersObj = JSON.parse(options.filters)
+        } catch {
+          filtersObj = {}
+        }
+      } else {
+        filtersObj = options.filters
+      }
+    }
+
     // Create filter schema for medicine-specific filters
     const medicineFilterSchema = z
       .object({
@@ -172,30 +173,34 @@ export class MedicineRepository extends BaseRepository<
     const paginationSchema = createPaginationSchema(medicineFilterSchema)
 
     // Validate and parse options
-    const validatedOptions = paginationSchema.parse({
-      page: options.page?.toString() || '1',
-      limit: options.limit?.toString() || '10',
+    const validatedOptions = {
+      ...options,
+      filters: filtersObj,
+      page: options.page,
+      limit: options.limit,
       sortBy: options.sortBy,
       sortOrder: options.sortOrder,
       search: options.search,
       searchFields: options.searchFields,
-      filters: options.filters ? JSON.stringify(options.filters) : undefined,
-    })
+    }
 
     // Build Prisma where clause
     const where: Prisma.MedicineWhereInput = {}
+
+    // Đảm bảo searchFields luôn là mảng
+    const searchFields = validatedOptions.searchFields ?? ['name', 'description']
 
     // Apply search if provided
     if (validatedOptions.search) {
       const searchConditions: Prisma.MedicineWhereInput[] = []
 
-      if (validatedOptions.searchFields.includes('name')) {
+      if (searchFields.includes('name')) {
         searchConditions.push({
           name: { contains: validatedOptions.search, mode: 'insensitive' },
         })
       }
 
-      if (validatedOptions.searchFields.includes('description')) {
+      if (searchFields.includes('description')) {
         searchConditions.push({
           description: { contains: validatedOptions.search, mode: 'insensitive' },
         })
