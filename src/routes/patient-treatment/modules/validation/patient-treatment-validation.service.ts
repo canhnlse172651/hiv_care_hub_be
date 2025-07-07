@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { Injectable, BadRequestException, InternalServerErrorException, ConflictException } from '@nestjs/common'
 import { PatientTreatmentRepository } from '../../../../repositories/patient-treatment.repository'
 
 @Injectable()
@@ -42,8 +42,7 @@ export class PatientTreatmentValidationService {
         currentTreatments: activeTreatments,
       }
     } catch (error) {
-      console.error('Error validating single protocol rule:', error)
-      throw error
+      throw new InternalServerErrorException('Error validating single protocol rule')
     }
   }
 
@@ -362,7 +361,7 @@ export class PatientTreatmentValidationService {
       const activeTreatments = await this.patientTreatmentRepository.getActivePatientTreatments({ patientId })
 
       if (activeTreatments.length === 0) {
-        throw new Error('No active treatments found for this patient')
+        throw new BadRequestException('No active treatments found for this patient')
       }
 
       const treatment = activeTreatments[0]
@@ -407,8 +406,7 @@ export class PatientTreatmentValidationService {
         recommendations: [...new Set(recommendations)],
       }
     } catch (error) {
-      console.error('Error running comprehensive validation:', error)
-      throw error
+      throw new InternalServerErrorException('Error running comprehensive validation')
     }
   }
 
@@ -487,8 +485,7 @@ export class PatientTreatmentValidationService {
         recommendation,
       }
     } catch (error) {
-      console.error('Error in quick business rules check:', error)
-      throw error
+      throw new InternalServerErrorException('Error in quick business rules check')
     }
   }
 }

@@ -1,9 +1,8 @@
 import { Injectable } from '@nestjs/common'
-import { PrismaService } from 'src/shared/services/prisma.service'
-import { RegisterBodyType, RegisterResType, UserType } from '../routes/auth/auth.model'
-import { UserResponseType } from '../routes/user/user.dto'
-import { UserWithPasswordType } from '../routes/auth/auth.model'
 import { User } from '@prisma/client'
+import { RegisterBodyType, RegisterResType, UserType, UserWithPasswordType } from '../routes/auth/auth.model'
+import { UserResponseType } from '../routes/user/user.dto'
+import { PrismaService } from '../shared/services/prisma.service'
 @Injectable()
 export class AuthRepository {
   constructor(private readonly prismaService: PrismaService) {}
