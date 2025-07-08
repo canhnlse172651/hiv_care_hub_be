@@ -8,6 +8,7 @@ import { ServiceRepository } from 'src/repositories/service.repository'
 import { PaginationService } from 'src/shared/services/pagination.service'
 import { formatTimeHHMM, isTimeBetween } from 'src/shared/utils/date.utils'
 import { DoctorRepository } from 'src/repositories/doctor.repository'
+import { MeetingService } from '../meeting/meeting.service'
 
 const slots = [
   { start: '07:00', end: '07:30' },
@@ -34,6 +35,7 @@ export class AppoinmentService {
     private readonly serviceRepository: ServiceRepository,
     private readonly paginationService: PaginationService,
     private readonly doctorRepository: DoctorRepository,
+    private readonly meetingService: MeetingService,
   ) {}
 
   async createAppointment(data: CreateAppointmentDtoType): Promise<AppointmentResponseType> {
@@ -100,6 +102,16 @@ export class AppoinmentService {
       if (!foundDoctorId) throw new BadRequestException('No available doctor for this slot')
       // Gán doctorId vào data
       data.doctorId = foundDoctorId
+      console.log('data', data)
+
+      // Tạo phòng meeting VideoSDK
+      const roomId = `appointment-${Date.now()}-${data.userId}`
+      const { patientUrl, doctorUrl } = await this.meetingService.createMeeting(roomId, {
+        patientId: String(data.userId),
+        doctorId: String(data.doctorId),
+      })
+      data.patientMeetingUrl = patientUrl
+      data.doctorMeetingUrl = doctorUrl
     } else {
       if (!data.doctorId) throw new BadRequestException('Doctor ID is required for this appointment type')
       const doctor = await this.doctorRepository.findDoctorById(data.doctorId)
@@ -340,7 +352,7 @@ export class AppoinmentService {
     const result = await this.appoinmentRepository.findAppointmentByDoctorId(id, options)
     return {
       ...result,
-      data: result.data = result.data.map((appointment) => {
+      data: (result.data = result.data.map((appointment) => {
         if (appointment.isAnonymous) {
           return {
             ...appointment,
@@ -353,7 +365,7 @@ export class AppoinmentService {
           }
         }
         return appointment
-      }),
+      })),
     }
   }
 
