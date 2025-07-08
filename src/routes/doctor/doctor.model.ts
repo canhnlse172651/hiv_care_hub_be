@@ -47,9 +47,20 @@ export const UpdateDoctorSchema = z.object({
 
 // Query Doctor Schema
 export const QueryDoctorSchema = z.object({
-  search: z.string().optional(),
+  // Pagination fields
+  page: z
+    .preprocess((val) => typeof val === 'string' ? parseInt(val, 10) : val, z.number().int().min(1))
+    .optional()
+    .default(1),
+  limit: z
+    .preprocess((val) => typeof val === 'string' ? parseInt(val, 10) : val, z.number().int().min(1))
+    .optional()
+    .default(10),
   sortBy: z.enum(['specialization', 'createdAt', 'updatedAt']).optional(),
   sortOrder: z.enum(['asc', 'desc']).optional(),
+  
+  // Search and filter fields
+  search: z.string().optional(),
   specialization: z.string().optional(),
   startDate: z.string().transform((str) => new Date(str)).optional(),
   endDate: z.string().transform((str) => new Date(str)).optional(),
