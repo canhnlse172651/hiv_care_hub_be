@@ -175,12 +175,12 @@ export const AdvancedSearchSchema = z
     query: z.string().min(1, 'Search query is required').max(255, 'Search query is too long').trim().optional(),
     minPrice: z
       .union([z.string(), z.number()])
-      .transform((val) => (typeof val === 'number' ? val : parseInt(val, 10)))
+      .transform((val) => (typeof val === 'number' ? val : parseFloat(val)))
       .pipe(z.number().min(0, 'Minimum price must be non-negative'))
       .optional(),
     maxPrice: z
       .union([z.string(), z.number()])
-      .transform((val) => (typeof val === 'number' ? val : parseInt(val, 10)))
+      .transform((val) => (typeof val === 'number' ? val : parseFloat(val)))
       .pipe(z.number().min(0, 'Maximum price must be non-negative'))
       .optional(),
     unit: z.string().min(1, 'Unit filter cannot be empty').trim().toLowerCase().optional(),

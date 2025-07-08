@@ -103,8 +103,7 @@ export class DoctorService {
 
   async findAllDoctors(query: unknown): Promise<PaginatedResponse<Doctor>> {
     try {
-      // Parse pagination options
-      const paginationOptions = createPaginationSchema(z.any()).parse(query)
+      // Parse query options (includes pagination)
       const queryOptions = QueryDoctorSchema.parse(query)
 
       // Build where condition for search
@@ -151,6 +150,14 @@ export class DoctorService {
             lte: endOfDay(queryOptions.endDate),
           }
         }
+      }
+
+      // Create pagination options from queryOptions
+      const paginationOptions = {
+        page: queryOptions.page,
+        limit: queryOptions.limit,
+        sortBy: queryOptions.sortBy,
+        sortOrder: queryOptions.sortOrder || 'desc',
       }
 
       // Get paginated data using Prisma model
