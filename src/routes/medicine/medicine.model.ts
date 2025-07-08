@@ -90,9 +90,13 @@ export const UpdateMedicineSchema = CreateMedicineSchema.partial().refine((data)
 })
 
 // Query Medicine Schema with advanced filtering
-// Query Medicine Schema (extends shared search schema)
 export const QueryMedicineSchema = SharedSearchSchema.extend({
-  page: z.string().transform(Number).pipe(z.number().min(1, 'Page must be at least 1')).optional().default('1'),
+  page: z
+    .union([z.string(), z.number()])
+    .transform((val) => (typeof val === 'number' ? val : parseInt(val, 10)))
+    .pipe(z.number().min(1, 'Page must be at least 1'))
+    .optional()
+    .default(1),
   sortBy: z
     .enum(['name', 'price', 'createdAt', 'unit'], {
       errorMap: () => ({ message: 'Sort field must be one of: name, price, createdAt, unit' }),
@@ -105,8 +109,16 @@ export const QueryMedicineSchema = SharedSearchSchema.extend({
     })
     .optional()
     .default('desc'),
-  minPrice: z.string().transform(Number).pipe(z.number().min(0, 'Minimum price must be non-negative')).optional(),
-  maxPrice: z.string().transform(Number).pipe(z.number().min(0, 'Maximum price must be non-negative')).optional(),
+  minPrice: z
+    .union([z.string(), z.number()])
+    .transform((val) => (typeof val === 'string' ? Number(val) : val))
+    .pipe(z.number().min(0, 'Minimum price must be non-negative'))
+    .optional(),
+  maxPrice: z
+    .union([z.string(), z.number()])
+    .transform((val) => (typeof val === 'string' ? Number(val) : val))
+    .pipe(z.number().min(0, 'Maximum price must be non-negative'))
+    .optional(),
   unit: z.string().trim().toLowerCase().optional(),
 }).refine(
   (data) => {
@@ -161,16 +173,29 @@ export const PriceRangeSchema = z
 export const AdvancedSearchSchema = z
   .object({
     query: z.string().min(1, 'Search query is required').max(255, 'Search query is too long').trim().optional(),
-    minPrice: z.string().transform(Number).pipe(z.number().min(0, 'Minimum price must be non-negative')).optional(),
-    maxPrice: z.string().transform(Number).pipe(z.number().min(0, 'Maximum price must be non-negative')).optional(),
+    minPrice: z
+      .union([z.string(), z.number()])
+      .transform((val) => (typeof val === 'number' ? val : parseInt(val, 10)))
+      .pipe(z.number().min(0, 'Minimum price must be non-negative'))
+      .optional(),
+    maxPrice: z
+      .union([z.string(), z.number()])
+      .transform((val) => (typeof val === 'number' ? val : parseInt(val, 10)))
+      .pipe(z.number().min(0, 'Maximum price must be non-negative'))
+      .optional(),
     unit: z.string().min(1, 'Unit filter cannot be empty').trim().toLowerCase().optional(),
     limit: z
-      .string()
-      .transform(Number)
+      .union([z.string(), z.number()])
+      .transform((val) => (typeof val === 'number' ? val : parseInt(val, 10)))
       .pipe(z.number().min(1, 'Limit must be at least 1').max(100, 'Limit cannot exceed 100'))
       .optional()
-      .default('10'),
-    page: z.string().transform(Number).pipe(z.number().min(1, 'Page must be at least 1')).optional().default('1'),
+      .default(10),
+    page: z
+      .union([z.string(), z.number()])
+      .transform((val) => (typeof val === 'number' ? val : parseInt(val, 10)))
+      .pipe(z.number().min(1, 'Page must be at least 1'))
+      .optional()
+      .default(1),
   })
   .refine(
     (data) => {

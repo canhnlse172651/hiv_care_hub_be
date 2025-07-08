@@ -5,17 +5,13 @@ export const createPaginationSchema = <T extends z.ZodType>(filterSchema: T) => 
   return z.object({
     // Pagination options
     page: z
-      .string()
-      .transform((val) => parseInt(val, 10))
-      .pipe(z.number().int().min(1))
+      .preprocess((val) => typeof val === 'string' ? parseInt(val, 10) : val, z.number().int().min(1))
       .optional()
-      .default('1'),
+      .default(1),
     limit: z
-      .string()
-      .transform((val) => parseInt(val, 10))
-      .pipe(z.number().int().min(1))
+      .preprocess((val) => typeof val === 'string' ? parseInt(val, 10) : val, z.number().int().min(1))
       .optional()
-      .default('10'),
+      .default(10),
     sortBy: z.string().optional(),
     sortOrder: z.enum(['asc', 'desc']).optional().default('desc'),
 
