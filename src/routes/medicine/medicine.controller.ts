@@ -1,6 +1,8 @@
 import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Put, Query } from '@nestjs/common'
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger'
 import { Medicine } from '@prisma/client'
+import { ZodValidationPipe } from 'nestjs-zod'
+import CustomZodValidationPipe from '../../common/custom-zod-validate'
 import { AuthType } from '../../shared/constants/auth.constant'
 import { Role } from '../../shared/constants/role.constant'
 import { Auth } from '../../shared/decorators/auth.decorator'
@@ -16,13 +18,9 @@ import {
   ApiSearchMedicines,
   ApiUpdateMedicine,
 } from '../../swagger/medicine.swagger'
-import {
-  AdvancedSearchDto,
-  BulkCreateMedicineDto,
-  CreateMedicineDto,
-  QueryMedicineDto,
-  UpdateMedicineDto,
-} from './medicine.dto'
+import { BulkCreateMedicineDto, CreateMedicineDto, UpdateMedicineDto, type CreateMedicineDtoType } from './medicine.dto'
+import type { AdvancedSearch, BulkCreateMedicine, PriceRange, QueryMedicine, UpdateMedicine } from './medicine.model'
+import { AdvancedSearchSchema, PriceRangeSchema } from './medicine.model'
 import { MedicineService } from './medicine.service'
 
 @ApiBearerAuth()
@@ -35,28 +33,57 @@ export class MedicineController {
   @Post()
   @Roles(Role.Admin, Role.Doctor)
   @ApiCreateMedicine()
-  async createMedicine(@Body() body: unknown): Promise<Medicine> {
-    const validatedData = CreateMedicineDto.create(body)
-    return this.medicineService.createMedicine(validatedData)
+  @ApiBody({
+    type: CreateMedicineDto,
+    examples: {
+      default: {
+        summary: 'Example body',
+        value: {
+          name: 'Paracetamol',
+          price: 15000,
+          unit: 'mg',
+          description: 'Pain reliever and fever reducer',
+          stock: 1000,
+        },
+      },
+    },
+  })
+  async createMedicine(
+    @Body(new CustomZodValidationPipe(CreateMedicineDto)) body: CreateMedicineDtoType,
+  ): Promise<Medicine> {
+    return this.medicineService.createMedicine(body)
+  }
+
+  @Post('bulk')
+  @Roles(Role.Admin, Role.Doctor)
+  @ApiBulkCreateMedicines()
+  @ApiBody({
+    type: BulkCreateMedicineDto,
+    examples: {
+      default: {
+        summary: 'Bulk create example',
+        value: {
+          medicines: [
+            { name: 'Paracetamol', price: 15000, unit: 'mg', description: 'Pain reliever', stock: 1000 },
+            { name: 'Ibuprofen', price: 20000, unit: 'mg', description: 'Anti-inflammatory', stock: 500 },
+          ],
+          skipDuplicates: true,
+        },
+      },
+    },
+  })
+  async createManyMedicines(@Body(new CustomZodValidationPipe(BulkCreateMedicineDto)) body: BulkCreateMedicine) {
+    return this.medicineService.createManyMedicines(body.medicines, body.skipDuplicates || false)
   }
 
   @Get()
   @Roles(Role.Admin, Role.Doctor)
   @ApiGetAllMedicines()
-  async getAllMedicines(
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
-    @Query('search') search?: string,
-    @Query('sortBy') sortBy?: string,
-    @Query('sortOrder') sortOrder?: string,
-  ): Promise<PaginatedResponse<Medicine>> {
-    return this.medicineService.getAllMedicines({
-      page: page ? Number(page) : 1,
-      limit: limit ? Number(limit) : 10,
-      search,
-      sortBy: sortBy || 'createdAt',
-      sortOrder: sortOrder || 'desc',
-    })
+  async getAllMedicines(@Query() query: QueryMedicine): Promise<PaginatedResponse<Medicine>> {
+    const { QueryMedicineSchema } = await import('./medicine.model')
+    const validatedQuery = QueryMedicineSchema.parse(query)
+    console.log('Validated Query:', validatedQuery)
+    return this.medicineService.getAllMedicines(validatedQuery)
   }
 
   @Get('search')
@@ -64,28 +91,6 @@ export class MedicineController {
   @ApiSearchMedicines()
   async searchMedicines(@Query('q') query: string): Promise<Medicine[]> {
     return this.medicineService.searchMedicines(query)
-  }
-
-  @Get(':id')
-  @Roles(Role.Admin, Role.Doctor, Role.Staff)
-  @ApiGetMedicineById()
-  async getMedicineById(@Param('id', ParseIntPipe) id: number): Promise<Medicine> {
-    return this.medicineService.getMedicineById(id)
-  }
-
-  @Put(':id')
-  @Roles(Role.Admin, Role.Doctor)
-  @ApiUpdateMedicine()
-  async updateMedicine(@Param('id', ParseIntPipe) id: number, @Body() body: unknown): Promise<Medicine> {
-    const validatedData = UpdateMedicineDto.create(body)
-    return this.medicineService.updateMedicine(id, validatedData)
-  }
-
-  @Delete(':id')
-  @Roles(Role.Admin)
-  @ApiDeleteMedicine()
-  async deleteMedicine(@Param('id', ParseIntPipe) id: number): Promise<Medicine> {
-    return this.medicineService.deleteMedicine(id)
   }
 
   @Get('price-range')
@@ -110,17 +115,10 @@ export class MedicineController {
     example: 200000,
   })
   async getMedicinesByPriceRange(
-    @Query('minPrice') minPrice: string,
-    @Query('maxPrice') maxPrice: string,
+    @Query(new ZodValidationPipe(PriceRangeSchema))
+    dto: PriceRange,
   ): Promise<Medicine[]> {
-    const minPriceNum = parseFloat(minPrice)
-    const maxPriceNum = parseFloat(maxPrice)
-
-    if (isNaN(minPriceNum) || isNaN(maxPriceNum)) {
-      throw new Error('Invalid price values provided')
-    }
-
-    return this.medicineService.getMedicinesByPriceRange(minPriceNum, maxPriceNum)
+    return this.medicineService.getMedicinesByPriceRange(dto.minPrice, dto.maxPrice)
   }
 
   @Get('advanced-search')
@@ -161,29 +159,10 @@ export class MedicineController {
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Number of results per page', example: 10 })
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number for pagination', example: 1 })
   async advancedSearchMedicines(
-    @Query('query') query?: string,
-    @Query('minPrice') minPrice?: string,
-    @Query('maxPrice') maxPrice?: string,
-    @Query('unit') unit?: string,
-    @Query('limit') limit?: string,
-    @Query('page') page?: string,
-  ) {
-    return this.medicineService.advancedSearchMedicines({
-      query,
-      minPrice: minPrice ? Number(minPrice) : undefined,
-      maxPrice: maxPrice ? Number(maxPrice) : undefined,
-      unit,
-      limit: limit ? Number(limit) : 10,
-      page: page ? Number(page) : 1,
-    })
-  }
-
-  @Post('bulk')
-  @Roles(Role.Admin, Role.Doctor)
-  @ApiBulkCreateMedicines()
-  async createManyMedicines(@Body() body: unknown) {
-    const validatedData = BulkCreateMedicineDto.create(body)
-    return this.medicineService.createManyMedicines(validatedData.medicines, validatedData.skipDuplicates || false)
+    @Query(new ZodValidationPipe(AdvancedSearchSchema))
+    dto: AdvancedSearch,
+  ): Promise<PaginatedResponse<Medicine>> {
+    return this.medicineService.advancedSearchMedicines(dto)
   }
 
   @Get('analytics/stats')
@@ -191,5 +170,44 @@ export class MedicineController {
   @ApiGetMedicineStats()
   async getMedicineStats() {
     return this.medicineService.getMedicineUsageStats()
+  }
+
+  @Get(':id')
+  @Roles(Role.Admin, Role.Doctor, Role.Staff)
+  @ApiGetMedicineById()
+  async getMedicineById(@Param('id', ParseIntPipe) id: number): Promise<Medicine> {
+    return this.medicineService.getMedicineById(id)
+  }
+
+  @Put(':id')
+  @Roles(Role.Admin, Role.Doctor)
+  @ApiUpdateMedicine()
+  @ApiBody({
+    type: UpdateMedicineDto,
+    examples: {
+      default: {
+        summary: 'Update medicine example',
+        value: {
+          name: 'Paracetamol',
+          price: 16000,
+          unit: 'mg',
+          description: 'Updated description',
+          stock: 1200,
+        },
+      },
+    },
+  })
+  async updateMedicine(
+    @Param('id', ParseIntPipe) id: number,
+    @Body(new CustomZodValidationPipe(UpdateMedicineDto)) body: UpdateMedicine,
+  ): Promise<Medicine> {
+    return this.medicineService.updateMedicine(id, body)
+  }
+
+  @Delete(':id')
+  @Roles(Role.Admin)
+  @ApiDeleteMedicine()
+  async deleteMedicine(@Param('id', ParseIntPipe) id: number): Promise<Medicine> {
+    return this.medicineService.deleteMedicine(id)
   }
 }
