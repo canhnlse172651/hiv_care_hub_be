@@ -261,6 +261,8 @@ model Appointment {
   type            AppointmentType
   status          AppointmentStatus
   notes           String?       @db.Text
+  patientMeetingUrl String?    @db.Text
+  doctorMeetingUrl  String?    @db.Text
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 }

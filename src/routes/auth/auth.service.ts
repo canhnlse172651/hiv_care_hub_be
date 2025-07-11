@@ -15,7 +15,7 @@ import {
 import { generateOtp } from 'src/shared/utils/otp.utils'
 import { addMilliseconds } from 'date-fns'
 import envConfig from 'src/shared/config'
-import ms from 'ms'
+import ms, { StringValue } from 'ms'
 import { EmailService } from 'src/shared/services/email.service'
 import { TwoFactorService } from 'src/shared/services/2fa.service'
 import { InvalidTOTPAndCodeException, TOTPNotEnabledException } from './error.model'
@@ -270,7 +270,7 @@ export class AuthService {
         email: body.email,
         code: otp.toString(),
         type: body.type as 'FORGOT_PASSWORD' | 'REGISTER' | 'DISABLE_2FA' | 'LOGIN',
-        expiresAt: addMilliseconds(new Date(), ms(expirationTime)),
+        expiresAt: addMilliseconds(new Date(), ms(expirationTime as StringValue)),
       })
 
       // Send OTP via email

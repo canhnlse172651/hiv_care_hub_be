@@ -34,6 +34,8 @@ import { Role } from 'src/shared/constants/role.constant'
 export class AppoinmentController {
   constructor(private readonly appoinmentService: AppoinmentService) {}
 
+  @ApiBearerAuth()
+  @Auth([AuthType.Bearer])
   @ApiCreateAppointment()
   @Roles(Role.Patient, Role.Staff, Role.Doctor)
   @Post()
@@ -73,14 +75,20 @@ export class AppoinmentController {
   @ApiFindAppointmentByUserId()
   @Roles(Role.Patient, Role.Admin)
   @Get('user/:id')
-  findAppointmentByUserId(@Param('id', ParseIntPipe) id: number, @Query() query: unknown): Promise<PaginatedResponse<AppointmentResponseType>> {
+  findAppointmentByUserId(
+    @Param('id', ParseIntPipe) id: number,
+    @Query() query: unknown,
+  ): Promise<PaginatedResponse<AppointmentResponseType>> {
     return this.appoinmentService.findAppointmentByUserId(id, query)
   }
 
   @ApiFindAppointmentByDoctorId()
   @Roles(Role.Doctor, Role.Admin)
   @Get('doctor/:id')
-  findAppointmentByDoctorId(@Param('id', ParseIntPipe) id: number, @Query() query: unknown): Promise<PaginatedResponse<AppointmentResponseType>> {
+  findAppointmentByDoctorId(
+    @Param('id', ParseIntPipe) id: number,
+    @Query() query: unknown,
+  ): Promise<PaginatedResponse<AppointmentResponseType>> {
     return this.appoinmentService.findAppointmentByDoctorId(id, query)
   }
 
