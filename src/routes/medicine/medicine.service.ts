@@ -6,7 +6,7 @@ import { ENTITY_NAMES } from '../../shared/constants/api.constants'
 import { PaginatedResponse } from '../../shared/schemas/pagination.schema'
 import { SharedErrorHandlingService } from '../../shared/services/error-handling.service'
 import { PaginationService } from '../../shared/services/pagination.service'
-import { CreateMedicine, UpdateMedicine } from './medicine.model'
+import { CreateMedicine, UpdateMedicine, type QueryMedicine } from './medicine.model'
 
 @Injectable()
 export class MedicineService {
@@ -41,7 +41,6 @@ export class MedicineService {
     } catch (error) {
       console.error('[MedicineService][createMedicine] Error:', error)
       this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.MEDICINE)
-      throw error // Ensure exception is thrown if not handled
     }
   }
 
@@ -53,7 +52,6 @@ export class MedicineService {
       return this.errorHandlingService.validateEntityExists(medicine, ENTITY_NAMES.MEDICINE, validatedId)
     } catch (error) {
       this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.MEDICINE)
-      throw error
     }
   }
 
@@ -73,7 +71,6 @@ export class MedicineService {
       return this.medicineRepository.updateMedicine(id, data)
     } catch (error) {
       this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.MEDICINE)
-      throw error // Ensure exception is thrown if not handled
     }
   }
 
@@ -100,18 +97,39 @@ export class MedicineService {
       return this.medicineRepository.deleteMedicine(id)
     } catch (error) {
       this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.MEDICINE)
-      throw error
     }
   }
 
   // Get all medicines with pagination and filtering
-  async getAllMedicines(query: unknown): Promise<PaginatedResponse<Medicine>> {
+  async getAllMedicines(query: QueryMedicine): Promise<PaginatedResponse<Medicine>> {
     try {
-      const options = this.paginationService.getPaginationOptions(query)
+      // Gom các trường filter vào object filters
+      const filterKeys = ['minPrice', 'maxPrice', 'unit', 'name', 'description']
+      const filters: Record<string, any> = {}
+      for (const key of filterKeys) {
+        if (query[key] !== undefined) filters[key] = query[key]
+      }
+
+      // Nếu đã có filters param dạng JSON thì merge vào
+      let mergedFilters = filters
+      if (query.filters) {
+        try {
+          const parsed = typeof query.filters === 'string' ? JSON.parse(query.filters) : query.filters
+          mergedFilters = { ...parsed, ...filters }
+        } catch {
+          // ignore parse error, dùng filters vừa build
+        }
+      }
+
+      // Tạo options cho phân trang
+      const options = this.paginationService.getPaginationOptions({
+        ...query,
+        filters: Object.keys(mergedFilters).length > 0 ? JSON.stringify(mergedFilters) : undefined,
+      })
+      console.log(`[MedicineService] getAllMedicines options:`, options)
       return this.medicineRepository.findMedicinesPaginated(options)
     } catch (error) {
       this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.MEDICINE)
-      throw error
     }
   }
 
@@ -121,23 +139,21 @@ export class MedicineService {
       return this.medicineRepository.searchMedicines(query)
     } catch (error) {
       this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.MEDICINE)
-      throw error
     }
   }
 
   // New method: Get medicines by price range with validation
   async getMedicinesByPriceRange(minPrice: number, maxPrice: number): Promise<Medicine[]> {
+    if (minPrice < 0 || maxPrice < 0) {
+      throw new BadRequestException('Price values must be non-negative')
+    }
+    if (maxPrice < minPrice) {
+      throw new BadRequestException('Maximum price must be greater than or equal to minimum price')
+    }
     try {
-      if (minPrice < 0 || maxPrice < 0) {
-        throw new BadRequestException('Price values must be non-negative')
-      }
-      if (maxPrice < minPrice) {
-        throw new BadRequestException('Maximum price must be greater than or equal to minimum price')
-      }
-      return this.medicineRepository.getMedicinesByPriceRange(minPrice, maxPrice)
+      return await this.medicineRepository.getMedicinesByPriceRange(minPrice, maxPrice)
     } catch (error) {
       this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.MEDICINE)
-      throw error
     }
   }
 
@@ -149,29 +165,42 @@ export class MedicineService {
     unit?: string
     limit?: number
     page?: number
-  }): Promise<{
-    medicines: Medicine[]
-    total: number
-    page: number
-    limit: number
-    totalPages: number
-  }> {
+  }): Promise<PaginatedResponse<Medicine>> {
     try {
-      const medicines = await this.medicineRepository.advancedSearchMedicines(params)
+      // Input validation
+      const minPrice = params.minPrice ?? 0
+      const maxPrice = params.maxPrice ?? Number.MAX_SAFE_INTEGER
+      if (minPrice < 0 || maxPrice < 0) {
+        throw new BadRequestException('Price values must be non-negative')
+      }
+      if (maxPrice < minPrice) {
+        throw new BadRequestException('Maximum price must be greater than or equal to minimum price')
+      }
+      const limit = params.limit && params.limit > 0 ? params.limit : 10
+      const page = params.page && params.page > 0 ? params.page : 1
+
+      // Fetch all matching medicines (repository should ideally support pagination, but fallback to slicing here)
+      const medicines = await this.medicineRepository.advancedSearchMedicines({
+        ...params,
+        minPrice,
+        maxPrice,
+      })
       const total = medicines.length
-      const limit = params.limit || 10
-      const page = params.page || 1
       const totalPages = Math.ceil(total / limit)
+      const paginatedData = medicines.slice((page - 1) * limit, page * limit)
       return {
-        medicines,
-        total,
-        page,
-        limit,
-        totalPages,
+        data: paginatedData,
+        meta: {
+          total,
+          page,
+          limit,
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPreviousPage: page > 1,
+        },
       }
     } catch (error) {
       this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.MEDICINE)
-      throw error
     }
   }
 
@@ -229,7 +258,6 @@ export class MedicineService {
   // ===============================
   // STATISTICS AND ANALYTICS FOR MEDICINE
   // ===============================
-
   /**
    * Get medicine usage statistics (top used, usage rate, cost analysis)
    */
@@ -252,16 +280,7 @@ export class MedicineService {
       sortOrder: 'desc',
     })
     const allMedicines = allMedicinesResult.data
-    // Helper chuyển price về number an toàn
-    function toNumberSafe(price: unknown): number {
-      if (typeof price === 'number') return price
-      if (price && typeof price === 'object' && typeof (price as any).toNumber === 'function') {
-        const num = Number((price as any).toNumber())
-        return isNaN(num) ? 0 : num
-      }
-      const parsed = Number(price)
-      return isNaN(parsed) ? 0 : parsed
-    }
+
     // Khi tính toán cost/average: chỉ lấy thuốc có giá là số hợp lệ và > 0 (loại giá 0, NaN, undefined, null, không phải số)
     const medicinesWithPositivePrice = allMedicines.filter((m) => {
       const price = m.price

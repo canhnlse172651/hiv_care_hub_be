@@ -14,9 +14,6 @@ import {
 // Type definitions
 export type CreatePatientTreatmentDtoType = z.infer<typeof CreatePatientTreatmentSchema>
 
-// DTOs using createZodDto for automatic validation and Swagger documentation
-// Only including DTOs that are actually used in the controller
-
 // Create Patient Treatment DTO
 export class CreatePatientTreatmentDto extends createZodDto(CreatePatientTreatmentSchema) {}
 

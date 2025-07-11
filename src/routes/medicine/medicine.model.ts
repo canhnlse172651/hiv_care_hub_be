@@ -1,6 +1,8 @@
 import { z } from 'zod'
 import { SharedSearchSchema } from '../../shared/interfaces/medication.interface'
 
+const unitEnum = z.enum(['mg', 'g', 'ml', 'tablet', 'capsule', 'drops', 'syrup', 'injection'])
+
 export const MedicineSchema = z.object({
   id: z.number().positive('ID must be a positive number'),
   name: z
@@ -12,14 +14,7 @@ export const MedicineSchema = z.object({
       message: 'Medicine name cannot be only numbers',
     }),
   description: z.string().max(1000, 'Description must be less than 1000 characters').nullable().optional(),
-  unit: z
-    .string()
-    .min(1, 'Unit is required')
-    .max(100, 'Unit must be less than 100 characters')
-    .trim()
-    .refine((unit) => /^[a-zA-Z\s]+$/.test(unit), {
-      message: 'Unit must contain only letters and spaces',
-    }),
+  unit: unitEnum,
   dose: z.string().min(1, 'Dose is required').max(100, 'Dose must be less than 100 characters').trim(),
   price: z
     .number()
@@ -52,15 +47,7 @@ export const CreateMedicineSchema = z.object({
     .trim()
     .optional()
     .transform((desc) => (desc === '' ? undefined : desc)),
-  unit: z
-    .string()
-    .min(1, 'Unit is required')
-    .max(100, 'Unit must be less than 100 characters')
-    .trim()
-    .toLowerCase()
-    .refine((unit) => ['mg', 'g', 'ml', 'tablet', 'capsule', 'drops', 'syrup', 'injection'].includes(unit), {
-      message: 'Unit must be one of: mg, g, ml, tablet, capsule, drops, syrup, injection',
-    }),
+  unit: unitEnum,
   dose: z
     .string()
     .min(1, 'Dose is required')
@@ -89,12 +76,73 @@ export const UpdateMedicineSchema = CreateMedicineSchema.partial().refine((data)
   message: 'At least one field must be provided for update',
 })
 
+// Price Range Schema for filtering
+export const PriceRangeSchema = z
+  .object({
+    minPrice: z.preprocess(
+      (v) => (typeof v === 'string' ? Number(v) : v),
+      z
+        .number({ invalid_type_error: 'minPrice must be a number' })
+        .min(0, 'Minimum price must be non-negative')
+        .max(999999.99, 'Minimum price cannot exceed 999,999.99'),
+    ),
+    maxPrice: z.preprocess(
+      (v) => (typeof v === 'string' ? Number(v) : v),
+      z
+        .number({ invalid_type_error: 'maxPrice must be a number' })
+        .min(0, 'Maximum price must be non-negative')
+        .max(999999.99, 'Maximum price cannot exceed 999,999.99'),
+    ),
+  })
+  .refine((data) => data.maxPrice >= data.minPrice, {
+    message: 'Maximum price must be greater than or equal to minimum price',
+    path: ['maxPrice'],
+  })
+
+// Advanced Search Schema
+export const AdvancedSearchSchema = z
+  .object({
+    query: z.string().min(1, 'Search query is required').max(255, 'Search query is too long').trim().optional(),
+
+    minPrice: z
+      .preprocess(
+        (v) => (typeof v === 'string' ? Number(v) : v),
+        z.number().min(0, 'Minimum price must be non-negative'),
+      )
+      .optional(),
+
+    maxPrice: z
+      .preprocess(
+        (v) => (typeof v === 'string' ? Number(v) : v),
+        z.number().min(0, 'Maximum price must be non-negative'),
+      )
+      .optional(),
+
+    unit: unitEnum.optional(),
+
+    limit: z
+      .preprocess(
+        (v) => (typeof v === 'string' ? parseInt(v, 10) : v),
+        z.number().min(1, 'Limit must be at least 1').max(100, 'Limit cannot exceed 100'),
+      )
+      .optional()
+      .default(10),
+
+    page: z
+      .preprocess((v) => (typeof v === 'string' ? parseInt(v, 10) : v), z.number().min(1, 'Page must be at least 1'))
+      .optional()
+      .default(1),
+  })
+  .catchall(z.any())
+  .refine((data) => data.minPrice === undefined || data.maxPrice === undefined || data.maxPrice >= data.minPrice, {
+    message: 'Maximum price must be greater than or equal to minimum price',
+    path: ['maxPrice'],
+  })
+
 // Query Medicine Schema with advanced filtering
 export const QueryMedicineSchema = SharedSearchSchema.extend({
   page: z
-    .union([z.string(), z.number()])
-    .transform((val) => (typeof val === 'number' ? val : parseInt(val, 10)))
-    .pipe(z.number().min(1, 'Page must be at least 1'))
+    .preprocess((v) => (typeof v === 'string' ? parseInt(v, 10) : v), z.number().min(1, 'Page must be at least 1'))
     .optional()
     .default(1),
   sortBy: z
@@ -110,28 +158,26 @@ export const QueryMedicineSchema = SharedSearchSchema.extend({
     .optional()
     .default('desc'),
   minPrice: z
-    .union([z.string(), z.number()])
-    .transform((val) => (typeof val === 'string' ? Number(val) : val))
-    .pipe(z.number().min(0, 'Minimum price must be non-negative'))
+    .preprocess((v) => (typeof v === 'string' ? Number(v) : v), z.number().min(0, 'Minimum price must be non-negative'))
     .optional(),
   maxPrice: z
-    .union([z.string(), z.number()])
-    .transform((val) => (typeof val === 'string' ? Number(val) : val))
-    .pipe(z.number().min(0, 'Maximum price must be non-negative'))
+    .preprocess((v) => (typeof v === 'string' ? Number(v) : v), z.number().min(0, 'Maximum price must be non-negative'))
     .optional(),
-  unit: z.string().trim().toLowerCase().optional(),
-}).refine(
-  (data) => {
-    if (data.minPrice !== undefined && data.maxPrice !== undefined) {
-      return data.maxPrice >= data.minPrice
-    }
-    return true
-  },
-  {
-    message: 'Maximum price must be greater than or equal to minimum price',
-    path: ['maxPrice'],
-  },
-)
+  unit: unitEnum.optional(),
+})
+  .catchall(z.any())
+  .refine(
+    (data) => {
+      if (data.minPrice !== undefined && data.maxPrice !== undefined) {
+        return data.maxPrice >= data.minPrice
+      }
+      return true
+    },
+    {
+      message: 'Maximum price must be greater than or equal to minimum price',
+      path: ['maxPrice'],
+    },
+  )
 
 // Bulk Create Schema with array validation
 export const BulkCreateMedicineSchema = z.object({
@@ -151,73 +197,6 @@ export const BulkCreateMedicineSchema = z.object({
     ),
   skipDuplicates: z.boolean().optional().default(false),
 })
-
-// Price Range Schema for filtering
-export const PriceRangeSchema = z
-  .object({
-    minPrice: z
-      .number()
-      .min(0, 'Minimum price must be non-negative')
-      .max(999999.99, 'Minimum price cannot exceed 999,999.99'),
-    maxPrice: z
-      .number()
-      .min(0, 'Maximum price must be non-negative')
-      .max(999999.99, 'Maximum price cannot exceed 999,999.99'),
-  })
-  .refine((data) => data.maxPrice >= data.minPrice, {
-    message: 'Maximum price must be greater than or equal to minimum price',
-    path: ['maxPrice'],
-  })
-
-// Advanced Search Schema
-export const AdvancedSearchSchema = z
-  .object({
-    query: z.string().min(1, 'Search query is required').max(255, 'Search query is too long').trim().optional(),
-    minPrice: z
-      .union([z.string(), z.number()])
-      .transform((val) => (typeof val === 'number' ? val : parseFloat(val)))
-      .pipe(z.number().min(0, 'Minimum price must be non-negative'))
-      .optional(),
-    maxPrice: z
-      .union([z.string(), z.number()])
-      .transform((val) => (typeof val === 'number' ? val : parseFloat(val)))
-      .pipe(z.number().min(0, 'Maximum price must be non-negative'))
-      .optional(),
-    unit: z.string().min(1, 'Unit filter cannot be empty').trim().toLowerCase().optional(),
-    limit: z
-      .union([z.string(), z.number()])
-      .transform((val) => (typeof val === 'number' ? val : parseInt(val, 10)))
-      .pipe(z.number().min(1, 'Limit must be at least 1').max(100, 'Limit cannot exceed 100'))
-      .optional()
-      .default(10),
-    page: z
-      .union([z.string(), z.number()])
-      .transform((val) => (typeof val === 'number' ? val : parseInt(val, 10)))
-      .pipe(z.number().min(1, 'Page must be at least 1'))
-      .optional()
-      .default(1),
-  })
-  .refine(
-    (data) => {
-      if (data.minPrice !== undefined && data.maxPrice !== undefined) {
-        return data.maxPrice >= data.minPrice
-      }
-      return true
-    },
-    {
-      message: 'Maximum price must be greater than or equal to minimum price',
-      path: ['maxPrice'],
-    },
-  )
-
-// Additional Types
-export type Medicine = z.infer<typeof MedicineSchema>
-export type CreateMedicine = z.infer<typeof CreateMedicineSchema>
-export type UpdateMedicine = z.infer<typeof UpdateMedicineSchema>
-export type QueryMedicine = z.infer<typeof QueryMedicineSchema>
-export type BulkCreateMedicine = z.infer<typeof BulkCreateMedicineSchema>
-export type PriceRange = z.infer<typeof PriceRangeSchema>
-export type AdvancedSearch = z.infer<typeof AdvancedSearchSchema>
 
 // Analytics Schemas
 export const MedicineStatsQuerySchema = z.object({
@@ -270,6 +249,13 @@ export const UnitUsageQuerySchema = z.object({
 })
 
 // Export additional types
+export type Medicine = z.infer<typeof MedicineSchema>
+export type CreateMedicine = z.infer<typeof CreateMedicineSchema>
+export type UpdateMedicine = z.infer<typeof UpdateMedicineSchema>
+export type QueryMedicine = z.infer<typeof QueryMedicineSchema>
+export type BulkCreateMedicine = z.infer<typeof BulkCreateMedicineSchema>
+export type PriceRange = z.infer<typeof PriceRangeSchema>
+export type AdvancedSearch = z.infer<typeof AdvancedSearchSchema>
 export type MedicineStatsQuery = z.infer<typeof MedicineStatsQuerySchema>
 export type PriceDistributionQuery = z.infer<typeof PriceDistributionQuerySchema>
 export type UnitUsageQuery = z.infer<typeof UnitUsageQuerySchema>
