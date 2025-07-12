@@ -112,6 +112,8 @@ export const UpdateProfileSchema = z
     name: z.string().min(3).max(100).optional(),
     phoneNumber: z.string().min(9).max(15).optional(),
     avatar: z.string().nullable().optional(),
+    specialization: z.string().min(2).max(255).optional(),
+    certifications: z.array(z.string().min(2)).optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: 'At least one field must be provided for update',

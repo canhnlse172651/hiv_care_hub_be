@@ -429,13 +429,24 @@ export class AuthService {
   }
 
   async updateUserProfile(userId: number, data: UpdateProfileType) {
-    const user = await this.authRepository.findUserById(userId)
+    const user = await this.authRepository.findUserByIdWithDoctorId(userId);
     if (!user) {
-      throw new UnprocessableEntityException('User not found')
+      throw new UnprocessableEntityException('User not found');
     }
-    const updatedUser = await this.authRepository.updateUser(userId, data)
-    return {
-      updatedUser,
+  
+    const { specialization, certifications, ...userData } = data;
+  
+    // Cập nhật thông tin user
+    const updatedUser = await this.authRepository.updateUser(userId, userData);
+  
+    // Nếu user có doctorId thì cập nhật doctor
+    if (user.doctorId && (specialization || certifications)) {
+      await this.authRepository.updateDoctor(userId, {
+        ...(specialization && { specialization }),
+        ...(certifications && { certifications }),
+      });
     }
-  }
+  
+    return updatedUser;
+  }  
 }
