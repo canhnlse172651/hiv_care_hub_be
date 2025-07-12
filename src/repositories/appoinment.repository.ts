@@ -210,10 +210,15 @@ export class AppoinmentRepository {
 
     // Filter functionality
     if (validatedOptions.filters) {
-      const { status, type, dateFrom, dateTo } = validatedOptions.filters
+      const { status, type, dateFrom, dateTo, serviceType } = validatedOptions.filters
 
       if (status) where.status = status
       if (type) where.type = type
+      if (serviceType) {
+        where.service = {
+          type: serviceType,
+        }
+      }
 
       // Date range filter
       if (dateFrom || dateTo) {
@@ -268,11 +273,16 @@ export class AppoinmentRepository {
 
     // Filter functionality
     if (validatedOptions.filters) {
-      const { serviceId, status, type, dateFrom, dateTo } = validatedOptions.filters
+      const { serviceId, status, type, dateFrom, dateTo, serviceType } = validatedOptions.filters
 
       if (serviceId) where.serviceId = serviceId
       if (status) where.status = status
       if (type) where.type = type
+      if (serviceType) {
+        where.service = {
+          type: serviceType,
+        }
+      }
 
       // Date range filter
       if (dateFrom || dateTo) {
@@ -324,11 +334,16 @@ export class AppoinmentRepository {
 
     // Filter functionality
     if (validatedOptions.filters) {
-      const { serviceId, status, type, dateFrom, dateTo } = validatedOptions.filters
+      const { serviceId, status, type, dateFrom, dateTo, serviceType } = validatedOptions.filters
 
       if (serviceId) where.serviceId = serviceId
       if (status) where.status = status
       if (type) where.type = type
+      if (serviceType) {
+        where.service = {
+          type: serviceType,
+        }
+      }
 
       // Date range filter
       if (dateFrom || dateTo) {
