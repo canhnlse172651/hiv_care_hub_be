@@ -6,6 +6,8 @@ import { PrismaService } from 'src/shared/services/prisma.service'
 import { AuthRepository } from 'src/repositories/user.repository'
 import { ServiceRepository } from 'src/repositories/service.repository'
 import { DoctorRepository } from 'src/repositories/doctor.repository'
+import { MeetingService } from '../meeting/meeting.service'
+import { EmailService } from 'src/shared/services/email.service'
 
 @Module({
   controllers: [AppoinmentController],
@@ -16,6 +18,8 @@ import { DoctorRepository } from 'src/repositories/doctor.repository'
     AuthRepository,
     ServiceRepository,
     DoctorRepository,
+    MeetingService,
+    EmailService,
   ],
 })
 export class AppoinmentModule {}

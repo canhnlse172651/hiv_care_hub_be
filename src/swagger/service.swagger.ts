@@ -62,7 +62,6 @@ export function ApiGetAllServices() {
     ApiQuery({ name: 'search', required: false, type: String, description: 'Tìm kiếm theo tên' }),
     ApiQuery({ name: 'type', required: false, type: String, description: 'Lọc theo loại Service' }),
     ApiQuery({ name: 'isActive', required: false, type: Boolean, description: 'Lọc theo trạng thái hoạt động' }),
-    ApiQuery({ name: 'duration', required: false, type: String, description: 'Lọc theo thời lượng (HH:MM)' }),
     ApiResponse({
       status: 200,
       description: 'Danh sách Service (có phân trang)',
@@ -93,6 +92,7 @@ export function ApiGetAllActiveServices() {
     ApiQuery({ name: 'page', required: false, type: Number, description: 'Trang hiện tại' }),
     ApiQuery({ name: 'limit', required: false, type: Number, description: 'Số item/trang' }),
     ApiQuery({ name: 'search', required: false, type: String, description: 'Tìm kiếm theo tên' }),
+    ApiQuery({ name: 'type', required: false, type: String, description: 'Lọc theo loại Service' }),
     ApiResponse({
       status: 200,
       description: 'Danh sách Service đang hoạt động (có phân trang)',

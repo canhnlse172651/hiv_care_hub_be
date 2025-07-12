@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { BadRequestException, Injectable } from '@nestjs/common'
 import { Medicine } from '@prisma/client'
 import { z } from 'zod'
 import { MedicineRepository } from '../../repositories/medicine.repository'
@@ -6,7 +6,7 @@ import { ENTITY_NAMES } from '../../shared/constants/api.constants'
 import { PaginatedResponse } from '../../shared/schemas/pagination.schema'
 import { SharedErrorHandlingService } from '../../shared/services/error-handling.service'
 import { PaginationService } from '../../shared/services/pagination.service'
-import { CreateMedicine, UpdateMedicine } from './medicine.model'
+import { CreateMedicine, UpdateMedicine, type QueryMedicine } from './medicine.model'
 
 @Injectable()
 export class MedicineService {
@@ -28,7 +28,7 @@ export class MedicineService {
       })
 
       if (!validation.isValid) {
-        throw new Error(`Validation failed: ${validation.errors.join(', ')}`)
+        throw new BadRequestException(`Validation failed: ${validation.errors.join(', ')}`)
       }
 
       // Log warnings if any
@@ -39,15 +39,20 @@ export class MedicineService {
       // Use the repository's validated create method
       return this.medicineRepository.createMedicine(data)
     } catch (error) {
+      console.error('[MedicineService][createMedicine] Error:', error)
       this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.MEDICINE)
     }
   }
 
   // Get medicine by ID
   async getMedicineById(id: number): Promise<Medicine> {
-    const validatedId = this.errorHandlingService.validateId(id)
-    const medicine = await this.medicineRepository.findMedicineById(validatedId)
-    return this.errorHandlingService.validateEntityExists(medicine, ENTITY_NAMES.MEDICINE, validatedId)
+    try {
+      const validatedId = this.errorHandlingService.validateId(id)
+      const medicine = await this.medicineRepository.findMedicineById(validatedId)
+      return this.errorHandlingService.validateEntityExists(medicine, ENTITY_NAMES.MEDICINE, validatedId)
+    } catch (error) {
+      this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.MEDICINE)
+    }
   }
 
   // Update medicine
@@ -59,6 +64,7 @@ export class MedicineService {
       // If updating name, check if another medicine with same name exists
       if (data.name) {
         const existingMedicine = await this.medicineRepository.findMedicineByName(data.name)
+        // Luôn gọi validateNameUniqueness nếu có existing khác
         this.errorHandlingService.validateNameUniqueness(existingMedicine, data.name, ENTITY_NAMES.MEDICINE, id)
       }
 
@@ -66,61 +72,89 @@ export class MedicineService {
     } catch (error) {
       this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.MEDICINE)
     }
-
-    return this.medicineRepository.updateMedicine(id, data)
   }
 
   // Delete medicine with dependency checking
   async deleteMedicine(id: number): Promise<Medicine> {
-    // Check if medicine exists
-    await this.getMedicineById(id)
+    try {
+      // Check if medicine exists
+      await this.getMedicineById(id)
 
-    // Validate that medicine can be safely deleted
-    const deleteValidation = await this.medicineRepository.validateMedicineCanBeDeleted(id)
+      // Validate that medicine can be safely deleted
+      const deleteValidation = await this.medicineRepository.validateMedicineCanBeDeleted(id)
 
-    if (!deleteValidation.canDelete) {
-      const issues: string[] = []
-
-      if (deleteValidation.relatedProtocols.length > 0) {
-        const protocolNames = deleteValidation.relatedProtocols.map((p) => p.name).join(', ')
-        issues.push(`Medicine is used in treatment protocols: ${protocolNames}`)
+      if (!deleteValidation.canDelete) {
+        const issues: string[] = []
+        if (deleteValidation.relatedProtocols.length > 0) {
+          const protocolNames = deleteValidation.relatedProtocols.map((p) => p.name).join(', ')
+          issues.push(`Medicine is used in treatment protocols: ${protocolNames}`)
+        }
+        if (deleteValidation.relatedActiveTreatments > 0) {
+          issues.push(`Medicine is being used in ${deleteValidation.relatedActiveTreatments} active treatments`)
+        }
+        throw new BadRequestException(`Cannot delete medicine: ${issues.join('; ')}`)
       }
-
-      if (deleteValidation.relatedActiveTreatments > 0) {
-        issues.push(`Medicine is being used in ${deleteValidation.relatedActiveTreatments} active treatments`)
-      }
-
-      throw new Error(`Cannot delete medicine: ${issues.join('; ')}`)
+      return this.medicineRepository.deleteMedicine(id)
+    } catch (error) {
+      this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.MEDICINE)
     }
-
-    return this.medicineRepository.deleteMedicine(id)
   }
 
   // Get all medicines with pagination and filtering
-  async getAllMedicines(query: unknown): Promise<PaginatedResponse<Medicine>> {
-    const options = this.paginationService.getPaginationOptions(query)
+  async getAllMedicines(query: QueryMedicine): Promise<PaginatedResponse<Medicine>> {
+    try {
+      // Gom các trường filter vào object filters
+      const filterKeys = ['minPrice', 'maxPrice', 'unit', 'name', 'description']
+      const filters: Record<string, any> = {}
+      for (const key of filterKeys) {
+        if (query[key] !== undefined) filters[key] = query[key]
+      }
 
-    // Use the repository's paginated method for enhanced filtering and consistency
-    return this.medicineRepository.findMedicinesPaginated(options)
+      // Nếu đã có filters param dạng JSON thì merge vào
+      let mergedFilters = filters
+      if (query.filters) {
+        try {
+          const parsed = typeof query.filters === 'string' ? JSON.parse(query.filters) : query.filters
+          mergedFilters = { ...parsed, ...filters }
+        } catch {
+          // ignore parse error, dùng filters vừa build
+        }
+      }
+
+      // Tạo options cho phân trang
+      const options = this.paginationService.getPaginationOptions({
+        ...query,
+        filters: Object.keys(mergedFilters).length > 0 ? JSON.stringify(mergedFilters) : undefined,
+      })
+      console.log(`[MedicineService] getAllMedicines options:`, options)
+      return this.medicineRepository.findMedicinesPaginated(options)
+    } catch (error) {
+      this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.MEDICINE)
+    }
   }
 
   // Search medicines by query
   async searchMedicines(query: string): Promise<Medicine[]> {
-    return this.medicineRepository.searchMedicines(query)
+    try {
+      return this.medicineRepository.searchMedicines(query)
+    } catch (error) {
+      this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.MEDICINE)
+    }
   }
 
   // New method: Get medicines by price range with validation
   async getMedicinesByPriceRange(minPrice: number, maxPrice: number): Promise<Medicine[]> {
-    // Additional validation can be done here if needed
     if (minPrice < 0 || maxPrice < 0) {
-      throw new Error('Price values must be non-negative')
+      throw new BadRequestException('Price values must be non-negative')
     }
-
     if (maxPrice < minPrice) {
-      throw new Error('Maximum price must be greater than or equal to minimum price')
+      throw new BadRequestException('Maximum price must be greater than or equal to minimum price')
     }
-
-    return this.medicineRepository.getMedicinesByPriceRange(minPrice, maxPrice)
+    try {
+      return await this.medicineRepository.getMedicinesByPriceRange(minPrice, maxPrice)
+    } catch (error) {
+      this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.MEDICINE)
+    }
   }
 
   // New method: Advanced search with comprehensive validation
@@ -131,27 +165,42 @@ export class MedicineService {
     unit?: string
     limit?: number
     page?: number
-  }): Promise<{
-    medicines: Medicine[]
-    total: number
-    page: number
-    limit: number
-    totalPages: number
-  }> {
-    // Get medicines using validated repository method
-    const medicines = await this.medicineRepository.advancedSearchMedicines(params)
+  }): Promise<PaginatedResponse<Medicine>> {
+    try {
+      // Input validation
+      const minPrice = params.minPrice ?? 0
+      const maxPrice = params.maxPrice ?? Number.MAX_SAFE_INTEGER
+      if (minPrice < 0 || maxPrice < 0) {
+        throw new BadRequestException('Price values must be non-negative')
+      }
+      if (maxPrice < minPrice) {
+        throw new BadRequestException('Maximum price must be greater than or equal to minimum price')
+      }
+      const limit = params.limit && params.limit > 0 ? params.limit : 10
+      const page = params.page && params.page > 0 ? params.page : 1
 
-    const total = medicines.length // This is simplified
-    const limit = params.limit || 10
-    const page = params.page || 1
-    const totalPages = Math.ceil(total / limit)
-
-    return {
-      medicines,
-      total,
-      page,
-      limit,
-      totalPages,
+      // Fetch all matching medicines (repository should ideally support pagination, but fallback to slicing here)
+      const medicines = await this.medicineRepository.advancedSearchMedicines({
+        ...params,
+        minPrice,
+        maxPrice,
+      })
+      const total = medicines.length
+      const totalPages = Math.ceil(total / limit)
+      const paginatedData = medicines.slice((page - 1) * limit, page * limit)
+      return {
+        data: paginatedData,
+        meta: {
+          total,
+          page,
+          limit,
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPreviousPage: page > 1,
+        },
+      }
+    } catch (error) {
+      this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.MEDICINE)
     }
   }
 
@@ -203,6 +252,74 @@ export class MedicineService {
       }
 
       return { count: 0, errors }
+    }
+  }
+
+  // ===============================
+  // STATISTICS AND ANALYTICS FOR MEDICINE
+  // ===============================
+  /**
+   * Get medicine usage statistics (top used, usage rate, cost analysis)
+   */
+  async getMedicineUsageStats(): Promise<{
+    totalMedicines: number
+    topUsedMedicines: Array<{
+      medicineId: number
+      medicineName: string
+      usageCount: number
+    }>
+    totalCost: number
+    averageCost: number
+  }> {
+    // Logging performance
+    const start = Date.now()
+    // Get all medicines (pagination with large limit)
+    const allMedicinesResult = await this.medicineRepository.findMedicinesPaginated({
+      page: 1,
+      limit: 10000,
+      sortOrder: 'desc',
+    })
+    const allMedicines = allMedicinesResult.data
+
+    // Khi tính toán cost/average: chỉ lấy thuốc có giá là số hợp lệ và > 0 (loại giá 0, NaN, undefined, null, không phải số)
+    const medicinesWithPositivePrice = allMedicines.filter((m) => {
+      const price = m.price
+      if (typeof price === 'number') {
+        return !isNaN(price) && price > 0
+      }
+      if (typeof price === 'string') {
+        const parsed = Number(price)
+        return !isNaN(parsed) && parsed > 0
+      }
+      if (typeof price === 'object' && price !== null && typeof (price as any).toNumber === 'function') {
+        const num = Number((price as any).toNumber())
+        return typeof num === 'number' && !isNaN(num) && num > 0
+      }
+      return false
+    })
+
+    // Fake usage count for demo (should be replaced by real usage if available)
+    const topUsedMedicines = medicinesWithPositivePrice
+      .map((m) => ({ medicineId: m.id, medicineName: m.name, usageCount: Math.floor(Math.random() * 100) }))
+      .sort((a, b) => b.usageCount - a.usageCount)
+      .slice(0, 10)
+
+    // Cost analysis
+    const totalCost = medicinesWithPositivePrice.reduce((sum, m) => {
+      if (typeof m.price === 'number') return sum + Number(m.price)
+      if (typeof m.price === 'string') return sum + Number(m.price)
+      if (typeof m.price === 'object' && m.price !== null && typeof (m.price as any).toNumber === 'function')
+        return sum + Number((m.price as any).toNumber())
+      return sum
+    }, 0)
+    const averageCost = medicinesWithPositivePrice.length > 0 ? totalCost / medicinesWithPositivePrice.length : 0
+    // Logging
+    console.log(`[MedicineService] getMedicineUsageStats executed in ${Date.now() - start}ms`)
+    return {
+      totalMedicines: allMedicines.length,
+      topUsedMedicines,
+      totalCost: Math.round(totalCost * 100) / 100,
+      averageCost: Math.round(averageCost * 100) / 100,
     }
   }
 }

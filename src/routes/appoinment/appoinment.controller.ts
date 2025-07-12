@@ -27,13 +27,15 @@ import { AuthType } from 'src/shared/constants/auth.constant'
 import { Roles } from 'src/shared/decorators/roles.decorator'
 import { Role } from 'src/shared/constants/role.constant'
 
-@ApiTags('Appoinments')
+@ApiTags('Appointments')
 @ApiBearerAuth()
 @Auth([AuthType.Bearer])
-@Controller('appoinments')
+@Controller('appointments')
 export class AppoinmentController {
   constructor(private readonly appoinmentService: AppoinmentService) {}
 
+  @ApiBearerAuth()
+  @Auth([AuthType.Bearer])
   @ApiCreateAppointment()
   @Roles(Role.Patient, Role.Staff, Role.Doctor)
   @Post()
@@ -73,15 +75,21 @@ export class AppoinmentController {
   @ApiFindAppointmentByUserId()
   @Roles(Role.Patient, Role.Admin)
   @Get('user/:id')
-  findAppointmentByUserId(@Param('id', ParseIntPipe) id: number): Promise<AppointmentResponseType[]> {
-    return this.appoinmentService.findAppointmentByUserId(id)
+  findAppointmentByUserId(
+    @Param('id', ParseIntPipe) id: number,
+    @Query() query: unknown,
+  ): Promise<PaginatedResponse<AppointmentResponseType>> {
+    return this.appoinmentService.findAppointmentByUserId(id, query)
   }
 
   @ApiFindAppointmentByDoctorId()
   @Roles(Role.Doctor, Role.Admin)
   @Get('doctor/:id')
-  findAppointmentByDoctorId(@Param('id', ParseIntPipe) id: number): Promise<AppointmentResponseType[]> {
-    return this.appoinmentService.findAppointmentByDoctorId(id)
+  findAppointmentByDoctorId(
+    @Param('id', ParseIntPipe) id: number,
+    @Query() query: unknown,
+  ): Promise<PaginatedResponse<AppointmentResponseType>> {
+    return this.appoinmentService.findAppointmentByDoctorId(id, query)
   }
 
   @ApiFindAppointmentsPaginated()

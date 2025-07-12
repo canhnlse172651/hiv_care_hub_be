@@ -103,8 +103,7 @@ export class DoctorService {
 
   async findAllDoctors(query: unknown): Promise<PaginatedResponse<Doctor>> {
     try {
-      // Parse pagination options
-      const paginationOptions = createPaginationSchema(z.any()).parse(query)
+      // Parse query options (includes pagination)
       const queryOptions = QueryDoctorSchema.parse(query)
 
       // Build where condition for search
@@ -126,6 +125,39 @@ export class DoctorService {
           contains: queryOptions.specialization,
           mode: 'insensitive',
         }
+      }
+
+      // Build schedules filter if date range is provided
+      const schedulesFilter: any = {
+        orderBy: {
+          date: 'asc',
+        },
+      }
+
+      if (queryOptions.startDate || queryOptions.endDate) {
+        schedulesFilter.where = {}
+        
+        if (queryOptions.startDate) {
+          schedulesFilter.where.date = {
+            ...schedulesFilter.where.date,
+            gte: startOfDay(queryOptions.startDate),
+          }
+        }
+        
+        if (queryOptions.endDate) {
+          schedulesFilter.where.date = {
+            ...schedulesFilter.where.date,
+            lte: endOfDay(queryOptions.endDate),
+          }
+        }
+      }
+
+      // Create pagination options from queryOptions
+      const paginationOptions = {
+        page: queryOptions.page,
+        limit: queryOptions.limit,
+        sortBy: queryOptions.sortBy,
+        sortOrder: queryOptions.sortOrder || 'desc',
       }
 
       // Get paginated data using Prisma model
@@ -155,11 +187,7 @@ export class DoctorService {
               },
             },
           },
-          schedules: {
-            orderBy: {
-              date: 'asc',
-            },
-          },
+          schedules: schedulesFilter,
         },
       )) as PaginatedResponse<Doctor>
 
@@ -225,16 +253,16 @@ export class DoctorService {
     return days[utcDate.getUTCDay()] as DayOfWeek
   }
 
-  // Calculate total shifts for a week (Monday to Saturday morning)
+  // Calculate total shifts for a week (Monday to Friday only)
   private calculateTotalShifts(startDate: Date, endDate: Date): number {
     let totalShifts = 0
     const currentDate = new Date(startDate)
 
     while (currentDate <= endDate) {
       const dayOfWeek = currentDate.getUTCDay()
-      if (dayOfWeek >= 1 && dayOfWeek <= 6) {
-        // Monday to Saturday
-        totalShifts += dayOfWeek === 6 ? 1 : 2 // Only morning shift on Saturday
+      if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+        // Monday to Friday only
+        totalShifts += 2 // 2 shifts per day (morning + afternoon)
       }
       currentDate.setUTCDate(currentDate.getUTCDate() + 1)
     }
@@ -309,8 +337,8 @@ export class DoctorService {
       )
 
       // Calculate total shifts and required doctors
-      const totalShifts = this.calculateTotalShifts(actualStartDate, endDate) // 11 shifts (5 days × 2 + 1 morning)
-      const totalRequiredShifts = totalShifts * doctorsPerShift // 55 shifts (11 × 5)
+      const totalShifts = this.calculateTotalShifts(actualStartDate, endDate) // 10 shifts (5 days × 2)
+      const totalRequiredShifts = totalShifts * doctorsPerShift // 20 shifts (10 × 2)
 
       console.log('Shift calculations:', {
         totalShifts,
@@ -320,13 +348,13 @@ export class DoctorService {
       })
 
       // Calculate shifts per doctor
-      const shiftsPerDoctor = Math.floor(totalRequiredShifts / doctors.length) // 11 shifts per doctor
-      const extraShifts = totalRequiredShifts % doctors.length // 0 extra shifts
+      const shiftsPerDoctor = Math.floor(totalRequiredShifts / doctors.length) // 6 shifts per doctor
+      const extraShifts = totalRequiredShifts % doctors.length // 2 extra shifts
 
       console.log('Per doctor calculations:', {
         shiftsPerDoctor,
         extraShifts,
-        note: 'Each doctor will be assigned exactly 11 shifts (2 shifts per day for 5 days + 1 morning shift on Saturday)',
+        note: 'Each doctor will be assigned approximately 6 shifts (20 total shifts / 3 doctors)',
       })
 
       // Initialize shift count for each doctor
@@ -335,14 +363,14 @@ export class DoctorService {
         doctorShifts.set(doctor.id, 0)
       })
 
-      // Get all available dates and shifts
+      // Get all available dates and shifts (Monday to Friday only)
       const availableDates: { date: Date; shift: Shift }[] = []
       const currentDate = new Date(actualStartDate)
       while (currentDate <= endDate) {
         const dayOfWeek = currentDate.getUTCDay()
-        if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-          const shiftsForDay = dayOfWeek === 6 ? [Shift.MORNING] : [Shift.MORNING, Shift.AFTERNOON]
-          for (const shift of shiftsForDay) {
+        if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+          // Monday to Friday only
+          for (const shift of [Shift.MORNING, Shift.AFTERNOON]) {
             availableDates.push({
               date: new Date(currentDate),
               shift,
@@ -389,12 +417,23 @@ export class DoctorService {
         shiftAssignments.set(key, 0)
       })
 
+      // Create a list of all doctors with their target shifts
+      const doctorTargets = doctors.map((doctor) => ({
+        doctor,
+        targetShifts: shiftsPerDoctor, // All doctors get the same number of shifts
+        assignedShifts: 0,
+      }))
+
+      // Sort doctors by ID for consistent assignment order
+      doctorTargets.sort((a, b) => a.doctor.id - b.doctor.id)
+
       // Assign shifts to all doctors
-      for (const doctor of doctors) {
-        const shiftsToAssign = shiftsPerDoctor // Assign exactly shiftsPerDoctor shifts
+      for (const doctorTarget of doctorTargets) {
+        const { doctor, targetShifts } = doctorTarget
+        const shiftsToAssign = targetShifts
 
         console.log(`\nAssigning shifts to doctor ${doctor.id}:`, {
-          shiftsToAssign,
+          targetShifts: shiftsToAssign,
         })
 
         let assignedShifts = 0
@@ -512,6 +551,7 @@ export class DoctorService {
         doctorShifts.set(doctor.id, assignedShifts)
         console.log(`Finished assigning shifts to doctor ${doctor.id}:`, {
           totalAssigned: assignedShifts,
+          targetShifts,
           remainingInSystem: Array.from(datesByDay.values()).flat().length,
         })
       }
@@ -652,94 +692,99 @@ export class DoctorService {
     }
   }
 
-  // Assign doctors manually to remaining shifts
+  // Assign doctors manually to any day in the week
   async assignDoctorsManually(data: ManualScheduleAssignmentType) {
     try {
-      const { date, shift, doctorIds, doctorsPerShift } = data
+      const { doctorId, date, shift } = data
       const scheduleDate = new Date(date)
 
-      // Validate date is not in the past
+      console.log('=== Manual Schedule Assignment ===')
+      console.log('Input parameters:', {
+        doctorId,
+        date: scheduleDate.toISOString(),
+        shift,
+      })
+
+      // Validate date is not in the past (already validated in schema)
       const today = new Date()
       today.setHours(0, 0, 0, 0)
       if (scheduleDate < today) {
         throw new BadRequestException('Cannot assign schedule for past dates')
       }
 
-      // Get current schedule for this shift
-      const currentSchedule = await this.doctorRepository.findManySchedules({
-        where: {
-          date: {
-            gte: startOfDay(scheduleDate),
-            lte: endOfDay(scheduleDate),
-          },
-          shift,
-          isOff: false,
+      // Validate doctor exists
+      const doctor = await this.doctorRepository.findDoctorById(doctorId)
+      if (!doctor) {
+        throw new BadRequestException(`Doctor with ID ${doctorId} not found`)
+      }
+
+      // Check if doctor is already assigned to this shift on this date
+      const existingSchedule = await this.doctorRepository.findFirstSchedule({
+        doctorId,
+        date: {
+          gte: startOfDay(scheduleDate),
+          lte: endOfDay(scheduleDate),
         },
+        shift,
       })
 
-      // Get remaining shifts info
-      const remainingShifts = await this.getRemainingShifts(scheduleDate, scheduleDate, doctorsPerShift)
-
-      // Find if this shift is in remaining shifts
-      const remainingShift = remainingShifts.find(
-        (s) => s.date.toISOString() === scheduleDate.toISOString() && s.shift === shift,
-      )
-
-      if (!remainingShift) {
-        throw new BadRequestException('This shift is not in the remaining shifts list')
-      }
-
-      // Calculate how many more doctors can be assigned to this shift
-      const currentDoctorsCount = currentSchedule.length
-      const availableSlots = doctorsPerShift - currentDoctorsCount
-
-      // Validate number of doctors doesn't exceed available slots
-      if (doctorIds.length > availableSlots) {
+      if (existingSchedule) {
         throw new BadRequestException(
-          `Cannot assign ${doctorIds.length} doctors. Only ${availableSlots} slots available for this shift (${doctorsPerShift} doctors required per shift)`,
+          `Doctor ${doctorId} is already assigned to ${shift} shift on ${scheduleDate.toISOString().split('T')[0]}`,
         )
       }
 
-      // Validate doctors exist and are available
-      const doctors = await Promise.all(doctorIds.map((id) => this.doctorRepository.findDoctorById(id)))
+      // Check if doctor is already assigned to a different shift on the same day
+      const sameDaySchedule = await this.doctorRepository.findFirstSchedule({
+        doctorId,
+        date: {
+          gte: startOfDay(scheduleDate),
+          lte: endOfDay(scheduleDate),
+        },
+        isOff: false,
+      })
 
-      if (doctors.some((d) => !d)) {
-        throw new BadRequestException('One or more doctors not found')
-      }
-
-      // Check if any doctor is already assigned to this shift
-      const existingDoctors = currentSchedule.map((s) => s.doctorId)
-      const duplicateDoctors = doctorIds.filter((id) => existingDoctors.includes(id))
-      if (duplicateDoctors.length > 0) {
+      if (sameDaySchedule && sameDaySchedule.shift !== shift) {
         throw new BadRequestException(
-          `Doctors with IDs ${duplicateDoctors.join(', ')} are already assigned to this shift`,
+          `Doctor ${doctorId} is already assigned to ${sameDaySchedule.shift} shift on ${scheduleDate.toISOString().split('T')[0]}`,
         )
       }
 
-      // Assign doctors to the shift
-      const assignments = await Promise.all(
-        doctorIds.map((doctorId) =>
-          this.doctorRepository.createSchedule({
-            doctor: { connect: { id: doctorId } },
-            date: scheduleDate,
-            dayOfWeek: this.getDayOfWeek(scheduleDate),
-            shift,
-            isOff: false,
-          }),
-        ),
-      )
+      // Create the schedule assignment
+      const assignment = await this.doctorRepository.createSchedule({
+        doctor: { connect: { id: doctorId } },
+        date: scheduleDate,
+        dayOfWeek: this.getDayOfWeek(scheduleDate),
+        shift,
+        isOff: false,
+      })
+
+      console.log('Manual assignment completed:', {
+        doctorId,
+        date: scheduleDate.toISOString(),
+        shift,
+        dayOfWeek: this.getDayOfWeek(scheduleDate),
+      })
 
       return {
-        message: 'Doctors assigned successfully',
-        assignments,
-        remainingShifts: availableSlots - doctorIds.length,
-        doctorsPerShift,
+        message: 'Doctor assigned successfully',
+        assignment: {
+          id: assignment.id,
+          doctorId: assignment.doctorId,
+          date: assignment.date,
+          shift: assignment.shift,
+          dayOfWeek: assignment.dayOfWeek,
+          doctor: {
+            id: doctor.id,
+            specialization: doctor.specialization,
+          },
+        },
       }
     } catch (error) {
       if (error instanceof BadRequestException) {
         throw error
       }
-      throw new InternalServerErrorException('Error assigning doctors: ' + error.message)
+      throw new InternalServerErrorException('Error assigning doctor: ' + error.message)
     }
   }
 
@@ -819,5 +864,37 @@ export class DoctorService {
 
   async getDoctorsByDate(date: Date) {
     return this.doctorRepository.findDoctorByDate(date)
+  }
+
+  async getWeeklySchedule(startDate: Date, endDate: Date) {
+    try {
+      // Get all doctors with their schedules for the specified week
+      const doctors = await this.doctorRepository.findDoctorsWithSchedulesInRange(startDate, endDate)
+      
+      // Group schedules by day and shift for easier frontend processing
+      const weeklySchedule = {
+        startDate: startDate,
+        endDate: endDate,
+        doctors: doctors.map(doctor => ({
+          id: doctor.id,
+          userId: doctor.userId,
+          specialization: doctor.specialization,
+          certifications: doctor.certifications,
+          user: doctor.user,
+          schedules: doctor.schedules.map(schedule => ({
+            id: schedule.id,
+            date: schedule.date,
+            dayOfWeek: schedule.dayOfWeek,
+            shift: schedule.shift,
+            isOff: schedule.isOff,
+            swappedWithId: schedule.swappedWithId,
+          }))
+        }))
+      }
+
+      return weeklySchedule
+    } catch (error) {
+      throw new InternalServerErrorException('Error getting weekly schedule: ' + error.message)
+    }
   }
 }

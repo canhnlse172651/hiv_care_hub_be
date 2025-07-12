@@ -38,6 +38,8 @@ export const AppointmentSchema = z.object({
   }),
   status: z.enum(['PENDING', 'CHECKIN', 'PAID', 'PROCESS', 'CONFIRMED', 'COMPLETED', 'CANCELLED']).default('PENDING'),
   notes: z.string().nullable().optional(),
+  patientMeetingUrl: z.string().nullable().optional(),
+  doctorMeetingUrl: z.string().nullable().optional(),
   createdAt: z.date(),
   updatedAt: z.date(),
 })
@@ -56,6 +58,8 @@ export const CreateAppointmentSchema = z.object({
   }),
   status: z.enum(['PENDING', 'CHECKIN', 'PAID', 'PROCESS', 'CONFIRMED', 'COMPLETED', 'CANCELLED']).default('PENDING'),
   notes: z.string().nullable().optional(),
+  patientMeetingUrl: z.string().nullable().optional(),
+  doctorMeetingUrl: z.string().nullable().optional(),
 })
 
 export const UpdateAppointmentSchema = z.object({
@@ -76,6 +80,8 @@ export const UpdateAppointmentSchema = z.object({
     .default('PENDING')
     .optional(),
   notes: z.string().nullable().optional(),
+  patientMeetingUrl: z.string().nullable().optional(),
+  doctorMeetingUrl: z.string().nullable().optional(),
 })
 
 export const AppointmentResSchema = z.object({
@@ -88,6 +94,8 @@ export const AppointmentResSchema = z.object({
   type: z.enum(['ONLINE', 'OFFLINE']),
   status: z.enum(['PENDING', 'CHECKIN', 'PAID', 'PROCESS', 'CONFIRMED', 'COMPLETED', 'CANCELLED']),
   notes: z.string().nullable(),
+  patientMeetingUrl: z.string().nullable().optional(),
+  doctorMeetingUrl: z.string().nullable().optional(),
   createdAt: z.date(),
   updatedAt: z.date(),
 })
@@ -98,6 +106,7 @@ export const AppointmentFilterSchema = z
     appointmentTime: z.date({ message: 'Appointment time must be a valid date' }).optional(),
     status: z.enum(['PENDING', 'CHECKIN', 'PAID', 'PROCESS', 'CONFIRMED', 'COMPLETED', 'CANCELLED']).optional(),
     type: z.enum(['ONLINE', 'OFFLINE']).optional(),
+    serviceType: z.enum(['TEST', 'CONSULT', 'TREATMENT']).optional(),
     dateFrom: z.string().optional(),
     dateTo: z.string().optional(),
   })

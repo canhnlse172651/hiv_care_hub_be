@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
-import { PrismaService } from 'src/shared/services/prisma.service'
-import { Doctor, DoctorSchedule, Shift, DayOfWeek, Prisma } from '@prisma/client'
+import { DayOfWeek, Doctor, DoctorSchedule, Prisma, Shift } from '@prisma/client'
+import { PrismaService } from '../shared/services/prisma.service'
 
 @Injectable()
 export class DoctorRepository {
@@ -14,15 +14,14 @@ export class DoctorRepository {
   // Tạo bác sĩ mới
   async createDoctor(data: {
     userId: number
-    specialization: string
+    specialization?: string
     certifications?: string[]
-    maxShiftsPerDay?: number
   }): Promise<Doctor> {
     return this.prismaService.doctor.create({
       data: {
         userId: data.userId,
-        specialization: data.specialization,
-        certifications: data.certifications,
+        specialization: data.specialization || "",
+        certifications: data.certifications || [],
       },
       include: {
         user: {
@@ -243,6 +242,81 @@ export class DoctorRepository {
         },
         schedules: {
           where: { date },
+        },
+      },
+    })
+  }
+
+  async findAllDoctorsWithSchedules(startDate: Date, endDate: Date) {
+    return this.prismaService.doctor.findMany({
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            phoneNumber: true,
+            avatar: true,
+            status: true,
+            roleId: true,
+            role: {
+              select: {
+                id: true,
+                name: true,
+                description: true,
+                isActive: true,
+                createdAt: true,
+                updatedAt: true,
+              },
+            },
+          },
+        },
+        schedules: {
+          where: {
+            date: {
+              gte: startDate,
+              lte: endDate,
+            },
+          },
+          orderBy: {
+            date: 'asc',
+          },
+        },
+      },
+    })
+  }
+
+  async findDoctorsWithSchedulesInRange(startDate: Date, endDate: Date) {
+    return this.prismaService.doctor.findMany({
+      where: {
+        schedules: {
+          some: {
+            date: {
+              gte: startDate,
+              lte: endDate,
+            },
+          },
+        },
+      },
+      include: {
+        user: {
+          select: {
+            name: true,
+            email: true,
+            phoneNumber: true,
+            avatar: true,
+          },
+        },
+        schedules: {
+          where: {
+            date: {
+              gte: startDate,
+              lte: endDate,
+            },
+          },
+          orderBy: {
+            date: 'asc',
+          },
         },
       },
     })

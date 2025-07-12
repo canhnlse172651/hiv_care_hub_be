@@ -1,29 +1,6 @@
 import { MedicationSchedule } from '@prisma/client'
 import { z } from 'zod'
 
-// Shared interface for medication across modules
-export interface IMedication {
-  medicineId: number
-  dosage: string
-  duration: MedicationSchedule
-  notes?: string
-}
-
-// Shared interface for bulk operations
-export interface IBulkCreateDto<T> {
-  items: T[]
-  validateBeforeCreate?: boolean
-}
-
-// Shared interface for search operations
-export interface ISearchOptions {
-  query?: string
-  limit?: number
-  offset?: number
-  sortBy?: string
-  sortOrder?: 'asc' | 'desc'
-}
-
 // Common medication schema with explicit validation
 export const SharedMedicationSchema = z.object({
   medicineId: z.union([z.string(), z.number()]).transform((val) => {
@@ -78,14 +55,6 @@ export const SharedSearchSchema = z.object({
     })
     .optional(),
   sortOrder: z
-    .union([z.string(), z.enum(['asc', 'desc']), z.undefined()])
-    .transform((val) => {
-      if (!val) return 'desc'
-      const str = String(val).toLowerCase()
-      return ['asc', 'ascending', 'up'].includes(str) ? 'asc' : 'desc'
-    })
-    .default('desc'),
-  search: z
     .union([z.string(), z.number(), z.boolean(), z.undefined(), z.null()])
     .transform((val) => {
       if (val === undefined || val === null) return undefined
@@ -126,7 +95,3 @@ export const SharedBulkCreateSchema = z.object({
     })
     .default(true),
 })
-
-export type SharedMedication = z.infer<typeof SharedMedicationSchema>
-export type SharedSearch = z.infer<typeof SharedSearchSchema>
-export type SharedBulkCreate = z.infer<typeof SharedBulkCreateSchema>

@@ -7,6 +7,7 @@ import {
   Get,
   HttpException,
   HttpStatus,
+  InternalServerErrorException,
   Logger,
   Param,
   ParseIntPipe,
@@ -91,17 +92,10 @@ export class PatientTreatmentCoreController {
       return result
     } catch (error) {
       this.logger.error(`Error creating patient treatment: ${error.message}`, error.stack)
-
-      // Re-throw known HTTP exceptions
       if (error instanceof HttpException) {
         throw error
       }
-
-      // Handle unexpected errors
-      throw new HttpException(
-        'An unexpected error occurred while creating patient treatment',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      )
+      throw new InternalServerErrorException('An unexpected error occurred while creating patient treatment')
     }
   }
 

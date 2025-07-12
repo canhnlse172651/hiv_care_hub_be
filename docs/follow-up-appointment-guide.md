@@ -30,6 +30,24 @@ Hệ thống này tích hợp giữa **Patient Treatment** và **Appointment** �
 - Cập nhật và thay đổi lịch hẹn
 - Thống kê và báo cáo
 
+### 5. **Luồng ưu tiên bác sĩ và gợi ý lịch trực**
+
+- Khi tạo lịch tái khám, hệ thống sẽ ưu tiên gán bác sĩ đã khám lần trước cho lịch hẹn mới.
+- Nếu bác sĩ đó **không có lịch làm việc vào ngày dự kiến**, hệ thống sẽ **gợi ý các ngày khác trong tuần mà bác sĩ đó có lịch trực**.
+- Staff có thể chọn lại ngày phù hợp từ danh sách gợi ý này và xác nhận với bệnh nhân.
+- Nếu vẫn không phù hợp, có thể chọn bác sĩ khác hoặc chuyển lịch cho tuần tiếp theo.
+
+Ví dụ luồng xử lý:
+
+1. Bệnh nhân khám xong, cần tạo lịch tái khám tiếp theo.
+2. Hệ thống kiểm tra lịch trực của bác sĩ khám lần trước:
+   - Nếu available: tạo lịch như dự kiến.
+   - Nếu không available: trả về danh sách các ngày trong tuần mà bác sĩ đó trực (ví dụ: Thứ 2, Thứ 4, Thứ 6).
+3. Staff xác nhận lại với bệnh nhân và chọn ngày phù hợp từ danh sách gợi ý.
+4. Cập nhật lại lịch tái khám với ngày đã xác nhận.
+
+> **Lưu ý:** Luồng này giúp đảm bảo ưu tiên continuity of care (liên tục điều trị với cùng bác sĩ) và tối ưu trải nghiệm cho bệnh nhân.
+
 ## 🚀 API Endpoints
 
 ### Base URL: `/patient-treatments/follow-up-appointments`

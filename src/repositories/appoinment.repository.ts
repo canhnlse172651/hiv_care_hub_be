@@ -1,14 +1,14 @@
 import { Injectable } from '@nestjs/common'
-import { PrismaService } from '../shared/services/prisma.service'
+import { AppointmentStatus, AppointmentType } from '@prisma/client'
 import {
   AppointmentResponseType,
   CreateAppointmentDtoType,
   UpdateAppointmentDtoType,
 } from '../routes/appoinment/appoinment.dto'
-import { PaginationService } from '../shared/services/pagination.service'
+import { AppointmentFilterSchema } from '../routes/appoinment/appoinment.model'
 import { createPaginationSchema, PaginatedResponse, PaginationOptions } from '../shared/schemas/pagination.schema'
-import { AppointmentFilterSchema } from 'src/routes/appoinment/appoinment.model'
-import { AppointmentStatus, AppointmentType } from '@prisma/client'
+import { PaginationService } from '../shared/services/pagination.service'
+import { PrismaService } from '../shared/services/prisma.service'
 
 @Injectable()
 export class AppoinmentRepository {
@@ -183,52 +183,130 @@ export class AppoinmentRepository {
     } as AppointmentResponseType
   }
 
-  async findAppointmentByUserId(id: number): Promise<AppointmentResponseType[]> {
-    const appointments = await this.prisma.appointment.findMany({
-      where: { userId: id },
-      include: this.includeRelations,
+  async findAppointmentByUserId(
+    id: number,
+    options: PaginationOptions<any>,
+  ): Promise<PaginatedResponse<AppointmentResponseType>> {
+    const paginationSchema = createPaginationSchema(AppointmentFilterSchema)
+    const validatedOptions = paginationSchema.parse({
+      page: options.page?.toString() || '1',
+      limit: options.limit?.toString() || '10',
+      sortBy: options.sortBy,
+      sortOrder: options.sortOrder,
+      search: options.search,
+      searchFields: options.searchFields || ['notes'],
+      filters: options.filters ? JSON.stringify(options.filters) : undefined,
     })
 
-    return appointments.map((appointment) => {
-      const doctorUser = appointment.doctor?.user
-      const doctor = doctorUser
-        ? {
-            id: appointment.doctor.id,
-            name: doctorUser.name,
-            email: doctorUser.email,
-            avatar: doctorUser.avatar,
-          }
-        : null
+    const where: any = {
+      userId: id,
+    }
 
-      return {
-        ...appointment,
-        doctor,
-      } as AppointmentResponseType
-    })
+    if (validatedOptions.search) {
+      where.OR = (validatedOptions.searchFields || ['notes']).map((field) => ({
+        [field]: { contains: validatedOptions.search, mode: 'insensitive' },
+      }))
+    }
+
+    // Filter functionality
+    if (validatedOptions.filters) {
+      const { status, type, dateFrom, dateTo, serviceType } = validatedOptions.filters
+
+      if (status) where.status = status
+      if (type) where.type = type
+      if (serviceType) {
+        where.service = {
+          type: serviceType,
+        }
+      }
+
+      // Date range filter
+      if (dateFrom || dateTo) {
+        where.appointmentTime = {}
+        if (dateFrom) {
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+          where.appointmentTime.gte = new Date(dateFrom)
+        }
+        if (dateTo) {
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+          where.appointmentTime.lte = new Date(dateTo)
+        }
+      }
+    }
+
+    // Sorting
+    const orderBy: any = {}
+    if (validatedOptions.sortBy) {
+      orderBy[validatedOptions.sortBy] = validatedOptions.sortOrder || 'asc'
+    } else {
+      orderBy.createdAt = 'desc'
+    }
+
+    return this.paginationService.paginate(this.prisma.appointment, validatedOptions, where, this.includeRelations)
   }
 
-  async findAppointmentByDoctorId(id: number): Promise<AppointmentResponseType[]> {
-    const appointments = await this.prisma.appointment.findMany({
-      where: { doctorId: id },
-      include: this.includeRelations,
+  async findAppointmentByDoctorId(
+    id: number,
+    options: PaginationOptions<any>,
+  ): Promise<PaginatedResponse<AppointmentResponseType>> {
+    const paginationSchema = createPaginationSchema(AppointmentFilterSchema)
+    const validatedOptions = paginationSchema.parse({
+      page: options.page?.toString() || '1',
+      limit: options.limit?.toString() || '10',
+      sortBy: options.sortBy,
+      sortOrder: options.sortOrder,
+      search: options.search,
+      searchFields: options.searchFields || ['notes'],
+      filters: options.filters ? JSON.stringify(options.filters) : undefined,
     })
 
-    return appointments.map((appointment) => {
-      const doctorUser = appointment.doctor?.user
-      const doctor = doctorUser
-        ? {
-            id: appointment.doctor.id,
-            name: doctorUser.name,
-            email: doctorUser.email,
-            avatar: doctorUser.avatar,
-          }
-        : null
+    const where: any = {
+      doctorId: id,
+    }
 
-      return {
-        ...appointment,
-        doctor,
-      } as AppointmentResponseType
-    })
+    // Search functionality
+    if (validatedOptions.search) {
+      where.OR = (validatedOptions.searchFields || ['notes']).map((field) => ({
+        [field]: { contains: validatedOptions.search, mode: 'insensitive' },
+      }))
+    }
+
+    // Filter functionality
+    if (validatedOptions.filters) {
+      const { serviceId, status, type, dateFrom, dateTo, serviceType } = validatedOptions.filters
+
+      if (serviceId) where.serviceId = serviceId
+      if (status) where.status = status
+      if (type) where.type = type
+      if (serviceType) {
+        where.service = {
+          type: serviceType,
+        }
+      }
+
+      // Date range filter
+      if (dateFrom || dateTo) {
+        where.appointmentTime = {}
+        if (dateFrom) {
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+          where.appointmentTime.gte = new Date(dateFrom)
+        }
+        if (dateTo) {
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+          where.appointmentTime.lte = new Date(dateTo)
+        }
+      }
+    }
+
+    // Sorting
+    const orderBy: any = {}
+    if (validatedOptions.sortBy) {
+      orderBy[validatedOptions.sortBy] = validatedOptions.sortOrder || 'asc'
+    } else {
+      orderBy.createdAt = 'desc'
+    }
+
+    return this.paginationService.paginate(this.prisma.appointment, validatedOptions, where, this.includeRelations)
   }
 
   async findAppointmentsPaginated(
@@ -256,11 +334,16 @@ export class AppoinmentRepository {
 
     // Filter functionality
     if (validatedOptions.filters) {
-      const { serviceId, status, type, dateFrom, dateTo } = validatedOptions.filters
+      const { serviceId, status, type, dateFrom, dateTo, serviceType } = validatedOptions.filters
 
       if (serviceId) where.serviceId = serviceId
       if (status) where.status = status
       if (type) where.type = type
+      if (serviceType) {
+        where.service = {
+          type: serviceType,
+        }
+      }
 
       // Date range filter
       if (dateFrom || dateTo) {

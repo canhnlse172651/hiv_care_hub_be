@@ -1,12 +1,15 @@
 import { createZodDto } from 'nestjs-zod'
+import type { z } from 'zod'
 import {
+  BulkCreateMedicineSchema,
   CreateMedicineSchema,
   MedicineStatsQuerySchema,
   PriceDistributionQuerySchema,
-  QueryMedicineSchema,
   UnitUsageQuerySchema,
   UpdateMedicineSchema,
 } from './medicine.model'
+
+export type CreateMedicineDtoType = z.infer<typeof CreateMedicineSchema>
 
 // Create Medicine DTO
 export class CreateMedicineDto extends createZodDto(CreateMedicineSchema) {}
@@ -14,8 +17,8 @@ export class CreateMedicineDto extends createZodDto(CreateMedicineSchema) {}
 // Update Medicine DTO
 export class UpdateMedicineDto extends createZodDto(UpdateMedicineSchema) {}
 
-// Query Medicine DTO
-export class QueryMedicineDto extends createZodDto(QueryMedicineSchema) {}
+// Bulk Create DTO
+export class BulkCreateMedicineDto extends createZodDto(BulkCreateMedicineSchema) {}
 
 // Analytics DTOs
 export class MedicineStatsQueryDto extends createZodDto(MedicineStatsQuerySchema) {}

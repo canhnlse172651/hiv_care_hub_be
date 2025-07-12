@@ -10,6 +10,7 @@ import {
   GetDoctorScheduleDto,
   GenerateScheduleDto,
   GetDoctorByDateDto,
+  ManualScheduleAssignmentDto,
 } from './doctor.dto'
 import {
   ApiGetAllDoctors,
@@ -69,6 +70,32 @@ export class DoctorController {
     return this.doctorService.deleteDoctor(id)
   }
 
+  @Get('schedule/weekly')
+  @ApiGetAllDoctors()
+  async getWeeklySchedule(@Query() query: unknown): Promise<any> {
+    const validatedQuery = QueryDoctorDto.create(query)
+    
+    // Set default date range to current week if not provided
+    let startDate = validatedQuery.startDate
+    let endDate = validatedQuery.endDate
+    
+    if (!startDate || !endDate) {
+      const now = new Date()
+      const currentDay = now.getDay()
+      const daysFromMonday = currentDay === 0 ? 6 : currentDay - 1 // Sunday = 0, Monday = 1
+      
+      startDate = new Date(now)
+      startDate.setDate(now.getDate() - daysFromMonday)
+      startDate.setHours(0, 0, 0, 0)
+      
+      endDate = new Date(startDate)
+      endDate.setDate(startDate.getDate() + 6) // End of week (Sunday)
+      endDate.setHours(23, 59, 59, 999)
+    }
+    
+    return this.doctorService.getWeeklySchedule(startDate, endDate)
+  }
+
   @Get(':id/schedule')
   @ApiGetDoctorSchedule()
   async getDoctorSchedule(@Param('id', ParseIntPipe) id: number, @Query() query: unknown) {
@@ -86,8 +113,9 @@ export class DoctorController {
 
   @Post('schedule/manual')
   @ApiAssignDoctorsManually()
-  async assignDoctorsManually(@Body() data: ManualScheduleAssignmentType) {
-    return this.doctorService.assignDoctorsManually(data)
+  async assignDoctorsManually(@Body() body: unknown) {
+    const dto = ManualScheduleAssignmentDto.create(body)
+    return this.doctorService.assignDoctorsManually(dto)
   }
 
   @Post('schedule/swap')
@@ -98,7 +126,6 @@ export class DoctorController {
   }
 
   @ApiGetDoctorsByDate()
-  @Get('schedule/by-date')
   @Get('schedule/by-date')
   async getDoctorsByDate(@Query('date') date: string): Promise<Doctor[]> {
     const parsedDate = new Date(date)

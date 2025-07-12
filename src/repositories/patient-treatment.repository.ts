@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common'
 import { PatientTreatment, Prisma } from '@prisma/client'
-import { PaginationService } from 'src/shared/services/pagination.service'
-import { PrismaService } from 'src/shared/services/prisma.service'
 import { z } from 'zod'
 import { CreatePatientTreatmentSchema } from '../routes/patient-treatment/patient-treatment.model'
+import { PaginationService } from '../shared/services/pagination.service'
+import { PrismaService } from '../shared/services/prisma.service'
 
 // Constants
 const DAYS_IN_MS = 1000 * 60 * 60 * 24
