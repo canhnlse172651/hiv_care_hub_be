@@ -9,6 +9,7 @@ import { PaginationService } from 'src/shared/services/pagination.service'
 import { formatTimeHHMM, isTimeBetween } from 'src/shared/utils/date.utils'
 import { DoctorRepository } from 'src/repositories/doctor.repository'
 import { MeetingService } from '../meeting/meeting.service'
+import { EmailService } from 'src/shared/services/email.service'
 
 const slots = [
   { start: '07:00', end: '07:30' },
@@ -36,6 +37,7 @@ export class AppoinmentService {
     private readonly paginationService: PaginationService,
     private readonly doctorRepository: DoctorRepository,
     private readonly meetingService: MeetingService,
+    private readonly emailService: EmailService,
   ) {}
 
   async createAppointment(data: CreateAppointmentDtoType): Promise<AppointmentResponseType> {
@@ -167,7 +169,19 @@ export class AppoinmentService {
     if (existingAppointment) {
       throw new BadRequestException('This slot is already booked')
     }
-
+    if (data.type === 'ONLINE') {
+      //gửi mail thông báo đặt lịch thành công
+      await this.emailService.sendMeetingUrlMail({
+        email: user.email,
+        meetingUrl: data.patientMeetingUrl || '',
+      })
+      const doctor = await this.doctorRepository.findDoctorById(data.doctorId)
+      const userDoctor = await this.userRepository.findUserById(Number(doctor?.userId))
+      await this.emailService.sendMeetingUrlMail({
+        email: userDoctor?.email || '',
+        meetingUrl: data.doctorMeetingUrl || '',
+      })
+    }
     return await this.appoinmentRepository.createAppointment(data)
   }
 
@@ -289,6 +303,7 @@ export class AppoinmentService {
     if (existingAppointment && existingAppointment.id !== id) {
       throw new BadRequestException('This slot is already booked')
     }
+    //
 
     // Gán lại doctorId vào data update
     return this.appoinmentRepository.updateAppointment(id, { ...data, doctorId: finalDoctorId })
