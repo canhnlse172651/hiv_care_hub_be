@@ -106,6 +106,7 @@ export const AppointmentFilterSchema = z
     appointmentTime: z.date({ message: 'Appointment time must be a valid date' }).optional(),
     status: z.enum(['PENDING', 'CHECKIN', 'PAID', 'PROCESS', 'CONFIRMED', 'COMPLETED', 'CANCELLED']).optional(),
     type: z.enum(['ONLINE', 'OFFLINE']).optional(),
+    serviceType: z.enum(['TEST', 'CONSULT', 'TREATMENT']).optional(),
     dateFrom: z.string().optional(),
     dateTo: z.string().optional(),
   })

@@ -9,6 +9,7 @@ import { PaginationService } from 'src/shared/services/pagination.service'
 import { formatTimeHHMM, isTimeBetween } from 'src/shared/utils/date.utils'
 import { DoctorRepository } from 'src/repositories/doctor.repository'
 import { MeetingService } from '../meeting/meeting.service'
+import { EmailService } from 'src/shared/services/email.service'
 
 const slots = [
   { start: '07:00', end: '07:30' },
@@ -36,6 +37,7 @@ export class AppoinmentService {
     private readonly paginationService: PaginationService,
     private readonly doctorRepository: DoctorRepository,
     private readonly meetingService: MeetingService,
+    private readonly emailService: EmailService,
   ) {}
 
   async createAppointment(data: CreateAppointmentDtoType): Promise<AppointmentResponseType> {
@@ -167,7 +169,19 @@ export class AppoinmentService {
     if (existingAppointment) {
       throw new BadRequestException('This slot is already booked')
     }
-
+    if (data.type === 'ONLINE') {
+      //gửi mail thông báo đặt lịch thành công
+      await this.emailService.sendMeetingUrlMail({
+        email: user.email,
+        meetingUrl: data.patientMeetingUrl || '',
+      })
+      const doctor = await this.doctorRepository.findDoctorById(data.doctorId)
+      const userDoctor = await this.userRepository.findUserById(Number(doctor?.userId))
+      await this.emailService.sendMeetingUrlMail({
+        email: userDoctor?.email || '',
+        meetingUrl: data.doctorMeetingUrl || '',
+      })
+    }
     return await this.appoinmentRepository.createAppointment(data)
   }
 
@@ -289,6 +303,7 @@ export class AppoinmentService {
     if (existingAppointment && existingAppointment.id !== id) {
       throw new BadRequestException('This slot is already booked')
     }
+    //
 
     // Gán lại doctorId vào data update
     return this.appoinmentRepository.updateAppointment(id, { ...data, doctorId: finalDoctorId })
@@ -315,12 +330,13 @@ export class AppoinmentService {
   async findAppointmentByUserId(id: number, query: unknown): Promise<PaginatedResponse<AppointmentResponseType>> {
     const user = await this.userRepository.findUserById(id)
     if (!user) throw new BadRequestException('User not found')
-    const { status, type, dateFrom, dateTo, ...rest } = query as any
+    const { status, type, dateFrom, dateTo, serviceType, ...rest } = query as any
     const filters: Record<string, any> = {}
     if (status !== undefined) filters.status = status
     if (type !== undefined) filters.type = type
     if (dateFrom !== undefined) filters.dateFrom = dateFrom
     if (dateTo !== undefined) filters.dateTo = dateTo
+    if (serviceType !== undefined) filters.serviceType = serviceType
 
     const newQuery = {
       ...rest,
@@ -335,13 +351,14 @@ export class AppoinmentService {
   async findAppointmentByDoctorId(id: number, query: unknown): Promise<PaginatedResponse<AppointmentResponseType>> {
     const doctor = await this.userRepository.findUserById(id)
     if (!doctor) throw new BadRequestException('Doctor not found')
-    const { serviceId, status, type, dateFrom, dateTo, ...rest } = query as any
+    const { serviceId, status, type, dateFrom, dateTo, serviceType, ...rest } = query as any
     const filters: Record<string, any> = {}
     if (serviceId !== undefined) filters.serviceId = Number(serviceId)
     if (status !== undefined) filters.status = status
     if (type !== undefined) filters.type = type
     if (dateFrom !== undefined) filters.dateFrom = dateFrom
     if (dateTo !== undefined) filters.dateTo = dateTo
+    if (serviceType !== undefined) filters.serviceType = serviceType
 
     const newQuery = {
       ...rest,
@@ -371,13 +388,14 @@ export class AppoinmentService {
 
   async findAppointmentsPaginated(query: unknown): Promise<PaginatedResponse<AppointmentResponseType>> {
     // Tách các trường filter ra khỏi query
-    const { serviceId, status, type, dateFrom, dateTo, ...rest } = query as any // Gom các trường filter vào object filters
+    const { serviceId, status, type, dateFrom, dateTo, serviceType, ...rest } = query as any // Gom các trường filter vào object filters
     const filters: Record<string, any> = {}
     if (serviceId !== undefined) filters.serviceId = Number(serviceId)
     if (status !== undefined) filters.status = status
     if (type !== undefined) filters.type = type
     if (dateFrom !== undefined) filters.dateFrom = dateFrom
     if (dateTo !== undefined) filters.dateTo = dateTo
+    if (serviceType !== undefined) filters.serviceType = serviceType
 
     // Tạo query mới có trường filters (dưới dạng JSON string)
     const newQuery = {
