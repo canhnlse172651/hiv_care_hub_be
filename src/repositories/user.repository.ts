@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { User } from '@prisma/client'
+import { Doctor, User } from '@prisma/client'
 import { RegisterBodyType, RegisterResType, UserType, UserWithPasswordType } from '../routes/auth/auth.model'
 import { UserResponseType } from '../routes/user/user.dto'
 import { PrismaService } from '../shared/services/prisma.service'
@@ -106,7 +106,9 @@ export class AuthRepository {
     }) as Promise<UserResponseType | null>
   }
 
-  async findUserByIdWithDoctorId(id: number): Promise<(UserResponseType & { doctorId?: number }) | null> {
+  async findUserByIdWithDoctorId(
+    id: number,
+  ): Promise<(UserResponseType & { doctorId?: number; doctor?: { id: number } }) | null> {
     const user = (await this.prismaService.user.findFirst({
       where: { id },
       select: {
@@ -123,20 +125,16 @@ export class AuthRepository {
         deletedAt: true,
         createdAt: true,
         updatedAt: true,
-        doctor: {
-          select: {
-            id: true,
-          },
-        },
+        doctor: true,
       },
     })) as (UserResponseType & { doctor?: { id: number } }) | null
 
     if (!user) return null
 
-    const { doctor, ...rest } = user
     return {
-      ...rest,
-      doctorId: doctor?.id,
+      ...user,
+      doctorId: user.doctor?.id,
+      doctor: user.doctor,
     }
   }
 
@@ -290,8 +288,8 @@ export class AuthRepository {
     }) as Promise<UserResponseType>
   }
 
-  async updateUser(id: number, data: Partial<User>): Promise<UserResponseType> {
-    return this.prismaService.user.update({
+  async updateUser(id: number, data: Partial<User>): Promise<(UserResponseType & { doctorId?: number; doctor?: { id: number } }) | null> {
+    return await this.prismaService.user.update({
       where: { id },
       data,
       select: {
@@ -308,8 +306,16 @@ export class AuthRepository {
         deletedAt: true,
         createdAt: true,
         updatedAt: true,
+        doctor: true,
       },
-    }) as Promise<UserResponseType>
+    }) as (UserResponseType & { doctorId?: number; doctor?: { id: number } }) | null
+  }
+
+  async updateDoctor(userId: number, data: Partial<Doctor>): Promise<Doctor> {
+    return this.prismaService.doctor.update({
+      where: { userId },
+      data,
+    });
   }
 
   async createVerificationCode(data: {

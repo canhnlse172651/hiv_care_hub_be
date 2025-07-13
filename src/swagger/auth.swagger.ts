@@ -327,7 +327,7 @@ export const ApiGetProfile = () => {
 
 export const ApiUpdateProfile = () => {
   return applyDecorators(
-    ApiOperation({ summary: 'Update user profile using accessToken' }),
+    ApiOperation({ summary: 'Cập nhật thông tin hồ sơ người dùng (dùng accessToken)' }),
     ApiBearerAuth(),
     ApiBody({
       schema: {
@@ -347,21 +347,38 @@ export const ApiUpdateProfile = () => {
           },
           avatar: {
             type: 'string',
-            example: 'https://example.com/avatar.jpg',
+            example: 'avatar.jpg',
             nullable: true,
           },
+          specialization: {
+            type: 'string',
+            example: 'Cardiology',
+            description: 'Chuyên môn của bác sĩ',
+          },
+          certifications: {
+            type: 'array',
+            items: {
+              type: 'string',
+              example: 'MD',
+            },
+            description: 'Danh sách chứng chỉ của bác sĩ',
+          },
         },
+        required: [],
       },
     }),
     ApiResponse({
       status: 200,
-      description: 'Profile updated successfully',
+      description: 'Cập nhật hồ sơ thành công',
       schema: UserProfileResponseSchema,
     }),
-    ApiResponse({ status: 401, description: 'Unauthorized' }),
-    ApiResponse({ status: 400, description: 'At least one field must be provided for update' }),
-  )
-}
+    ApiResponse({ status: 401, description: 'Không được ủy quyền (Unauthorized)' }),
+    ApiResponse({
+      status: 400,
+      description: 'Phải cung cấp ít nhất một trường để cập nhật',
+    }),
+  );
+};
 
 export const AuthSwagger = {
   tags: 'Auth',
