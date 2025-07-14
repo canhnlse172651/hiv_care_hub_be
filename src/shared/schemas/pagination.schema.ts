@@ -27,7 +27,7 @@ export const createPaginationSchema = <T extends z.ZodType>(filterSchema: T) => 
           const parsed = JSON.parse(val)
           return filterSchema.parse(parsed)
         } catch {
-          return {}
+          return undefined
         }
       })
       .optional(),

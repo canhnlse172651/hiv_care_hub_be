@@ -60,8 +60,8 @@ export class BlogRepository {
   }
 
   async findAllBlogs(
-    options: PaginationOptions<{ title?: string; description?: string }>,
-  ): Promise<PaginatedResponse<any>> {
+    options: PaginationOptions<any>,
+  ): Promise<PaginatedResponse<BlogResponseType>> {
     const paginationSchema = createPaginationSchema(BlogFilterSchema)
     const validatedOptions = paginationSchema.parse({
       page: options.page?.toString() || '1',
@@ -69,21 +69,23 @@ export class BlogRepository {
       sortBy: options.sortBy,
       sortOrder: options.sortOrder,
       search: options.search,
-      searchFields: options.searchFields || ['title', 'description'],
+      searchFields: ['title'],
       filters: options.filters ? JSON.stringify(options.filters) : undefined,
     })
     const where: any = {}
-    if (validatedOptions.search) {
-      where.title = { contains: validatedOptions.search, mode: 'insensitive' }
+    if(validatedOptions.search) {
+      where.OR = [
+        { title: { contains: validatedOptions.search, mode: 'insensitive' } },
+      ]
     }
+
+    // Filter functionality
     if (validatedOptions.filters) {
-      if (validatedOptions.filters.title) {
-        where.title = { contains: validatedOptions.filters.title, mode: 'insensitive' }
-      }
-      if (validatedOptions.filters.description) {
-        where.description = { contains: validatedOptions.filters.description, mode: 'insensitive' }
-      }
+      const { isPublished, categoryId } = validatedOptions.filters
+      if (isPublished !== undefined) where.isPublished = isPublished
+      if (categoryId !== undefined) where.cateId = categoryId
     }
+
     const orderBy: any = {}
     if (validatedOptions.sortBy && validatedOptions.sortOrder) {
       orderBy[validatedOptions.sortBy] = validatedOptions.sortOrder

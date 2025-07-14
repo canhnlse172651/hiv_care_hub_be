@@ -16,7 +16,16 @@ export class BlogService {
   }
 
   async findAllBlogs(query: unknown): Promise<PaginatedResponse<BlogResponseType>> {
-    const options = this.paginationService.getPaginationOptions(query)
+    const { isPublished, cateId, ...rest } = query as any
+    const filters: Record<string, any> = {}
+    if (isPublished !== undefined) filters.isPublished = isPublished
+    if (cateId !== undefined) filters.categoryId = Number(cateId)
+    const newQuery = {
+      ...rest,
+      filters: Object.keys(filters).length > 0 ? JSON.stringify(filters) : undefined,
+    }
+
+    const options = this.paginationService.getPaginationOptions(newQuery)
 
     return await this.blogRepository.findAllBlogs(options)
   }

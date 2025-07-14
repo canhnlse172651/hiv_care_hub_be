@@ -94,6 +94,18 @@ export const ApiGetAllBlogs = () => {
       description: 'Sort order (asc or desc)',
       enum: ['asc', 'desc'],
     }),
+    ApiQuery({
+      name: 'isPublished',
+      required: false,
+      description: 'Filter by published status',
+      type: Boolean,
+    }),
+    ApiQuery({
+      name: 'cateId',
+      required: false,
+      description: 'Filter by category ID',
+      type: Number,
+    }),
     ApiResponse({
       status: 200,
       description: 'List of all blogs',
