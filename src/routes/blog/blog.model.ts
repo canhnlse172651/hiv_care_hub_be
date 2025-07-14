@@ -60,7 +60,12 @@ export const BlogResSchema = z.object({
 
 export const BlogFilterSchema = z
   .object({
-    title: z.string().optional(),
+    isPublished: z.preprocess((val) => {
+      if (val === 'true') return true;
+      if (val === 'false') return false;
+      return val;
+    }, z.boolean()).optional(),    
+    categoryId: z.number().optional(),
   })
   .optional()
 
