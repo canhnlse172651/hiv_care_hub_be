@@ -48,6 +48,8 @@ import { TreatmentProtocolService } from './treatment-protocol.service'
 export class TreatmentProtocolController {
   constructor(private readonly treatmentProtocolService: TreatmentProtocolService) {}
 
+  // ===== STATIC ENDPOINTS =====
+
   @Post()
   @Roles(Role.Admin, Role.Doctor)
   @ApiCreateTreatmentProtocol()
@@ -69,6 +71,72 @@ export class TreatmentProtocolController {
   async searchTreatmentProtocols(@Query('q') query: string): Promise<TreatmentProtocol[]> {
     return this.treatmentProtocolService.searchTreatmentProtocols(query)
   }
+
+  @Get('advanced-search')
+  @Roles(Role.Admin, Role.Doctor, Role.Staff)
+  @ApiAdvancedSearchTreatmentProtocols()
+  async advancedSearchTreatmentProtocols(@Query() query: unknown) {
+    const validatedQuery = AdvancedSearchTreatmentProtocolDto.create(query)
+    return this.treatmentProtocolService.advancedSearchTreatmentProtocols(validatedQuery)
+  }
+
+  @Get('find-by-name')
+  @Roles(Role.Admin, Role.Doctor, Role.Staff)
+  @ApiFindTreatmentProtocolByName()
+  async findTreatmentProtocolByName(@Query() query: unknown): Promise<TreatmentProtocol | null> {
+    const validatedQuery = FindTreatmentProtocolByNameDto.create(query)
+    return this.treatmentProtocolService.findTreatmentProtocolByName(validatedQuery.name)
+  }
+
+  @Get('stats/popular')
+  @Roles(Role.Admin, Role.Doctor, Role.Staff)
+  @ApiGetMostPopularProtocols()
+  async getMostPopularProtocols(@Query() query: unknown) {
+    const validatedQuery = PopularProtocolsQueryDto.create(query)
+    return this.treatmentProtocolService.getMostPopularProtocols(validatedQuery.limit)
+  }
+
+  @Get('stats/custom-variations')
+  @Roles(Role.Admin, Role.Doctor, Role.Staff)
+  @ApiGetProtocolsWithCustomVariations()
+  async getProtocolsWithCustomVariations() {
+    return this.treatmentProtocolService.getProtocolsWithCustomVariations()
+  }
+
+  @Get('analytics/trends')
+  @Roles(Role.Admin, Role.Doctor, Role.Staff)
+  @ApiGetProtocolTrendAnalysis()
+  async getProtocolTrendAnalysis(@Query() query: unknown) {
+    const validatedQuery = ProtocolTrendAnalysisDto.create(query)
+    const params = {
+      startDate: validatedQuery.startDate ? new Date(validatedQuery.startDate) : undefined,
+      endDate: validatedQuery.endDate ? new Date(validatedQuery.endDate) : undefined,
+      disease: validatedQuery.disease,
+      limit: validatedQuery.limit,
+    }
+    return this.treatmentProtocolService.getProtocolTrendAnalysis(params)
+  }
+
+  @Post('bulk')
+  @Roles(Role.Admin, Role.Doctor)
+  @ApiBulkCreateTreatmentProtocols()
+  async bulkCreateTreatmentProtocols(@Body() body: unknown, @CurrentUser() user: any) {
+    const validatedBody = BulkCreateTreatmentProtocolDto.create(body)
+    return this.treatmentProtocolService.bulkCreateTreatmentProtocols(
+      validatedBody.protocols,
+      Number(user.userId),
+      validatedBody.skipDuplicates,
+    )
+  }
+
+  @Get('paginated')
+  @Roles(Role.Admin, Role.Doctor, Role.Staff)
+  @ApiFindTreatmentProtocolsPaginated()
+  async findTreatmentProtocolsPaginated(@Query() query: unknown): Promise<PaginatedResponse<TreatmentProtocol>> {
+    return this.treatmentProtocolService.findTreatmentProtocolsPaginated(query)
+  }
+
+  // ===== DYNAMIC ENDPOINTS =====
 
   @Get(':id')
   @Roles(Role.Admin, Role.Doctor, Role.Staff)
@@ -96,83 +164,12 @@ export class TreatmentProtocolController {
     return this.treatmentProtocolService.deleteTreatmentProtocol(id)
   }
 
-  // ===============================
-  // ADVANCED SEARCH AND FILTERING
-  // ===============================
-
-  @Get('advanced-search')
-  @Roles(Role.Admin, Role.Doctor, Role.Staff)
-  @ApiAdvancedSearchTreatmentProtocols()
-  async advancedSearchTreatmentProtocols(@Query() query: unknown) {
-    const validatedQuery = AdvancedSearchTreatmentProtocolDto.create(query)
-    return this.treatmentProtocolService.advancedSearchTreatmentProtocols(validatedQuery)
-  }
-
-  @Get('find-by-name')
-  @Roles(Role.Admin, Role.Doctor, Role.Staff)
-  @ApiFindTreatmentProtocolByName()
-  async findTreatmentProtocolByName(@Query() query: unknown): Promise<TreatmentProtocol | null> {
-    const validatedQuery = FindTreatmentProtocolByNameDto.create(query)
-    return this.treatmentProtocolService.findTreatmentProtocolByName(validatedQuery.name)
-  }
-
-  // ===============================
-  // ANALYTICS AND STATISTICS
-  // ===============================
-
   @Get('stats/usage/:id')
   @Roles(Role.Admin, Role.Doctor, Role.Staff)
   @ApiGetProtocolUsageStats()
   async getProtocolUsageStats(@Param('id', ParseIntPipe) id: number) {
     return this.treatmentProtocolService.getProtocolUsageStats(id)
   }
-
-  @Get('stats/popular')
-  @Roles(Role.Admin, Role.Doctor, Role.Staff)
-  @ApiGetMostPopularProtocols()
-  async getMostPopularProtocols(@Query() query: unknown) {
-    const validatedQuery = PopularProtocolsQueryDto.create(query)
-    return this.treatmentProtocolService.getMostPopularProtocols(validatedQuery.limit)
-  }
-
-  @Get('stats/custom-variations')
-  @Roles(Role.Admin, Role.Doctor, Role.Staff)
-  @ApiGetProtocolsWithCustomVariations()
-  async getProtocolsWithCustomVariations() {
-    return this.treatmentProtocolService.getProtocolsWithCustomVariations()
-  }
-
-  // ===============================
-  // PROTOCOL MANAGEMENT
-  // ===============================
-
-  @Post('clone/:id')
-  @Roles(Role.Admin, Role.Doctor)
-  @ApiCloneTreatmentProtocol()
-  async cloneTreatmentProtocol(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() body: unknown,
-    @CurrentUser() user: any,
-  ): Promise<TreatmentProtocol> {
-    const validatedBody = CloneTreatmentProtocolDto.create(body)
-    return this.treatmentProtocolService.cloneTreatmentProtocol(id, validatedBody.newName, Number(user.userId))
-  }
-
-  @Post('bulk')
-  @Roles(Role.Admin, Role.Doctor)
-  @ApiBulkCreateTreatmentProtocols()
-  async bulkCreateTreatmentProtocols(@Body() body: unknown, @CurrentUser() user: any) {
-    const validatedBody = BulkCreateTreatmentProtocolDto.create(body)
-    return this.treatmentProtocolService.bulkCreateTreatmentProtocols(
-      validatedBody.protocols,
-      Number(user.userId),
-      validatedBody.skipDuplicates,
-    )
-  }
-
-  // ===============================
-  // NEW ADVANCED ANALYTICS ENDPOINTS
-  // ===============================
 
   @Get('analytics/effectiveness/:id')
   @Roles(Role.Admin, Role.Doctor, Role.Staff)
@@ -189,18 +186,16 @@ export class TreatmentProtocolController {
     return this.treatmentProtocolService.getProtocolComparison(validatedBody.protocolIds)
   }
 
-  @Get('analytics/trends')
-  @Roles(Role.Admin, Role.Doctor, Role.Staff)
-  @ApiGetProtocolTrendAnalysis()
-  async getProtocolTrendAnalysis(@Query() query: unknown) {
-    const validatedQuery = ProtocolTrendAnalysisDto.create(query)
-    const params = {
-      startDate: validatedQuery.startDate ? new Date(validatedQuery.startDate) : undefined,
-      endDate: validatedQuery.endDate ? new Date(validatedQuery.endDate) : undefined,
-      disease: validatedQuery.disease,
-      limit: validatedQuery.limit,
-    }
-    return this.treatmentProtocolService.getProtocolTrendAnalysis(params)
+  @Post('clone/:id')
+  @Roles(Role.Admin, Role.Doctor)
+  @ApiCloneTreatmentProtocol()
+  async cloneTreatmentProtocol(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: unknown,
+    @CurrentUser() user: any,
+  ): Promise<TreatmentProtocol> {
+    const validatedBody = CloneTreatmentProtocolDto.create(body)
+    return this.treatmentProtocolService.cloneTreatmentProtocol(id, validatedBody.newName, Number(user.userId))
   }
 
   @Post('custom/from-treatment/:treatmentId')
@@ -217,12 +212,5 @@ export class TreatmentProtocolController {
       validatedBody,
       Number(user.userId),
     )
-  }
-
-  @Get('paginated')
-  @Roles(Role.Admin, Role.Doctor, Role.Staff)
-  @ApiFindTreatmentProtocolsPaginated()
-  async findTreatmentProtocolsPaginated(@Query() query: unknown): Promise<PaginatedResponse<TreatmentProtocol>> {
-    return this.treatmentProtocolService.findTreatmentProtocolsPaginated(query)
   }
 }
