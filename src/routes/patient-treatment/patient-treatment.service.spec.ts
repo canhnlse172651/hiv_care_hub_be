@@ -4,10 +4,6 @@ import { SharedErrorHandlingService } from '../../shared/services/error-handling
 import { PaginationService } from '../../shared/services/pagination.service'
 import { PatientTreatmentService } from './patient-treatment.service'
 import { FollowUpAppointmentService } from './services/follow-up-appointment.service'
-import { PatientTreatmentAnalyticsService } from './modules/analytics/patient-treatment-analytics.service'
-import { PatientTreatmentValidationService } from './modules/validation/patient-treatment-validation.service'
-import { PatientTreatmentCoreService } from './modules/core/patient-treatment-core.service'
-import { PatientTreatmentManagementService } from './modules/management/patient-treatment-management.service'
 
 describe('PatientTreatmentService', () => {
   let service: PatientTreatmentService
@@ -40,10 +36,6 @@ describe('PatientTreatmentService', () => {
         { provide: SharedErrorHandlingService, useValue: errorHandlingService },
         { provide: PaginationService, useValue: paginationService },
         { provide: FollowUpAppointmentService, useValue: followUpAppointmentService },
-        { provide: PatientTreatmentAnalyticsService, useValue: {} },
-        { provide: PatientTreatmentValidationService, useValue: {} },
-        { provide: PatientTreatmentCoreService, useValue: {} },
-        { provide: PatientTreatmentManagementService, useValue: {} },
       ],
     }).compile()
 

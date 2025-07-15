@@ -178,6 +178,12 @@ export class TreatmentProtocolController {
     return this.treatmentProtocolService.getProtocolEffectivenessMetrics(id)
   }
 
+  @Get('analytics/cost/:id')
+  @Roles(Role.Admin, Role.Doctor, Role.Staff)
+  async getProtocolCostEstimation(@Param('id', ParseIntPipe) id: number) {
+    return this.treatmentProtocolService.getProtocolCostEstimation(id)
+  }
+
   @Post('analytics/comparison')
   @Roles(Role.Admin, Role.Doctor, Role.Staff)
   @ApiGetProtocolComparison()

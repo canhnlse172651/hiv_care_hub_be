@@ -1,15 +1,21 @@
 import { Module } from '@nestjs/common'
+import { DoctorRepository } from 'src/repositories/doctor.repository'
+import { ServiceRepository } from 'src/repositories/service.repository'
+import { AuthRepository } from 'src/repositories/user.repository'
+import { PrismaService } from 'src/shared/services/prisma.service'
+import { AppoinmentRepository } from '../../repositories/appoinment.repository'
 import { AppoinmentController } from './appoinment.controller'
 import { AppoinmentService } from './appoinment.service'
-import { AppoinmentRepository } from '../../repositories/appoinment.repository'
-import { PrismaService } from 'src/shared/services/prisma.service'
-import { AuthRepository } from 'src/repositories/user.repository'
-import { ServiceRepository } from 'src/repositories/service.repository'
-import { DoctorRepository } from 'src/repositories/doctor.repository'
-import { MeetingService } from '../meeting/meeting.service'
+
 import { EmailService } from 'src/shared/services/email.service'
+import { MeetingService } from '../meeting/meeting.service'
+import { PatientTreatmentModule } from '../patient-treatment/patient-treatment.module'
+import { ReminderService } from '../reminder/reminder.service'
+import { AppointmentHistoryRepository } from './appointment-history.repository'
+import { AppointmentHistoryService } from './appointment-history.service'
 
 @Module({
+  imports: [PatientTreatmentModule],
   controllers: [AppoinmentController],
   providers: [
     AppoinmentService,
@@ -20,6 +26,9 @@ import { EmailService } from 'src/shared/services/email.service'
     DoctorRepository,
     MeetingService,
     EmailService,
+    AppointmentHistoryService,
+    AppointmentHistoryRepository,
+    ReminderService,
   ],
 })
 export class AppoinmentModule {}

@@ -55,41 +55,17 @@ const booleanValue = z
   })
   .optional()
 
-// Simple Custom Medication Schema
-export const SimpleCustomMedicationSchema = z.object({
-  name: z.string().min(1, 'Medicine name is required'),
-  dosage: z.string().min(1, 'Dosage is required'),
-  frequency: z.string().optional(),
-  notes: z.string().optional(),
-  price: z.number().min(0, 'Price must be non-negative').optional(),
-})
-
-// Full Custom Medication Schema
 export const CustomMedicationSchema = z.object({
   medicineId: z.number().min(1, 'Medicine ID is required').optional(),
   medicineName: z.string().min(1, 'Medicine name is required'),
   dosage: z.string().min(1, 'Dosage is required'),
-  frequency: z.string().min(1, 'Frequency is required').optional(),
-  duration: z
-    .object({
-      value: z.number().min(1, 'Duration value must be positive'),
-      unit: z.enum(['days', 'weeks', 'months'], { required_error: 'Duration unit is required' }),
-    })
-    .optional(),
+  frequency: z.string().min(1, 'Frequency is required'),
+  durationValue: z.number().min(1, 'Duration value is required and must be positive'),
+  durationUnit: z.enum(['DAY', 'WEEK', 'MONTH', 'YEAR'], { required_error: 'Duration unit is required' }),
+  schedule: z.enum(['MORNING', 'AFTERNOON', 'NIGHT'], { required_error: 'Schedule is required' }).optional(),
   notes: z.string().optional(),
   price: z.number().min(0, 'Price must be non-negative').optional(),
 })
-
-// Flexible Custom Medications Schema
-export const FlexibleCustomMedicationsSchema = z
-  .union([
-    z.array(CustomMedicationSchema),
-    z.object({
-      additionalMeds: z.array(SimpleCustomMedicationSchema),
-    }),
-    z.record(z.unknown()),
-  ])
-  .optional()
 
 // Base Patient Treatment Schema
 export const PatientTreatmentSchema = z.object({
@@ -395,7 +371,6 @@ export type QueryPatientTreatment = z.infer<typeof QueryPatientTreatmentSchema>
 export type CreatePatientTreatment = z.infer<typeof CreatePatientTreatmentSchema>
 export type UpdatePatientTreatment = z.infer<typeof UpdatePatientTreatmentSchema>
 export type CustomMedication = z.infer<typeof CustomMedicationSchema>
-export type SimpleCustomMedication = z.infer<typeof SimpleCustomMedicationSchema>
 export type GetPatientTreatmentsByPatient = z.infer<typeof GetPatientTreatmentsByPatientSchema>
 export type CustomMedicationsQuery = z.infer<typeof CustomMedicationsQuerySchema>
 export type PatientTreatmentQuery = z.infer<typeof PatientTreatmentQuerySchema>

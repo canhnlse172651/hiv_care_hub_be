@@ -1,10 +1,22 @@
-import { PrismaClient,HTTPMethod } from '@prisma/client'
+import {
+  PrismaClient,
+  HTTPMethod,
+  ServiceType,
+  MedicationSchedule,
+  ReminderType,
+  AppointmentType,
+  AppointmentStatus,
+  DurationUnit,
+  VerificationType,
+  TestType,
+} from '@prisma/client'
 import * as bcrypt from 'bcrypt'
+import { v4 as uuidv4 } from 'uuid'
 
 const prisma = new PrismaClient()
 
 async function main() {
-  // Create roles
+  // 1. Roles & Permissions
   const adminRole = await prisma.role.create({
     data: {
       name: 'ADMIN',
@@ -12,24 +24,9 @@ async function main() {
       permissions: {
         create: [
           // User Management
-          {
-            name: 'manage_users',
-            description: 'Can manage users',
-            path: '/users',
-            method: HTTPMethod.GET,
-          },
-          {
-            name: 'manage_users_create',
-            description: 'Can create users',
-            path: '/users',
-            method: HTTPMethod.POST,
-          },
-          {
-            name: 'manage_users_update',
-            description: 'Can update users',
-            path: '/users/:id',
-            method: HTTPMethod.PUT,
-          },
+          { name: 'manage_users', description: 'Can manage users', path: '/users', method: HTTPMethod.GET },
+          { name: 'manage_users_create', description: 'Can create users', path: '/users', method: HTTPMethod.POST },
+          { name: 'manage_users_update', description: 'Can update users', path: '/users/:id', method: HTTPMethod.PUT },
           {
             name: 'manage_users_delete',
             description: 'Can delete users',
@@ -43,24 +40,9 @@ async function main() {
             method: HTTPMethod.PATCH,
           },
           // Role Management
-          {
-            name: 'manage_roles',
-            description: 'Can manage roles',
-            path: '/roles',
-            method: HTTPMethod.GET,
-          },
-          {
-            name: 'manage_roles_create',
-            description: 'Can create roles',
-            path: '/roles',
-            method: HTTPMethod.POST,
-          },
-          {
-            name: 'manage_roles_update',
-            description: 'Can update roles',
-            path: '/roles/:id',
-            method: HTTPMethod.PUT,
-          },
+          { name: 'manage_roles', description: 'Can manage roles', path: '/roles', method: HTTPMethod.GET },
+          { name: 'manage_roles_create', description: 'Can create roles', path: '/roles', method: HTTPMethod.POST },
+          { name: 'manage_roles_update', description: 'Can update roles', path: '/roles/:id', method: HTTPMethod.PUT },
           {
             name: 'manage_roles_delete',
             description: 'Can delete roles',
@@ -117,12 +99,7 @@ async function main() {
             method: HTTPMethod.DELETE,
           },
           // Doctor Management
-          {
-            name: 'manage_doctors',
-            description: 'Can manage doctors',
-            path: '/doctors',
-            method: HTTPMethod.GET,
-          },
+          { name: 'manage_doctors', description: 'Can manage doctors', path: '/doctors', method: HTTPMethod.GET },
           {
             name: 'manage_doctors_create',
             description: 'Can create doctors',
@@ -189,18 +166,8 @@ async function main() {
             path: '/doctors/time-off',
             method: HTTPMethod.POST,
           },
-          {
-            name: 'view_patients',
-            description: 'Can view patients',
-            path: '/patients',
-            method: HTTPMethod.GET,
-          },
-          {
-            name: 'manage_patients',
-            description: 'Can manage patients',
-            path: '/patients',
-            method: HTTPMethod.GET,
-          },
+          { name: 'view_patients', description: 'Can view patients', path: '/patients', method: HTTPMethod.GET },
+          { name: 'manage_patients', description: 'Can manage patients', path: '/patients', method: HTTPMethod.GET },
           {
             name: 'manage_patients_create',
             description: 'Can create patients',
@@ -260,18 +227,8 @@ async function main() {
             path: '/appointments/:id',
             method: HTTPMethod.DELETE,
           },
-          {
-            name: 'view_patients',
-            description: 'Can view patients',
-            path: '/patients',
-            method: HTTPMethod.GET,
-          },
-          {
-            name: 'manage_patients',
-            description: 'Can manage patients',
-            path: '/patients',
-            method: HTTPMethod.GET,
-          },
+          { name: 'view_patients', description: 'Can view patients', path: '/patients', method: HTTPMethod.GET },
+          { name: 'manage_patients', description: 'Can manage patients', path: '/patients', method: HTTPMethod.GET },
         ],
       },
     },
@@ -283,12 +240,7 @@ async function main() {
       description: 'Patient',
       permissions: {
         create: [
-          {
-            name: 'view_doctors',
-            description: 'Can view doctors',
-            path: '/doctors',
-            method: HTTPMethod.GET,
-          },
+          { name: 'view_doctors', description: 'Can view doctors', path: '/doctors', method: HTTPMethod.GET },
           {
             name: 'book_appointment',
             description: 'Can book appointments',
@@ -306,60 +258,58 @@ async function main() {
     },
   })
 
-  // Create admin user
+  // 2. Users
   const adminUser = await prisma.user.create({
     data: {
       email: 'admin@example.com',
       password: await bcrypt.hash('admin123', 10),
       name: 'Admin User',
-      phoneNumber: '1234567890',
+      phoneNumber: '0123456789',
       roleId: adminRole.id,
       status: 'ACTIVE',
     },
   })
 
-  // Create doctor users
   const doctorUsers = await Promise.all([
     prisma.user.create({
       data: {
-        email: 'doctor1@example.com',
-        password: await bcrypt.hash('doctor123', 10),
+        email: 'doc1@example.com',
+        password: await bcrypt.hash('doc123', 10),
         name: 'Dr. John Smith',
-        phoneNumber: '1234567891',
+        phoneNumber: '0123456781',
         roleId: doctorRole.id,
         status: 'ACTIVE',
       },
     }),
     prisma.user.create({
       data: {
-        email: 'doctor2@example.com',
-        password: await bcrypt.hash('doctor123', 10),
+        email: 'doc2@example.com',
+        password: await bcrypt.hash('doc123', 10),
         name: 'Dr. Sarah Johnson',
-        phoneNumber: '1234567892',
+        phoneNumber: '0123456782',
         roleId: doctorRole.id,
         status: 'ACTIVE',
       },
     }),
     prisma.user.create({
       data: {
-        email: 'doctor3@example.com',
-        password: await bcrypt.hash('doctor123', 10),
+        email: 'doc3@example.com',
+        password: await bcrypt.hash('doc123', 10),
         name: 'Dr. Michael Brown',
-        phoneNumber: '1234567893',
+        phoneNumber: '0123456783',
         roleId: doctorRole.id,
         status: 'ACTIVE',
       },
     }),
   ])
 
-  // Create staff users
   const staffUsers = await Promise.all([
     prisma.user.create({
       data: {
         email: 'staff1@example.com',
         password: await bcrypt.hash('staff123', 10),
         name: 'Jane Wilson',
-        phoneNumber: '1234567894',
+        phoneNumber: '0123456784',
         roleId: staffRole.id,
         status: 'ACTIVE',
       },
@@ -369,21 +319,20 @@ async function main() {
         email: 'staff2@example.com',
         password: await bcrypt.hash('staff123', 10),
         name: 'Robert Davis',
-        phoneNumber: '1234567895',
+        phoneNumber: '0123456785',
         roleId: staffRole.id,
         status: 'ACTIVE',
       },
     }),
   ])
 
-  // Create patient users
   const patientUsers = await Promise.all([
     prisma.user.create({
       data: {
         email: 'patient1@example.com',
         password: await bcrypt.hash('patient123', 10),
         name: 'Alice Thompson',
-        phoneNumber: '1234567896',
+        phoneNumber: '0123456786',
         roleId: patientRole.id,
         status: 'ACTIVE',
       },
@@ -393,14 +342,14 @@ async function main() {
         email: 'patient2@example.com',
         password: await bcrypt.hash('patient123', 10),
         name: 'Bob Anderson',
-        phoneNumber: '1234567897',
+        phoneNumber: '0123456787',
         roleId: patientRole.id,
         status: 'ACTIVE',
       },
     }),
   ])
 
-  // Create doctors with different specializations
+  // 3. Doctors
   const doctors = await Promise.all([
     prisma.doctor.create({
       data: {
@@ -425,7 +374,404 @@ async function main() {
     }),
   ])
 
-  console.log('Seed data created successfully')
+  // 4. DoctorSchedule
+  await prisma.doctorSchedule.createMany({
+    data: [
+      { doctorId: doctors[0].id, date: new Date(), dayOfWeek: 'TUESDAY', shift: 'MORNING' },
+      { doctorId: doctors[1].id, date: new Date(), dayOfWeek: 'TUESDAY', shift: 'AFTERNOON' },
+      {
+        doctorId: doctors[2].id,
+        date: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        dayOfWeek: 'WEDNESDAY',
+        shift: 'MORNING',
+      },
+      {
+        doctorId: doctors[0].id,
+        date: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        dayOfWeek: 'WEDNESDAY',
+        shift: 'AFTERNOON',
+      },
+    ],
+  })
+
+  // 5. Services (cập nhật thêm duration)
+  const [service1, service2] = await Promise.all([
+    prisma.service.create({
+      data: {
+        name: 'General Consultation',
+        slug: 'general-consult',
+        price: 50.0,
+        type: ServiceType.CONSULT,
+        description: 'Khám tổng quát',
+        startTime: '08:00',
+        endTime: '17:00',
+        content: 'Dịch vụ khám tổng quát',
+        imageUrl: '',
+        duration: '60 minutes',
+      },
+    }),
+    prisma.service.create({
+      data: {
+        name: 'Blood Test',
+        slug: 'blood-test',
+        price: 20.0,
+        type: ServiceType.TEST,
+        description: 'Xét nghiệm máu',
+        startTime: '08:00',
+        endTime: '16:00',
+        content: 'Dịch vụ xét nghiệm máu',
+        imageUrl: '',
+        duration: '30 minutes',
+      },
+    }),
+  ])
+
+  // 6. Medicines
+  const [
+    med1, // Paracetamol
+    med2, // Amoxicillin
+    med3, // Ibuprofen
+    med4, // Metformin
+    med5, // Omeprazole
+    med6, // Amlodipine
+    med7, // Lisinopril
+    med8, // Simvastatin
+    med9, // Levothyroxine
+    med10, // Azithromycin
+  ] = await Promise.all([
+    prisma.medicine.create({
+      data: {
+        name: 'Paracetamol',
+        unit: 'tablet',
+        dose: '500mg',
+        price: 1.5,
+        description: 'Giảm đau, hạ sốt',
+      },
+    }),
+    prisma.medicine.create({
+      data: {
+        name: 'Amoxicillin',
+        unit: 'capsule',
+        dose: '250mg',
+        price: 2.0,
+        description: 'Kháng sinh phổ rộng',
+      },
+    }),
+    prisma.medicine.create({
+      data: {
+        name: 'Ibuprofen',
+        unit: 'tablet',
+        dose: '200mg',
+        price: 1.2,
+        description: 'Giảm đau, chống viêm',
+      },
+    }),
+    prisma.medicine.create({
+      data: {
+        name: 'Metformin',
+        unit: 'tablet',
+        dose: '500mg',
+        price: 0.8,
+        description: 'Điều trị tiểu đường type 2',
+      },
+    }),
+    prisma.medicine.create({
+      data: {
+        name: 'Omeprazole',
+        unit: 'capsule',
+        dose: '20mg',
+        price: 1.5,
+        description: 'Giảm tiết acid dạ dày',
+      },
+    }),
+    prisma.medicine.create({
+      data: {
+        name: 'Amlodipine',
+        unit: 'tablet',
+        dose: '5mg',
+        price: 1.8,
+        description: 'Hạ huyết áp, điều trị tăng huyết áp',
+      },
+    }),
+    prisma.medicine.create({
+      data: {
+        name: 'Lisinopril',
+        unit: 'tablet',
+        dose: '10mg',
+        price: 2.3,
+        description: 'Thuốc ức chế men chuyển, điều trị tăng huyết áp',
+      },
+    }),
+    prisma.medicine.create({
+      data: {
+        name: 'Simvastatin',
+        unit: 'tablet',
+        dose: '20mg',
+        price: 2.5,
+        description: 'Giảm cholesterol máu',
+      },
+    }),
+    prisma.medicine.create({
+      data: {
+        name: 'Levothyroxine',
+        unit: 'tablet',
+        dose: '50mcg',
+        price: 3.0,
+        description: 'Điều trị suy giáp',
+      },
+    }),
+    prisma.medicine.create({
+      data: {
+        name: 'Azithromycin',
+        unit: 'tablet',
+        dose: '500mg',
+        price: 2.8,
+        description: 'Kháng sinh nhóm macrolide',
+      },
+    }),
+  ])
+
+  // 7. TreatmentProtocol & ProtocolMedicine
+  const protocol1 = await prisma.treatmentProtocol.create({
+    data: {
+      name: 'Fever Treatment',
+      description: 'Điều trị sốt thông thường',
+      targetDisease: 'Fever',
+      createdById: adminUser.id,
+      updatedById: adminUser.id,
+      medicines: {
+        create: [
+          {
+            medicineId: med1.id,
+            dosage: '1 tablet',
+            durationValue: 3,
+            durationUnit: DurationUnit.DAY,
+            notes: 'Uống sau ăn',
+          },
+        ],
+      },
+    },
+  })
+
+  // 8. PatientTreatment
+  const patientTreatment1 = await prisma.patientTreatment.create({
+    data: {
+      patientId: patientUsers[0].id,
+      doctorId: doctors[0].id,
+      protocolId: protocol1.id,
+      notes: 'Theo dõi nhiệt độ hàng ngày',
+      startDate: new Date(),
+      total: 3,
+      createdById: staffUsers[0].id,
+    },
+  })
+  const patientTreatment2 = await prisma.patientTreatment.create({
+    data: {
+      patientId: patientUsers[1].id,
+      doctorId: doctors[1].id,
+      protocolId: protocol1.id,
+      customMedications: [{ id: med2.id, dosage: '2 capsules', note: 'Uống trước ăn' } as any],
+      notes: 'Kiểm tra lại sau 1 tuần',
+      startDate: new Date(),
+      total: 7,
+      createdById: staffUsers[1].id,
+    },
+  })
+
+  // 9. Reminders
+  await prisma.reminder.createMany({
+    data: [
+      {
+        userId: patientUsers[0].id,
+        type: ReminderType.MEDICINE,
+        message: 'Nhắc uống thuốc buổi sáng',
+        remindAt: new Date(new Date().setHours(8, 0, 0)),
+      },
+      {
+        userId: patientUsers[1].id,
+        type: ReminderType.APPOINTMENT,
+        message: 'Nhắc lịch hẹn ngày mai',
+        remindAt: new Date(Date.now() + 24 * 60 * 60 * 1000 - 60 * 60 * 1000),
+      },
+    ],
+  })
+
+  // 10. Appointments & AppointmentHistory
+  const [appointment1, appointment2, appointment3] = await Promise.all([
+    prisma.appointment.create({
+      data: {
+        userId: patientUsers[0].id,
+        doctorId: doctors[0].id,
+        serviceId: service1.id,
+        appointmentTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        type: AppointmentType.OFFLINE,
+        status: AppointmentStatus.PENDING,
+        notes: 'Lần đầu khám tổng quát',
+      },
+    }),
+    prisma.appointment.create({
+      data: {
+        userId: patientUsers[1].id,
+        doctorId: doctors[1].id,
+        serviceId: service2.id,
+        appointmentTime: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+        isAnonymous: true,
+        type: AppointmentType.ONLINE,
+        status: AppointmentStatus.PENDING,
+        notes: 'Khám nhi qua Zoom',
+        patientMeetingUrl: 'https://meet.example.com/abc123',
+        doctorMeetingUrl: 'https://meet.example.com/def456',
+      },
+    }),
+    prisma.appointment.create({
+      data: {
+        userId: patientUsers[0].id,
+        doctorId: doctors[2].id,
+        serviceId: service1.id,
+        appointmentTime: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+        type: AppointmentType.OFFLINE,
+        status: AppointmentStatus.PENDING,
+        notes: 'Khám nội tổng quát',
+      },
+    }),
+  ])
+
+  await prisma.appointmentHistory.createMany({
+    data: [
+      {
+        appointmentId: appointment1.id,
+        oldStatus: AppointmentStatus.PENDING,
+        newStatus: AppointmentStatus.CONFIRMED,
+        changedBy: adminUser.id,
+        note: 'Xác nhận tự động',
+      },
+      {
+        appointmentId: appointment2.id,
+        oldStatus: AppointmentStatus.PENDING,
+        newStatus: AppointmentStatus.CANCELLED,
+        changedBy: staffUsers[0].id,
+        note: 'Bệnh nhân hủy',
+      },
+      {
+        appointmentId: appointment3.id,
+        oldStatus: AppointmentStatus.PENDING,
+        newStatus: AppointmentStatus.CHECKIN,
+        changedBy: doctors[2].userId,
+        note: 'Bệnh nhân đã đến',
+      },
+    ],
+  })
+
+  // 11. TestResults
+  await prisma.testResult.createMany({
+    data: [
+      {
+        name: 'CD4 Count',
+        userId: patientUsers[0].id,
+        doctorId: doctors[0].id,
+        type: TestType.CD4,
+        result: '500 cells/mm3',
+        price: 30.0,
+        patientTreatmentId: patientTreatment1.id,
+        resultDate: new Date(),
+      },
+      {
+        name: 'Viral Load',
+        userId: patientUsers[1].id,
+        doctorId: doctors[1].id,
+        type: TestType.HIV_VIRAL_LOAD,
+        result: '15000 copies/mL',
+        price: 45.0,
+        patientTreatmentId: patientTreatment2.id,
+        resultDate: new Date(),
+      },
+    ],
+  })
+
+  // 12. VerificationCodes
+  await prisma.verificationCode.createMany({
+    data: [
+      {
+        email: patientUsers[0].email,
+        code: 'ABC123',
+        type: VerificationType.REGISTER,
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+        userId: patientUsers[0].id,
+      },
+      {
+        email: doctorUsers[0].email,
+        code: 'XYZ789',
+        type: VerificationType.FORGOT_PASSWORD,
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+        userId: doctorUsers[0].id,
+      },
+    ],
+  })
+
+  // 13. RefreshTokens
+  await prisma.refreshToken.createMany({
+    data: [
+      {
+        token: uuidv4(),
+        userId: adminUser.id,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+      {
+        token: uuidv4(),
+        userId: patientUsers[1].id,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+    ],
+  })
+
+  // 14. Messages
+  await prisma.message.createMany({
+    data: [
+      {
+        fromUserId: adminUser.id,
+        toUserId: staffUsers[0].id,
+        content: 'Chào Jane, hôm nay có lịch họp không?',
+        readAt: new Date(),
+      },
+      {
+        fromUserId: staffUsers[0].id,
+        toUserId: adminUser.id,
+        content: 'Chào anh, 2pm có cuộc họp team AI Consume.',
+        readAt: new Date(),
+      },
+      {
+        fromUserId: doctorUsers[1].id,
+        toUserId: patientUsers[1].id,
+        content: 'Bạn hãy chuẩn bị xét nghiệm máu trước buổi hẹn.',
+        readAt: null,
+      },
+    ],
+  })
+
+  // 15. Blog & Education Materials
+  const cate1 = await prisma.cateBlog.create({
+    data: { title: 'Health Tips', description: 'Mẹo sống khỏe' },
+  })
+  await prisma.blogPost.create({
+    data: {
+      title: '5 Cách Giữ Sức Khỏe Mỗi Ngày',
+      content: 'Ăn uống lành mạnh, tập thể dục thường xuyên...',
+      authorId: adminUser.id,
+      imageUrl: 'https://example.com/health.jpg',
+      slug: '5-cach-giu-suc-khoe',
+      cateId: cate1.id,
+    },
+  })
+  await prisma.educationMaterial.create({
+    data: {
+      title: 'Hướng Dẫn Quản Lý Tiểu Đường',
+      content: 'Nội dung chi tiết về quản lý đường huyết...',
+      tags: ['diabetes', 'management'],
+      isPublic: true,
+    },
+  })
+
+  console.log('🌱 Seed data created successfully')
 }
 
 main()

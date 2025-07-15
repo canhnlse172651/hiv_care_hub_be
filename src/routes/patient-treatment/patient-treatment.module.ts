@@ -8,30 +8,11 @@ import { AuthRepository } from '../../repositories/user.repository'
 import { SharedErrorHandlingService } from '../../shared/services/error-handling.service'
 import { PaginationService } from '../../shared/services/pagination.service'
 import { PrismaService } from '../../shared/services/prisma.service'
-import {
-  PatientTreatmentAnalyticsService,
-  PatientTreatmentCoreService,
-  PatientTreatmentManagementService,
-  PatientTreatmentValidationService,
-} from './modules'
-import { PatientTreatmentAnalyticsModule } from './modules/analytics/patient-treatment-analytics.module'
-import { PatientTreatmentCoreModule } from './modules/core/patient-treatment-core.module'
-import { FollowUpAppointmentModule } from './modules/follow-up-appointment/follow-up-appointment.module'
-import { PatientTreatmentManagementModule } from './modules/management/patient-treatment-management.module'
-import { TestPatientTreatmentModule } from './modules/test/patient-treatment-test.module'
-import { PatientTreatmentValidationModule } from './modules/validation/patient-treatment-validation.module'
 import { PatientTreatmentService } from './patient-treatment.service'
 import { FollowUpAppointmentService } from './services/follow-up-appointment.service'
 
 @Module({
-  imports: [
-    PatientTreatmentCoreModule,
-    PatientTreatmentAnalyticsModule,
-    PatientTreatmentValidationModule,
-    PatientTreatmentManagementModule,
-    FollowUpAppointmentModule,
-    TestPatientTreatmentModule,
-  ],
+  imports: [],
   providers: [
     PatientTreatmentService,
     PatientTreatmentRepository,
@@ -44,19 +25,7 @@ import { FollowUpAppointmentService } from './services/follow-up-appointment.ser
     PaginationService,
     SharedErrorHandlingService,
     FollowUpAppointmentService,
-    PatientTreatmentAnalyticsService,
-    PatientTreatmentValidationService,
-    PatientTreatmentCoreService,
-    PatientTreatmentManagementService,
   ],
-  exports: [
-    PatientTreatmentService,
-    PatientTreatmentCoreModule,
-    PatientTreatmentAnalyticsModule,
-    PatientTreatmentValidationModule,
-    PatientTreatmentManagementModule,
-    FollowUpAppointmentModule,
-    TestPatientTreatmentModule,
-  ],
+  exports: [PatientTreatmentService],
 })
 export class PatientTreatmentModule {}

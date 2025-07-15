@@ -17,7 +17,8 @@ export class PatientTreatmentAnalyticsService {
   }> {
     try {
       // Get all treatments for the patient
-      const treatments = await this.patientTreatmentRepository.findPatientTreatmentsByPatientId(patientId, {
+      const pid = typeof patientId === 'string' ? Number(patientId) : patientId
+      const treatments = await this.patientTreatmentRepository.findPatientTreatmentsByPatientId(pid, {
         skip: 0,
         take: 100,
       })

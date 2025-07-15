@@ -299,24 +299,27 @@ export class PatientTreatmentCoreService {
     try {
       const { patientId, page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' } = query
 
-      const skip = (page - 1) * limit
+      const pid: number = typeof patientId === 'string' ? Number(patientId) : Number(patientId)
+      const pageNum: number = Number(page)
+      const limitNum: number = Number(limit)
+      const skip: number = (pageNum - 1) * limitNum
       const [data, total] = await Promise.all([
-        this.patientTreatmentRepository.findPatientTreatmentsByPatientId(patientId, {
+        this.patientTreatmentRepository.findPatientTreatmentsByPatientId(pid, {
           skip,
-          take: limit,
+          take: limitNum,
         }),
-        this.patientTreatmentRepository.countPatientTreatmentsByPatientId(patientId),
+        this.patientTreatmentRepository.countPatientTreatmentsByPatientId(pid),
       ])
 
       return {
         data,
         meta: {
           total,
-          page,
-          limit,
-          totalPages: Math.ceil(total / limit),
-          hasNextPage: page < Math.ceil(total / limit),
-          hasPreviousPage: page > 1,
+          page: pageNum,
+          limit: limitNum,
+          totalPages: Math.ceil(total / limitNum),
+          hasNextPage: pageNum < Math.ceil(total / limitNum),
+          hasPreviousPage: pageNum > 1,
         },
       }
     } catch (error) {
@@ -329,24 +332,27 @@ export class PatientTreatmentCoreService {
     try {
       const { doctorId, page = 1, limit = 10 } = query
 
-      const skip = (page - 1) * limit
-      const data = await this.patientTreatmentRepository.findPatientTreatmentsByDoctorId(doctorId, {
+      const did: number = typeof doctorId === 'string' ? Number(doctorId) : Number(doctorId)
+      const pageNum: number = Number(page)
+      const limitNum: number = Number(limit)
+      const skip: number = (pageNum - 1) * limitNum
+      const data = await this.patientTreatmentRepository.findPatientTreatmentsByDoctorId(did, {
         skip,
-        take: limit,
+        take: limitNum,
       })
 
       // Count total (simplified approach)
-      const total = await this.patientTreatmentRepository.countPatientTreatments({ doctorId })
+      const total = await this.patientTreatmentRepository.countPatientTreatments({ doctorId: did })
 
       return {
         data,
         meta: {
           total,
-          page,
-          limit,
-          totalPages: Math.ceil(total / limit),
-          hasNextPage: page < Math.ceil(total / limit),
-          hasPreviousPage: page > 1,
+          page: pageNum,
+          limit: limitNum,
+          totalPages: Math.ceil(total / limitNum),
+          hasNextPage: pageNum < Math.ceil(total / limitNum),
+          hasPreviousPage: pageNum > 1,
         },
       }
     } catch (error) {

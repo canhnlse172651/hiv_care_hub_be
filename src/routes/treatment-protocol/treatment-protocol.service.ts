@@ -364,7 +364,8 @@ export class TreatmentProtocolService {
         (protocolWithMedicines as any)?.medicines?.map((medicine: any) => ({
           medicineId: medicine.medicineId,
           dosage: medicine.dosage,
-          duration: medicine.duration,
+          durationValue: medicine.durationValue,
+          durationUnit: medicine.durationUnit,
           notes: medicine.notes,
         })) || [],
     }
@@ -381,7 +382,8 @@ export class TreatmentProtocolService {
       medicines: Array<{
         medicineId: number
         dosage: string
-        duration: any
+        durationValue: number
+        durationUnit: 'DAY' | 'WEEK' | 'MONTH' | 'YEAR'
         notes?: string
       }>
     }>,
@@ -401,7 +403,15 @@ export class TreatmentProtocolService {
         }
 
         if (!existing) {
-          await this.createTreatmentProtocol(protocolData, userId)
+          // Ensure medicines use durationValue/durationUnit
+          const medicines = protocolData.medicines.map((med) => ({
+            medicineId: med.medicineId,
+            dosage: med.dosage,
+            durationValue: med.durationValue,
+            durationUnit: med.durationUnit,
+            notes: med.notes,
+          }))
+          await this.createTreatmentProtocol({ ...protocolData, medicines }, userId)
           successCount++
         }
       } catch (error) {
@@ -518,7 +528,8 @@ export class TreatmentProtocolService {
       medicineName: string
       unitPrice: number
       dosage: string
-      duration: string
+      durationValue: number
+      durationUnit: 'DAY' | 'WEEK' | 'MONTH' | 'YEAR'
       estimatedCost: number
     }>
   }> {
@@ -531,7 +542,16 @@ export class TreatmentProtocolService {
     return {
       protocolId: id,
       protocolName: protocol.name,
-      ...costCalculation,
+      totalCost: costCalculation.totalCost,
+      medicinesCost: costCalculation.medicinesCost.map((med) => ({
+        medicineId: med.medicineId,
+        medicineName: med.medicineName,
+        unitPrice: med.unitPrice,
+        dosage: med.dosage,
+        durationValue: med.durationValue,
+        durationUnit: med.durationUnit,
+        estimatedCost: med.estimatedCost,
+      })),
     }
   }
 

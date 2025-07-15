@@ -11,7 +11,6 @@ import { CateBlogModule } from './routes/category-blog/cate-blog.module'
 import { DoctorModule } from './routes/doctor/doctor.module'
 import { MediaModule } from './routes/media/media.module'
 import { MedicineModule } from './routes/medicine/medicine.module'
-import { TestPatientTreatmentModule } from './routes/patient-treatment/modules/test/patient-treatment-test.module'
 import { PatientTreatmentModule } from './routes/patient-treatment/patient-treatment.module'
 import { PermissionModule } from './routes/permission/permission.module'
 import { RoleModule } from './routes/role/role.module'
@@ -33,7 +32,6 @@ import { SharedModule } from './shared/shared.module'
     MedicineModule,
     TreatmentProtocolModule,
     PatientTreatmentModule,
-    TestPatientTreatmentModule, // Add test module
     CateBlogModule,
     BlogModule,
     ServiceModule,

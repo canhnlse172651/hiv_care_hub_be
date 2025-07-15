@@ -1,3 +1,46 @@
+export const ApiGetProtocolCostEstimation = () =>
+  applyDecorators(
+    ApiOperation({
+      summary: 'Get protocol cost estimation',
+      description: 'Get estimated total cost and detailed medicine cost breakdown for a treatment protocol by ID',
+    }),
+    ApiParam({
+      name: 'id',
+      description: 'Treatment Protocol ID',
+      type: Number,
+      example: 1,
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Protocol cost estimation retrieved successfully',
+      schema: {
+        type: 'object',
+        properties: {
+          protocolId: { type: 'number', example: 1 },
+          protocolName: { type: 'string', example: 'HIV Treatment Protocol A' },
+          totalCost: { type: 'number', example: 150000 },
+          medicinesCost: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                medicineId: { type: 'number', example: 1 },
+                medicineName: { type: 'string', example: 'Paracetamol' },
+                unitPrice: { type: 'number', example: 5000 },
+                dosage: { type: 'string', example: '1 tablet' },
+                durationValue: { type: 'number', example: 7 },
+                durationUnit: { type: 'string', enum: ['DAY', 'WEEK', 'MONTH', 'YEAR'], example: 'DAY' },
+                estimatedCost: { type: 'number', example: 35000 },
+              },
+            },
+          },
+        },
+      },
+    }),
+    ApiResponse({ status: 404, description: 'Treatment protocol not found' }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({ status: 403, description: 'Forbidden' }),
+  )
 import { applyDecorators } from '@nestjs/common'
 import { ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse } from '@nestjs/swagger'
 

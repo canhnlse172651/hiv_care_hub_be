@@ -1,3 +1,15 @@
+model AppointmentHistory {
+  id            Int      @id @default(autoincrement())
+  appointmentId Int
+  oldStatus     String
+  newStatus     String
+  changedBy     Int?
+  changedAt     DateTime @default(now())
+  note          String?
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+}
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -90,35 +102,35 @@ enum MedicationSchedule {
 }
 
 model User {
-  id          Int          @id @default(autoincrement())
-  email       String       @unique @db.VarChar(500)
-  name        String       @db.VarChar(500)
-  password    String?      @db.VarChar(500)
-  phoneNumber String?      @db.VarChar(50)
-  avatar      String?      @db.VarChar(1000)
-  totpSecret  String?      @unique @db.VarChar(1000)
-  googleId    String?      @unique @db.VarChar(500)
-  status      UserStatus   @default(INACTIVE)
+  id          Int        @id @default(autoincrement())
+  email       String     @unique @db.VarChar(500)
+  name        String     @db.VarChar(500)
+  password    String?    @db.VarChar(500)
+  phoneNumber String?    @db.VarChar(50)
+  avatar      String?    @db.VarChar(1000)
+  totpSecret  String?    @unique @db.VarChar(1000)
+  googleId    String?    @unique @db.VarChar(500)
+  status      UserStatus @default(INACTIVE)
   roleId      Int
-  role        Role         @relation(fields: [roleId], references: [id])
-  
+  role        Role       @relation(fields: [roleId], references: [id])
+
   // Relations
-  createdById        Int?
-  createdBy          User?        @relation("CreatorUsers", fields: [createdById], references: [id])
-  createdUsers       User[]       @relation("CreatorUsers")
-  updatedById        Int?
-  updatedBy          User?        @relation("UpdatorUsers", fields: [updatedById], references: [id])
-  updatedUsers       User[]       @relation("UpdatorUsers")
-  
+  createdById  Int?
+  createdBy    User?  @relation("CreatorUsers", fields: [createdById], references: [id])
+  createdUsers User[] @relation("CreatorUsers")
+  updatedById  Int?
+  updatedBy    User?  @relation("UpdatorUsers", fields: [updatedById], references: [id])
+  updatedUsers User[] @relation("UpdatorUsers")
+
   // Other relations
   refreshTokens      RefreshToken[]
-  permissions        Permission[] @relation("UserPermissions")
-  createdPermissions Permission[] @relation("PermissionCreatedBy")
-  updatedPermissions Permission[] @relation("PermissionUpdatedBy")
-  createdRoles       Role[]       @relation("RoleCreatedBy")
-  updatedRoles       Role[]       @relation("RoleUpdatedBy")
-  sentMessages       Message[]    @relation("FromUser")
-  receivedMessages   Message[]    @relation("ToUser")
+  permissions        Permission[]       @relation("UserPermissions")
+  createdPermissions Permission[]       @relation("PermissionCreatedBy")
+  updatedPermissions Permission[]       @relation("PermissionUpdatedBy")
+  createdRoles       Role[]             @relation("RoleCreatedBy")
+  updatedRoles       Role[]             @relation("RoleUpdatedBy")
+  sentMessages       Message[]          @relation("FromUser")
+  receivedMessages   Message[]          @relation("ToUser")
   doctor             Doctor?
   appointments       Appointment[]
   testResults        TestResult[]
@@ -126,15 +138,15 @@ model User {
   reminders          Reminder[]
   blogPosts          BlogPost[]
   verificationCodes  VerificationCode[]
-  
-  // Added missing relations
-  createdProtocols   TreatmentProtocol[] @relation("ProtocolCreatedBy")
-  updatedProtocols   TreatmentProtocol[] @relation("ProtocolUpdatedBy")
-  createdTreatments  PatientTreatment[]  @relation("TreatmentCreatedBy")
 
-  deletedAt          DateTime?
-  createdAt          DateTime     @default(now())
-  updatedAt          DateTime     @updatedAt
+  // Added missing relations
+  createdProtocols  TreatmentProtocol[] @relation("ProtocolCreatedBy")
+  updatedProtocols  TreatmentProtocol[] @relation("ProtocolUpdatedBy")
+  createdTreatments PatientTreatment[]  @relation("TreatmentCreatedBy")
+
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 }
 
 model Role {
@@ -146,13 +158,13 @@ model Role {
   users       User[]
 
   createdById Int?
-  createdBy   User?         @relation("RoleCreatedBy", fields: [createdById], references: [id])
+  createdBy   User? @relation("RoleCreatedBy", fields: [createdById], references: [id])
   updatedById Int?
-  updatedBy   User?         @relation("RoleUpdatedBy", fields: [updatedById], references: [id])
+  updatedBy   User? @relation("RoleUpdatedBy", fields: [updatedById], references: [id])
 
-  deletedAt   DateTime?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 }
 
 model Permission {
@@ -163,17 +175,17 @@ model Permission {
   method      HTTPMethod
   isActive    Boolean    @default(true)
 
-  users       User[]     @relation("UserPermissions")
-  roles       Role[]
+  users User[] @relation("UserPermissions")
+  roles Role[]
 
   createdById Int?
-  createdBy   User?       @relation("PermissionCreatedBy", fields: [createdById], references: [id])
+  createdBy   User? @relation("PermissionCreatedBy", fields: [createdById], references: [id])
   updatedById Int?
-  updatedBy   User?       @relation("PermissionUpdatedBy", fields: [updatedById], references: [id])
+  updatedBy   User? @relation("PermissionUpdatedBy", fields: [updatedById], references: [id])
 
-  deletedAt   DateTime?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 }
 
 model RefreshToken {
@@ -187,133 +199,143 @@ model RefreshToken {
 }
 
 model VerificationCode {
-  id        Int                    @id @default(autoincrement())
-  email     String                 @db.VarChar(500)             
-  code      String                 @db.VarChar(50)
+  id        Int              @id @default(autoincrement())
+  email     String           @db.VarChar(500)
+  code      String           @db.VarChar(50)
   type      VerificationType
   expiresAt DateTime
-  createdAt DateTime               @default(now())
-  
+  createdAt DateTime         @default(now())
+
   // Relationship with User
-  userId    Int?
-  user      User?                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@unique([email,type])
+  userId Int?
+  user   User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([email, type])
   @@index([expiresAt])
 }
 
 model Message {
-  id         Int      @id @default(autoincrement())
+  id         Int       @id @default(autoincrement())
   fromUserId Int
-  fromUser   User     @relation("FromUser", fields: [fromUserId], references: [id], onDelete: Cascade)
+  fromUser   User      @relation("FromUser", fields: [fromUserId], references: [id], onDelete: Cascade)
   toUserId   Int
-  toUser     User     @relation("ToUser", fields: [toUserId], references: [id], onDelete: Cascade)
-  content    String   @db.Text
+  toUser     User      @relation("ToUser", fields: [toUserId], references: [id], onDelete: Cascade)
+  content    String    @db.Text
   readAt     DateTime?
-  createdAt  DateTime @default(now())
+  createdAt  DateTime  @default(now())
 }
 
 model Doctor {
-  id                Int                      @id @default(autoincrement())
-  userId            Int                      @unique
-  user              User                     @relation(fields: [userId], references: [id])
+  id                Int                @id @default(autoincrement())
+  userId            Int                @unique
+  user              User               @relation(fields: [userId], references: [id])
   specialization    String
   certifications    String[]
-  isAvailable       Boolean                  @default(true)
+  isAvailable       Boolean            @default(true)
   schedules         DoctorSchedule[]
   appointments      Appointment[]
   patientTreatments PatientTreatment[]
   testResults       TestResult[]
-  createdAt         DateTime                 @default(now())
-  updatedAt         DateTime                 @updatedAt
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
 
   @@map("doctors")
 }
 
 model DoctorSchedule {
-  id              Int         @id @default(autoincrement())
-  doctorId        Int
-  date            DateTime
-  dayOfWeek       DayOfWeek
-  shift           Shift
-  isOff           Boolean     @default(false)
-  swappedWithId   Int?
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-  doctor          Doctor      @relation(fields: [doctorId], references: [id])
-  swappedWith     DoctorSchedule? @relation("SwappedSchedules", fields: [swappedWithId], references: [id])
-  swappedBy       DoctorSchedule[] @relation("SwappedSchedules")
+  id            Int              @id @default(autoincrement())
+  doctorId      Int
+  date          DateTime
+  dayOfWeek     DayOfWeek
+  shift         Shift
+  isOff         Boolean          @default(false)
+  swappedWithId Int?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  doctor        Doctor           @relation(fields: [doctorId], references: [id])
+  swappedWith   DoctorSchedule?  @relation("SwappedSchedules", fields: [swappedWithId], references: [id])
+  swappedBy     DoctorSchedule[] @relation("SwappedSchedules")
+
   @@index([doctorId])
   @@index([date, shift])
   @@index([swappedWithId])
 }
 
 model Appointment {
-  id              Int           @id @default(autoincrement())
-  userId          Int
-  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  doctorId        Int
-  doctor          Doctor        @relation(fields: [doctorId], references: [id], onDelete: Cascade)
-  serviceId       Int
-  service         Service       @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-  appointmentTime DateTime
-  isAnonymous     Boolean       @default(false)
-  type            AppointmentType
-  status          AppointmentStatus
-  notes           String?       @db.Text
-  patientMeetingUrl String?    @db.Text
-  doctorMeetingUrl  String?    @db.Text
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id                 Int                  @id @default(autoincrement())
+  userId             Int
+  user               User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  doctorId           Int
+  doctor             Doctor               @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  serviceId          Int
+  service            Service              @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  appointmentTime    DateTime
+  isAnonymous        Boolean              @default(false)
+  type               AppointmentType
+  status             AppointmentStatus
+  notes              String?              @db.Text
+  patientMeetingUrl  String?              @db.Text
+  doctorMeetingUrl   String?              @db.Text
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  AppointmentHistory AppointmentHistory[]
 }
 
 model TreatmentProtocol {
-  id              Int                 @id @default(autoincrement())
-  name            String              @db.VarChar(500)
-  description     String?             @db.Text
-  targetDisease   String              @db.VarChar(500)
-  
+  id            Int     @id @default(autoincrement())
+  name          String  @db.VarChar(500)
+  description   String? @db.Text
+  targetDisease String  @db.VarChar(500)
+
   // Relations
-  medicines       ProtocolMedicine[]
-  createdById     Int
-  createdBy       User                @relation("ProtocolCreatedBy", fields: [createdById], references: [id])
-  updatedById     Int
-  updatedBy       User                @relation("ProtocolUpdatedBy", fields: [updatedById], references: [id])
+  medicines         ProtocolMedicine[]
+  createdById       Int
+  createdBy         User               @relation("ProtocolCreatedBy", fields: [createdById], references: [id])
+  updatedById       Int
+  updatedBy         User               @relation("ProtocolUpdatedBy", fields: [updatedById], references: [id])
   patientTreatments PatientTreatment[]
-  
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model ProtocolMedicine {
-  id                Int               @id @default(autoincrement())
-  protocolId        Int
-  protocol          TreatmentProtocol @relation(fields: [protocolId], references: [id], onDelete: Cascade)
-  medicineId        Int
-  medicine          Medicine          @relation(fields: [medicineId], references: [id], onDelete: Cascade)
-  dosage            String            @db.VarChar(100)
-  duration          MedicationSchedule
-  notes             String?           @db.Text
-  
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  id            Int               @id @default(autoincrement())
+  protocolId    Int
+  protocol      TreatmentProtocol @relation(fields: [protocolId], references: [id], onDelete: Cascade)
+  medicineId    Int
+  medicine      Medicine          @relation(fields: [medicineId], references: [id], onDelete: Cascade)
+  dosage        String            @db.VarChar(100)
+  durationValue Int
+  durationUnit  DurationUnit
+  schedule      MedicationSchedule? // Thời điểm uống thuốc trong ngày (sáng, chiều, tối)
+  notes         String?           @db.Text
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
 
   @@unique([protocolId, medicineId])
 }
 
+enum DurationUnit {
+  DAY
+  WEEK
+  MONTH
+  YEAR
+}
+
 model Medicine {
-  id                Int                 @id @default(autoincrement())
-  name              String              @db.VarChar(500)
-  description       String?             @db.Text
-  unit              String              @db.VarChar(100)
-  dose              String              @db.VarChar(100)
-  price             Decimal             @db.Decimal(10, 2)
-  
+  id          Int     @id @default(autoincrement())
+  name        String  @db.VarChar(500)
+  description String? @db.Text
+  unit        String  @db.VarChar(100)
+  dose        String  @db.VarChar(100)
+  price       Decimal @db.Decimal(10, 2)
+
   // Relations
-  protocols         ProtocolMedicine[]
-  
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
+  protocols ProtocolMedicine[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model PatientTreatment {
@@ -331,98 +353,98 @@ model PatientTreatment {
   createdById       Int
   createdBy         User              @relation("TreatmentCreatedBy", fields: [createdById], references: [id])
   total             Float
-  
+
   // Relations
-  testResults       TestResult[]
-  
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  testResults TestResult[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Reminder {
-  id        Int       @id @default(autoincrement())
-  userId    Int
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type      ReminderType
-  message   String    @db.Text
-  remindAt  DateTime
-  isSent    Boolean   @default(false)
-  
-  createdAt DateTime  @default(now())
+  id       Int          @id @default(autoincrement())
+  userId   Int
+  user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type     ReminderType
+  message  String       @db.Text
+  remindAt DateTime
+  isSent   Boolean      @default(false)
+
+  createdAt DateTime @default(now())
 }
 
 model TestResult {
-  id                  Int               @id @default(autoincrement())
-  name                String            @db.VarChar(500)
-  userId              Int
-  user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  doctorId            Int
-  doctor              Doctor            @relation(fields: [doctorId], references: [id], onDelete: Cascade)
-  type                String            @db.VarChar(500)
-  result              String            @db.Text
-  price               Float
-  description         String?           @db.Text
-  patientTreatmentId  Int
-  patientTreatment    PatientTreatment  @relation(fields: [patientTreatmentId], references: [id])
-  resultDate          DateTime
-  
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
+  id                 Int              @id @default(autoincrement())
+  name               String           @db.VarChar(500)
+  userId             Int
+  user               User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  doctorId           Int
+  doctor             Doctor           @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  type               String           @db.VarChar(500)
+  result             String           @db.Text
+  price              Float
+  description        String?          @db.Text
+  patientTreatmentId Int
+  patientTreatment   PatientTreatment @relation(fields: [patientTreatmentId], references: [id])
+  resultDate         DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model BlogPost {
-  id          Int       @id @default(autoincrement())
-  title       String    @db.VarChar(500)
-  content     String    @db.Text
+  id          Int      @id @default(autoincrement())
+  title       String   @db.VarChar(500)
+  content     String   @db.Text
   authorId    Int
-  imageUrl    String    @db.VarChar(500)
-  slug        String    @db.VarChar(500)
-  cateId      Int     
-  author      User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  category    CateBlog  @relation(fields: [cateId], references: [id], onDelete: Cascade)
-  isPublished Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  imageUrl    String   @db.VarChar(500)
+  slug        String   @db.VarChar(500)
+  cateId      Int
+  author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  category    CateBlog @relation(fields: [cateId], references: [id], onDelete: Cascade)
+  isPublished Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model CateBlog {
-  id          Int         @id @default(autoincrement())
-  title       String      @db.VarChar(500)
-  description String      @db.VarChar(500)
+  id          Int        @id @default(autoincrement())
+  title       String     @db.VarChar(500)
+  description String     @db.VarChar(500)
   Blog        BlogPost[]
-  isPublished Boolean     @default(true)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  isPublished Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 }
 
 model EducationMaterial {
-  id        Int      @id @default(autoincrement())
-  title     String   @db.VarChar(500)
-  content   String   @db.Text
-  tags      String[]
-  isPublic  Boolean  @default(true)
-  
+  id       Int      @id @default(autoincrement())
+  title    String   @db.VarChar(500)
+  content  String   @db.Text
+  tags     String[]
+  isPublic Boolean  @default(true)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model Service {
-  id          Int           @id @default(autoincrement())
-  name        String        @db.VarChar(500)
-  slug        String        @db.VarChar(500)
-  price       Decimal       @db.Decimal(10, 2)
+  id          Int         @id @default(autoincrement())
+  name        String      @db.VarChar(500)
+  slug        String      @db.VarChar(500)
+  price       Decimal     @db.Decimal(10, 2)
   type        ServiceType
-  description String        @db.Text
-  startTime   String        @db.VarChar(500)
-  endTime     String        @db.VarChar(500)
-  imageUrl    String        @default("")
-  content     String        @db.Text
-  isActive    Boolean       @default(true)
-  duration    String       @db.VarChar(500) 
+  description String      @db.Text
+  startTime   String      @db.VarChar(500)
+  endTime     String      @db.VarChar(500)
+  imageUrl    String      @default("")
+  content     String      @db.Text
+  isActive    Boolean     @default(true)
+  duration    String      @db.VarChar(500)
 
   // Relations
   appointments Appointment[]
-  
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-} 
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

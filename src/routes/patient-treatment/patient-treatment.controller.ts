@@ -65,8 +65,20 @@ export class PatientTreatmentController {
     @Query('autoEndExisting') autoEndExisting?: string,
   ): Promise<PatientTreatment> {
     const userId = user.userId || user.id
-    return this.patientTreatmentService.createPatientTreatment(data, Number(userId), autoEndExisting === 'true')
+    return this.patientTreatmentService.createPatientTreatment(
+      data,
+      Number(userId),
+      autoEndExisting === 'true',
+    ) as Promise<PatientTreatment>
   }
+
+  // ===============================
+  // STATIC ROUTES FIRST
+  // ===============================
+
+  // ===============================
+  // DYNAMIC ROUTES AFTER STATIC
+  // ===============================
 
   @Get()
   @Roles(Role.Admin, Role.Doctor, Role.Staff)
@@ -199,9 +211,7 @@ export class PatientTreatmentController {
   @Roles(Role.Admin, Role.Doctor, Role.Staff, Role.Patient)
   @ApiGetActivePatientTreatmentsByPatient()
   getActivePatientTreatmentsByPatient(@Param('patientId', ParseIntPipe) patientId: number) {
-    const result = this.patientTreatmentService.getActivePatientTreatmentsByPatient(patientId)
-    if (!result || typeof result !== 'object') throw new InternalServerErrorException('Unexpected result')
-    return result
+    return this.patientTreatmentService.getActivePatientTreatmentsByPatient(patientId)
   }
 
   @Get('custom-medications')
@@ -298,32 +308,19 @@ export class PatientTreatmentController {
   @ApiEndActivePatientTreatments()
   @ApiOperation({ summary: 'End all active treatments for a patient' })
   endActivePatientTreatments(@Param('patientId', ParseIntPipe) patientId: number) {
-    const result = this.patientTreatmentService.endActivePatientTreatments(patientId)
-    if (!result || typeof result !== 'object') throw new InternalServerErrorException('Unexpected result')
-    return {
-      success: Boolean(result.success),
-      message: result.message ?? '',
-      deactivatedCount: result.deactivatedCount ?? 0,
-      endDate: result.endDate ?? new Date(),
-      activeTreatments: Array.isArray(result.activeTreatments) ? result.activeTreatments : [],
-    }
+    return this.patientTreatmentService.endActivePatientTreatments(patientId)
   }
 
   @Get('validate/single-protocol/:patientId')
   @Roles(Role.Admin, Role.Doctor, Role.Staff)
   @ApiOperation({ summary: 'Validate single protocol rule for a patient' })
   validateSingleProtocolRule(@Param('patientId', ParseIntPipe) patientId: number) {
-    const result = this.patientTreatmentService.validateSingleProtocolRule(patientId)
-    if (!result || typeof result !== 'object') throw new InternalServerErrorException('Unexpected result')
-    return {
-      isValid: Boolean(result.isValid),
-      errors: Array.isArray(result.errors) ? result.errors : [],
-      currentTreatments: Array.isArray(result.currentTreatments) ? result.currentTreatments : [],
-    }
+    return this.patientTreatmentService.validateSingleProtocolRule(patientId)
   }
 
   @Post('calculate-cost')
   @Roles(Role.Admin, Role.Doctor, Role.Staff)
+  @ApiGetTreatmentCostAnalysis()
   @ApiOperation({
     summary: 'Calculate treatment cost preview',
     description: 'Calculate estimated cost for a treatment before creating it. Useful for cost preview in frontend.',
@@ -343,7 +340,7 @@ export class PatientTreatmentController {
       new Date(costData.startDate),
       costData.endDate ? new Date(costData.endDate) : undefined,
     )
-    if (!result || typeof result !== 'object') throw new InternalServerErrorException('Unexpected result')
+    if (!result) throw new InternalServerErrorException('Unexpected result')
     return {
       isValid: Boolean(result.isValid),
       calculatedTotal: result.calculatedTotal ?? 0,

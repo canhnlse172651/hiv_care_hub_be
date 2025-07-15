@@ -1,4 +1,4 @@
-import { MedicationSchedule } from '@prisma/client'
+import { $Enums } from '@prisma/client'
 import { z } from 'zod'
 import {
   SharedBulkCreateSchema,
@@ -18,10 +18,15 @@ export const TreatmentProtocolSchema = z.object({
   updatedAt: z.date(),
 })
 
-// Protocol Medicine Schema (extends shared medication schema)
-export const ProtocolMedicineSchema = SharedMedicationSchema.extend({
+// Protocol Medicine Schema (không dùng duration kiểu cũ)
+export const ProtocolMedicineSchema = z.object({
   id: z.number(),
   protocolId: z.number(),
+  medicineId: z.number(),
+  dosage: z.string(),
+  durationValue: z.number().int().min(1, 'Thời lượng phải lớn hơn 0'),
+  durationUnit: z.nativeEnum($Enums.DurationUnit),
+  notes: z.string().optional(),
   createdAt: z.date(),
   updatedAt: z.date(),
 })
@@ -36,7 +41,8 @@ export const CreateTreatmentProtocolSchema = z.object({
       z.object({
         medicineId: z.number().min(1, 'Medicine ID is required'),
         dosage: z.string().min(1, 'Dosage is required').max(100),
-        duration: z.nativeEnum(MedicationSchedule),
+        durationValue: z.number().int().min(1, 'Thời lượng phải lớn hơn 0'),
+        durationUnit: z.nativeEnum($Enums.DurationUnit),
         notes: z.string().optional(),
       }),
     )
@@ -54,7 +60,8 @@ export const UpdateTreatmentProtocolSchema = z.object({
         id: z.number().optional(), // For existing medicines
         medicineId: z.number().min(1, 'Medicine ID is required'),
         dosage: z.string().min(1, 'Dosage is required').max(100),
-        duration: z.nativeEnum(MedicationSchedule),
+        durationValue: z.number().int().min(1, 'Thời lượng phải lớn hơn 0'),
+        durationUnit: z.nativeEnum($Enums.DurationUnit),
         notes: z.string().optional(),
       }),
     )

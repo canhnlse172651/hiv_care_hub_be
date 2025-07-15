@@ -7,9 +7,12 @@ import { AuthRepository } from 'src/repositories/user.repository'
 import { ServiceRepository } from 'src/repositories/service.repository'
 import { PaginationService } from 'src/shared/services/pagination.service'
 import { formatTimeHHMM, isTimeBetween } from 'src/shared/utils/date.utils'
+import { PatientTreatmentService } from '../patient-treatment/patient-treatment.service'
 import { DoctorRepository } from 'src/repositories/doctor.repository'
 import { MeetingService } from '../meeting/meeting.service'
 import { EmailService } from 'src/shared/services/email.service'
+import { AppointmentHistoryService } from './appointment-history.service'
+import { ReminderService } from '../reminder/reminder.service'
 
 const slots = [
   { start: '07:00', end: '07:30' },
@@ -38,6 +41,9 @@ export class AppoinmentService {
     private readonly doctorRepository: DoctorRepository,
     private readonly meetingService: MeetingService,
     private readonly emailService: EmailService,
+    private readonly patientTreatmentService: PatientTreatmentService,
+    private readonly appointmentHistoryService: AppointmentHistoryService,
+    private readonly reminderService: ReminderService,
   ) {}
 
   async createAppointment(data: CreateAppointmentDtoType): Promise<AppointmentResponseType> {
@@ -182,7 +188,17 @@ export class AppoinmentService {
         meetingUrl: data.doctorMeetingUrl || '',
       })
     }
-    return await this.appoinmentRepository.createAppointment(data)
+    const appointment = await this.appoinmentRepository.createAppointment(data)
+
+    // Always create a reminder for the appointment
+    await this.reminderService.createAppointmentReminder({
+      userId: data.userId,
+      appointmentId: appointment.id,
+      appointmentTime: appointment.appointmentTime,
+      // Optionally, you can add message or remindBeforeMinutes here
+    })
+
+    return appointment
   }
 
   async updateAppointment(id: number, data: UpdateAppointmentDtoType): Promise<AppointmentResponseType> {
@@ -306,13 +322,59 @@ export class AppoinmentService {
     //
 
     // Gán lại doctorId vào data update
-    return this.appoinmentRepository.updateAppointment(id, { ...data, doctorId: finalDoctorId })
+    const updatedAppointment = await this.appoinmentRepository.updateAppointment(id, {
+      ...data,
+      doctorId: finalDoctorId,
+    })
+
+    // (Reminder update logic removed; reminders are created on appointment creation only)
+
+    return updatedAppointment
   }
 
   async updateAppointmentStatus(id: number, status: AppointmentStatus): Promise<AppointmentResponseType> {
     const existed = await this.appoinmentRepository.findAppointmentById(id)
     if (!existed) throw new BadRequestException('Appointment not found')
-    return this.appoinmentRepository.updateAppointmentStatus(id, status)
+    // Ghi log lịch sử thay đổi trạng thái
+    try {
+      await this.appointmentHistoryService.logStatusChange({
+        appointmentId: existed.id,
+        oldStatus: existed.status,
+        newStatus: status,
+        // changedBy: có thể lấy từ context nếu cần
+      })
+    } catch (e) {
+      console.error('Log appointment status history failed:', e)
+    }
+
+    const updated = await this.appoinmentRepository.updateAppointmentStatus(id, status)
+
+    // Nếu trạng thái là CHECKIN hoặc COMPLETED thì tạo/cập nhật hồ sơ điều trị
+    if (
+      (status === 'CHECKIN' || status === 'COMPLETED') &&
+      existed.user &&
+      existed.user.id &&
+      existed.doctor &&
+      existed.doctor.id &&
+      existed.service &&
+      existed.service.id
+    ) {
+      try {
+        await this.patientTreatmentService.createPatientTreatment(
+          {
+            patientId: existed.user.id,
+            doctorId: existed.doctor.id,
+            appointmentId: existed.id,
+            serviceId: existed.service.id,
+            // Có thể bổ sung các trường khác nếu cần
+          },
+          existed.user.id,
+        )
+      } catch (e) {
+        console.error('Auto create PatientTreatment failed:', e)
+      }
+    }
+    return updated
   }
 
   async deleteAppointment(id: number): Promise<AppointmentResponseType> {
