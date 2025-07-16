@@ -98,7 +98,7 @@ export class PatientTreatmentRepository {
    */
   async createPatientTreatment(data: {
     patientId: number
-    protocolId: number
+    protocolId?: number
     doctorId: number
     customMedications?: any
     notes?: string
@@ -110,19 +110,21 @@ export class PatientTreatmentRepository {
     const validatedData = CreatePatientTreatmentDataSchema.parse(data)
     const customMedicationsJson = this.serializeCustomMedications(validatedData.customMedications)
 
+    const payload: Prisma.PatientTreatmentUncheckedCreateInput = {
+      patientId: validatedData.patientId,
+      doctorId: validatedData.doctorId,
+      customMedications: customMedicationsJson,
+      notes: validatedData.notes,
+      startDate: validatedData.startDate,
+      endDate: validatedData.endDate,
+      createdById: validatedData.createdById,
+      total: validatedData.total || 0,
+      protocolId: validatedData.protocolId !== undefined ? validatedData.protocolId : null,
+    }
+
     try {
       return await this.prismaService.patientTreatment.create({
-        data: {
-          patientId: validatedData.patientId,
-          protocolId: validatedData.protocolId,
-          doctorId: validatedData.doctorId,
-          customMedications: customMedicationsJson,
-          notes: validatedData.notes,
-          startDate: validatedData.startDate,
-          endDate: validatedData.endDate,
-          createdById: validatedData.createdById,
-          total: validatedData.total || 0,
-        },
+        data: payload,
         include: this.defaultIncludes,
       })
     } catch (error) {
@@ -240,13 +242,15 @@ export class PatientTreatmentRepository {
    * Find all patient treatments with filtering
    */
   async findPatientTreatments(params: {
-    skip?: number
-    take?: number
+    page?: number
+    limit?: number
     where?: Prisma.PatientTreatmentWhereInput
     orderBy?: Prisma.PatientTreatmentOrderByWithRelationInput
     include?: Prisma.PatientTreatmentInclude
   }): Promise<PatientTreatment[]> {
-    const { skip, take, where, orderBy, include } = params
+    const { page = 1, limit = 10, where, orderBy, include } = params
+    const skip = (page - 1) * limit
+    const take = limit
     return this.prismaService.patientTreatment.findMany({
       skip,
       take,
@@ -269,12 +273,14 @@ export class PatientTreatmentRepository {
   async findPatientTreatmentsByPatientId(
     patientId: number,
     params: {
-      skip?: number
-      take?: number
+      page?: number
+      limit?: number
       orderBy?: Prisma.PatientTreatmentOrderByWithRelationInput
     },
   ): Promise<PatientTreatment[]> {
-    const { skip, take, orderBy } = params
+    const { page = 1, limit = 10, orderBy } = params
+    const skip = (page - 1) * limit
+    const take = limit
     return this.prismaService.patientTreatment.findMany({
       where: { patientId },
       skip,
@@ -297,12 +303,14 @@ export class PatientTreatmentRepository {
   async findPatientTreatmentsByDoctorId(
     doctorId: number,
     params: {
-      skip?: number
-      take?: number
+      page?: number
+      limit?: number
       orderBy?: Prisma.PatientTreatmentOrderByWithRelationInput
     },
   ): Promise<PatientTreatment[]> {
-    const { skip, take, orderBy } = params
+    const { page = 1, limit = 10, orderBy } = params
+    const skip = (page - 1) * limit
+    const take = limit
     return this.prismaService.patientTreatment.findMany({
       where: { doctorId },
       skip,
@@ -403,12 +411,14 @@ export class PatientTreatmentRepository {
   async getActivePatientTreatments(
     params: {
       patientId?: number
-      skip?: number
-      take?: number
+      page?: number
+      limit?: number
       orderBy?: Prisma.PatientTreatmentOrderByWithRelationInput
     } = {},
   ): Promise<PatientTreatment[]> {
-    const { patientId, skip, take, orderBy } = params
+    const { patientId, page = 1, limit = 10, orderBy } = params
+    const skip = (page - 1) * limit
+    const take = limit
     const currentDate = new Date()
 
     try {
@@ -418,7 +428,7 @@ export class PatientTreatmentRepository {
 
       // Add patient filter if patientId is provided
       if (patientId) {
-        where.patientId = this.validateId(patientId)
+        where.patientId = patientId
       }
 
       return await this.prismaService.patientTreatment.findMany({

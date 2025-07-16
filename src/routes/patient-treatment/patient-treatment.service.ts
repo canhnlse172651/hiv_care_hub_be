@@ -1,7 +1,6 @@
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common'
 import { PatientTreatment, Prisma } from '@prisma/client'
 import { PatientTreatmentRepository } from '../../repositories/patient-treatment.repository'
-import { TestResultRepository } from '../../repositories/test-result.repository'
 import { ENTITY_NAMES } from '../../shared/constants/api.constants'
 import { PaginatedResponse } from '../../shared/schemas/pagination.schema'
 import { SharedErrorHandlingService } from '../../shared/services/error-handling.service'
@@ -20,14 +19,12 @@ import { FollowUpAppointmentService } from './services/follow-up-appointment.ser
 @Injectable()
 export class PatientTreatmentService {
   constructor(
+
     private readonly patientTreatmentRepository: PatientTreatmentRepository,
     private readonly paginationService: PaginationService,
     private readonly errorHandlingService: SharedErrorHandlingService,
     private readonly followUpAppointmentService: FollowUpAppointmentService,
-    private readonly testResultRepository: TestResultRepository,
   ) {}
-
-  // ...existing code...
 
   // Get patient treatment by ID
   async getPatientTreatmentById(id: number): Promise<PatientTreatment> {
@@ -573,11 +570,7 @@ export class PatientTreatmentService {
     try {
       // Validate query for pagination
       const validatedQuery = QueryPatientTreatmentSchema.parse(query)
-      const { page, limit, patientId, doctorId, protocolId, sortBy, sortOrder } = validatedQuery
-
-      // Calculate skip and take for pagination
-      const skip = (page - 1) * limit
-      const take = limit
+      const { page = 1, limit = 10, patientId, doctorId, protocolId, sortBy, sortOrder } = validatedQuery
 
       // Build order by clause
       const orderBy: Prisma.PatientTreatmentOrderByWithRelationInput = {}
@@ -587,11 +580,10 @@ export class PatientTreatmentService {
         orderBy.startDate = 'desc'
       }
 
-      // Use repository's unified method for active treatments
       const activePatientTreatments = await this.patientTreatmentRepository.getActivePatientTreatments({
         patientId,
-        skip,
-        take,
+        page,
+        limit,
         orderBy,
       })
 
@@ -636,8 +628,7 @@ export class PatientTreatmentService {
       const validatedQuery = CustomMedicationsQuerySchema.parse(query)
 
       const page = Math.max(1, validatedQuery.page || 1)
-      const limit = Math.min(100, Math.max(1, validatedQuery.limit || 10)) // Limit between 1-100
-      const skip = (page - 1) * limit
+      const limit = Math.min(100, Math.max(1, validatedQuery.limit || 10))
 
       // Convert dates if provided
       const params = {
@@ -645,8 +636,8 @@ export class PatientTreatmentService {
         doctorId: validatedQuery.doctorId,
         startDate: validatedQuery.startDate ? new Date(validatedQuery.startDate) : undefined,
         endDate: validatedQuery.endDate ? new Date(validatedQuery.endDate) : undefined,
-        skip,
-        take: limit,
+        page,
+        limit,
       }
 
       // Use existing repository method to find treatments with custom medications
@@ -666,8 +657,8 @@ export class PatientTreatmentService {
 
       const data = await this.patientTreatmentRepository.findPatientTreatments({
         where: whereClause,
-        skip,
-        take: limit,
+        page,
+        limit,
         orderBy: { createdAt: 'desc' },
       })
 
@@ -685,8 +676,9 @@ export class PatientTreatmentService {
         return item
       })
 
+      // You may need to update repository to return total count for page/limit
       const total = await this.patientTreatmentRepository.countPatientTreatments(whereClause)
-      const hasNextPage = skip + limit < total
+      const hasNextPage = page * limit < total
       const totalPages = Math.ceil(total / limit)
 
       return {
@@ -715,8 +707,8 @@ export class PatientTreatmentService {
       const pid = typeof validatedPatientId === 'string' ? Number(validatedPatientId) : validatedPatientId
       // Get all treatments for patient
       let allTreatments = await this.patientTreatmentRepository.findPatientTreatmentsByPatientId(pid, {
-        skip: 0,
-        take: 1000,
+        page: 1,
+        limit: 1000,
       })
       // Normalize schedule in customMedications for all items
       allTreatments = allTreatments.map((item) => {
@@ -733,6 +725,8 @@ export class PatientTreatmentService {
       // Get active treatments
       let activeTreatments = await this.patientTreatmentRepository.getActivePatientTreatments({
         patientId: validatedPatientId,
+        page: 1,
+        limit: 1000,
       })
       activeTreatments = activeTreatments.map((item) => {
         if (
@@ -770,8 +764,8 @@ export class PatientTreatmentService {
 
       // Get all treatments for doctor
       let allTreatments = await this.patientTreatmentRepository.findPatientTreatmentsByDoctorId(validatedDoctorId, {
-        skip: 0,
-        take: 1000,
+        page: 1,
+        limit: 1000,
       })
       allTreatments = allTreatments.map((item) => {
         if (
@@ -785,7 +779,10 @@ export class PatientTreatmentService {
       })
 
       // Get active treatments
-      const activeTreatments = await this.patientTreatmentRepository.getActivePatientTreatments({})
+      const activeTreatments = await this.patientTreatmentRepository.getActivePatientTreatments({
+        page: 1,
+        limit: 1000,
+      })
       let doctorActiveTreatments = activeTreatments.filter((t) => t.doctorId === validatedDoctorId)
       doctorActiveTreatments = doctorActiveTreatments.map((item) => {
         if (
@@ -835,8 +832,8 @@ export class PatientTreatmentService {
     try {
       // Get all treatments
       let allTreatments = await this.patientTreatmentRepository.findPatientTreatments({
-        skip: 0,
-        take: 10000, // Large number to get all
+        page: 1,
+        limit: 10000, // Large number to get all
       })
       allTreatments = allTreatments.map((item) => {
         if (
@@ -919,8 +916,8 @@ export class PatientTreatmentService {
       // Get all treatments for this protocol
       let allTreatments = await this.patientTreatmentRepository.findPatientTreatments({
         where: { protocolId: validatedProtocolId },
-        skip: 0,
-        take: 10000,
+        page: 1,
+        limit: 10000,
       })
       allTreatments = allTreatments.map((item) => {
         if (
@@ -1200,7 +1197,12 @@ export class PatientTreatmentService {
       // Parse and validate input
       const patientId = this.safeParseNumber(data.patientId, 'patientId')
       const doctorId = this.safeParseNumber(data.doctorId, 'doctorId')
-      const protocolId = this.safeParseNumber(data.protocolId, 'protocolId')
+      // protocolId is now optional
+      let protocolId: number | undefined = undefined
+      if (data.protocolId !== undefined && data.protocolId !== null && data.protocolId !== '') {
+        protocolId = this.safeParseNumber(data.protocolId, 'protocolId')
+      }
+      // optional test result
       let startDate: Date = new Date()
       if (data.startDate) {
         if (
@@ -1228,16 +1230,19 @@ export class PatientTreatmentService {
         }
       }
 
-      const processedData = {
+      // Only include protocolId if it is defined, otherwise omit it
+      const processedData: any = {
         patientId,
         doctorId,
-        protocolId,
         startDate,
         endDate,
         notes,
         total,
         customMedications,
         createdById: userId,
+      }
+      if (protocolId !== undefined) {
+        processedData.protocolId = protocolId
       }
 
       if (validate && typeof CreatePatientTreatmentSchema !== 'undefined') {
@@ -1282,92 +1287,6 @@ export class PatientTreatmentService {
   // ===============================
   // MISSING VALIDATION METHODS
   // ===============================
-
-  /**
-   * Validate viral load monitoring compliance for a patient
-   */
-  async validateViralLoadMonitoring(
-    patientTreatmentId: number,
-    treatmentStartDate: Date,
-  ): Promise<{
-    isCompliant: boolean
-    lastViralLoad: Date | null
-    daysSinceLastTest: number | null
-    requiredTestFrequency: 'monthly' | 'quarterly' | 'biannually'
-    nextTestDue: Date
-    urgencyLevel: 'normal' | 'due' | 'overdue' | 'critical'
-    recommendations: string[]
-  }> {
-    try {
-      const now = new Date()
-      const daysSinceStart = Math.floor((now.getTime() - treatmentStartDate.getTime()) / (1000 * 60 * 60 * 24))
-
-      // Determine test frequency based on treatment duration
-      let requiredTestFrequency: 'monthly' | 'quarterly' | 'biannually' = 'quarterly'
-      if (daysSinceStart < 180) {
-        requiredTestFrequency = 'monthly'
-      } else if (daysSinceStart < 365) {
-        requiredTestFrequency = 'quarterly'
-      } else {
-        requiredTestFrequency = 'biannually'
-      }
-
-      // Lấy test viral load gần nhất từ TestResultRepository
-      const lastTest = await this.testResultRepository.findLatestViralLoadTest(patientTreatmentId)
-      let lastViralLoad: Date | null = null
-      let daysSinceLastTest: number | null = null
-      if (lastTest) {
-        lastViralLoad = lastTest.resultDate
-        daysSinceLastTest = Math.floor((now.getTime() - lastViralLoad.getTime()) / (1000 * 60 * 60 * 24))
-      }
-
-      // Nếu chưa có test nào thì coi như quá hạn
-      const testIntervalDays =
-        requiredTestFrequency === 'monthly' ? 30 : requiredTestFrequency === 'quarterly' ? 90 : 180
-      const nextTestDue = lastViralLoad
-        ? new Date(lastViralLoad.getTime() + testIntervalDays * 24 * 60 * 60 * 1000)
-        : new Date(treatmentStartDate.getTime() + testIntervalDays * 24 * 60 * 60 * 1000)
-
-      let urgencyLevel: 'normal' | 'due' | 'overdue' | 'critical' = 'normal'
-      const daysOverdue = Math.floor((now.getTime() - nextTestDue.getTime()) / (1000 * 60 * 60 * 24))
-
-      if (daysOverdue > 30) urgencyLevel = 'critical'
-      else if (daysOverdue > 0) urgencyLevel = 'overdue'
-      else if (daysOverdue > -7) urgencyLevel = 'due'
-
-      const isCompliant = urgencyLevel === 'normal'
-      const recommendations: string[] = []
-
-      if (!isCompliant) {
-        recommendations.push(
-          `Schedule viral load test immediately - ${Math.abs(daysOverdue)} days ${daysOverdue > 0 ? 'overdue' : 'until due'}`,
-        )
-      }
-      if (requiredTestFrequency === 'monthly') {
-        recommendations.push('Patient in initial treatment phase - requires monthly monitoring')
-      }
-
-      return {
-        isCompliant,
-        lastViralLoad,
-        daysSinceLastTest,
-        requiredTestFrequency,
-        nextTestDue,
-        urgencyLevel,
-        recommendations,
-      }
-    } catch (error) {
-      return {
-        isCompliant: false,
-        lastViralLoad: null,
-        daysSinceLastTest: null,
-        requiredTestFrequency: 'quarterly',
-        nextTestDue: new Date(),
-        urgencyLevel: 'critical',
-        recommendations: [`Error validating viral load monitoring: ${error.message}`],
-      }
-    }
-  }
 
   /**
    * Validate treatment adherence and get recommendations
@@ -1703,8 +1622,8 @@ export class PatientTreatmentService {
       // Get patient's treatment history
       const pid = typeof patientId === 'string' ? Number(patientId) : patientId
       const allTreatments = await this.patientTreatmentRepository.findPatientTreatmentsByPatientId(pid, {
-        skip: 0,
-        take: 100,
+        page: 1,
+        limit: 100,
       })
 
       // Sort by start date
@@ -1984,8 +1903,8 @@ export class PatientTreatmentService {
     try {
       // Get all treatments
       const allTreatments = await this.patientTreatmentRepository.findPatientTreatments({
-        skip: 0,
-        take: 10000, // Large number to get all
+        page: 1,
+        limit: 10000, // Large number to get all
       })
 
       // Get active treatments
@@ -2268,8 +2187,8 @@ export class PatientTreatmentService {
     try {
       const pid = typeof patientId === 'string' ? Number(patientId) : patientId
       const treatments = await this.patientTreatmentRepository.findPatientTreatmentsByPatientId(pid, {
-        skip: 0,
-        take: 100,
+        page: 0,
+        limit: 100,
       })
 
       let followUpAppointments: any[] = []
@@ -2495,8 +2414,8 @@ export class PatientTreatmentService {
     // Example: compliance = 100% if all treatments present, else lower
     const pid = typeof patientId === 'string' ? Number(patientId) : patientId
     const treatments = await this.patientTreatmentRepository.findPatientTreatmentsByPatientId(pid, {
-      skip: 0,
-      take: 100,
+      page: 0,
+      limit: 100,
     })
     const totalDoses = treatments.reduce((sum, t) => sum + (t.total || 0), 0)
     // No missedDoses field, so just use total for now
@@ -2514,8 +2433,8 @@ export class PatientTreatmentService {
     const patientId = typeof params.patientId === 'string' ? Number(params.patientId) : params.patientId
     const pid: number = Number(patientId)
     const treatments = await this.patientTreatmentRepository.findPatientTreatmentsByPatientId(pid, {
-      skip: 0,
-      take: 100,
+      page: 0,
+      limit: 100,
     })
     const totalCost = treatments.reduce((sum, t) => sum + (t.total || 0), 0)
     const breakdown = treatments.map((t) => ({ id: t.id, protocolId: t.protocolId, total: t.total }))

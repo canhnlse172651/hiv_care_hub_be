@@ -298,7 +298,7 @@ export const BulkDeletePatientTreatmentSchema = z.object({
 // Create Patient Treatment Schema
 export const CreatePatientTreatmentSchema = z.object({
   patientId: z.number().int().min(1, 'Patient ID is required'),
-  protocolId: z.number().int().min(1, 'Protocol ID is required'),
+  protocolId: z.number().int().optional(), // Protocol ID is optional for custom treatments
   doctorId: z.number().int().min(1, 'Doctor ID is required'),
   customMedications: z.record(z.unknown()).optional().default({}),
   notes: z.string().optional(),

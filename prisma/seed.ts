@@ -427,62 +427,21 @@ async function main() {
   ])
 
   // 6. Medicines
-  const [
-    med1, // Paracetamol
-    med2, // Amoxicillin
-    med3, // Ibuprofen
-    med4, // Metformin
-    med5, // Omeprazole
-    med6, // Amlodipine
-    med7, // Lisinopril
-    med8, // Simvastatin
-    med9, // Levothyroxine
-    med10, // Azithromycin
-  ] = await Promise.all([
+  const [med1, med2, med3, med4, med5, med6, med7, med8, med9, med10] = await Promise.all([
     prisma.medicine.create({
-      data: {
-        name: 'Paracetamol',
-        unit: 'tablet',
-        dose: '500mg',
-        price: 1.5,
-        description: 'Giảm đau, hạ sốt',
-      },
+      data: { name: 'Paracetamol', unit: 'tablet', dose: '500mg', price: 1.5, description: 'Giảm đau, hạ sốt' },
     }),
     prisma.medicine.create({
-      data: {
-        name: 'Amoxicillin',
-        unit: 'capsule',
-        dose: '250mg',
-        price: 2.0,
-        description: 'Kháng sinh phổ rộng',
-      },
+      data: { name: 'Amoxicillin', unit: 'capsule', dose: '250mg', price: 2.0, description: 'Kháng sinh phổ rộng' },
     }),
     prisma.medicine.create({
-      data: {
-        name: 'Ibuprofen',
-        unit: 'tablet',
-        dose: '200mg',
-        price: 1.2,
-        description: 'Giảm đau, chống viêm',
-      },
+      data: { name: 'Ibuprofen', unit: 'tablet', dose: '200mg', price: 1.2, description: 'Giảm đau, chống viêm' },
     }),
     prisma.medicine.create({
-      data: {
-        name: 'Metformin',
-        unit: 'tablet',
-        dose: '500mg',
-        price: 0.8,
-        description: 'Điều trị tiểu đường type 2',
-      },
+      data: { name: 'Metformin', unit: 'tablet', dose: '500mg', price: 0.8, description: 'Điều trị tiểu đường type 2' },
     }),
     prisma.medicine.create({
-      data: {
-        name: 'Omeprazole',
-        unit: 'capsule',
-        dose: '20mg',
-        price: 1.5,
-        description: 'Giảm tiết acid dạ dày',
-      },
+      data: { name: 'Omeprazole', unit: 'capsule', dose: '20mg', price: 1.5, description: 'Giảm tiết acid dạ dày' },
     }),
     prisma.medicine.create({
       data: {
@@ -503,22 +462,10 @@ async function main() {
       },
     }),
     prisma.medicine.create({
-      data: {
-        name: 'Simvastatin',
-        unit: 'tablet',
-        dose: '20mg',
-        price: 2.5,
-        description: 'Giảm cholesterol máu',
-      },
+      data: { name: 'Simvastatin', unit: 'tablet', dose: '20mg', price: 2.5, description: 'Giảm cholesterol máu' },
     }),
     prisma.medicine.create({
-      data: {
-        name: 'Levothyroxine',
-        unit: 'tablet',
-        dose: '50mcg',
-        price: 3.0,
-        description: 'Điều trị suy giáp',
-      },
+      data: { name: 'Levothyroxine', unit: 'tablet', dose: '50mcg', price: 3.0, description: 'Điều trị suy giáp' },
     }),
     prisma.medicine.create({
       data: {
@@ -547,6 +494,81 @@ async function main() {
             durationValue: 3,
             durationUnit: DurationUnit.DAY,
             notes: 'Uống sau ăn',
+            schedule: MedicationSchedule.MORNING,
+          },
+        ],
+      },
+    },
+  })
+
+  const protocol2 = await prisma.treatmentProtocol.create({
+    data: {
+      name: 'Hypertension Treatment',
+      description: 'Điều trị tăng huyết áp',
+      targetDisease: 'Hypertension',
+      createdById: adminUser.id,
+      updatedById: adminUser.id,
+      medicines: {
+        create: [
+          {
+            medicineId: med6.id,
+            dosage: '1 tablet',
+            durationValue: 30,
+            durationUnit: DurationUnit.DAY,
+            notes: 'Uống buổi sáng',
+            schedule: MedicationSchedule.MORNING,
+          },
+          {
+            medicineId: med7.id,
+            dosage: '10mg',
+            durationValue: 30,
+            durationUnit: DurationUnit.DAY,
+            notes: 'Uống buổi chiều',
+            schedule: MedicationSchedule.AFTERNOON,
+          },
+        ],
+      },
+    },
+  })
+
+  const protocol3 = await prisma.treatmentProtocol.create({
+    data: {
+      name: 'Diabetes Management',
+      description: 'Quản lý tiểu đường type 2',
+      targetDisease: 'Diabetes',
+      createdById: adminUser.id,
+      updatedById: adminUser.id,
+      medicines: {
+        create: [
+          {
+            medicineId: med4.id,
+            dosage: '500mg',
+            durationValue: 60,
+            durationUnit: DurationUnit.DAY,
+            notes: 'Uống sau ăn',
+            schedule: MedicationSchedule.MORNING,
+          },
+        ],
+      },
+    },
+  })
+
+  const protocol4 = await prisma.treatmentProtocol.create({
+    data: {
+      name: 'Antibiotic Course',
+      description: 'Liệu trình kháng sinh cho nhiễm trùng',
+      targetDisease: 'Infection',
+      createdById: adminUser.id,
+      updatedById: adminUser.id,
+      medicines: {
+        create: [
+          {
+            medicineId: med10.id,
+            dosage: '500mg',
+            durationValue: 5,
+            durationUnit: DurationUnit.DAY,
+            notes: 'Uống sau ăn',
+            schedule: MedicationSchedule.AFTERNOON,
           },
         ],
       },
@@ -662,31 +684,31 @@ async function main() {
     ],
   })
 
-  // 11. TestResults
-  await prisma.testResult.createMany({
-    data: [
-      {
-        name: 'CD4 Count',
-        userId: patientUsers[0].id,
-        doctorId: doctors[0].id,
-        type: TestType.CD4,
-        result: '500 cells/mm3',
-        price: 30.0,
-        patientTreatmentId: patientTreatment1.id,
-        resultDate: new Date(),
-      },
-      {
-        name: 'Viral Load',
-        userId: patientUsers[1].id,
-        doctorId: doctors[1].id,
-        type: TestType.HIV_VIRAL_LOAD,
-        result: '15000 copies/mL',
-        price: 45.0,
-        patientTreatmentId: patientTreatment2.id,
-        resultDate: new Date(),
-      },
-    ],
-  })
+  // // 11. TestResults
+  // await prisma.testResult.createMany({
+  //   data: [
+  //     {
+  //       name: 'CD4 Count',
+  //       userId: patientUsers[0].id,
+  //       doctorId: doctors[0].id,
+  //       type: TestType.CD4,
+  //       result: '500 cells/mm3',
+  //       price: 30.0,
+  //       patientTreatmentId: patientTreatment1.id,
+  //       resultDate: new Date(),
+  //     },
+  //     {
+  //       name: 'Viral Load',
+  //       userId: patientUsers[1].id,
+  //       doctorId: doctors[1].id,
+  //       type: TestType.HIV_VIRAL_LOAD,
+  //       result: '15000 copies/mL',
+  //       price: 45.0,
+  //       patientTreatmentId: patientTreatment2.id,
+  //       resultDate: new Date(),
+  //     },
+  //   ],
+  // })
 
   // 12. VerificationCodes
   await prisma.verificationCode.createMany({
@@ -711,16 +733,8 @@ async function main() {
   // 13. RefreshTokens
   await prisma.refreshToken.createMany({
     data: [
-      {
-        token: uuidv4(),
-        userId: adminUser.id,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      },
-      {
-        token: uuidv4(),
-        userId: patientUsers[1].id,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      },
+      { token: uuidv4(), userId: adminUser.id, expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
+      { token: uuidv4(), userId: patientUsers[1].id, expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
     ],
   })
 
@@ -749,9 +763,7 @@ async function main() {
   })
 
   // 15. Blog & Education Materials
-  const cate1 = await prisma.cateBlog.create({
-    data: { title: 'Health Tips', description: 'Mẹo sống khỏe' },
-  })
+  const cate1 = await prisma.cateBlog.create({ data: { title: 'Health Tips', description: 'Mẹo sống khỏe' } })
   await prisma.blogPost.create({
     data: {
       title: '5 Cách Giữ Sức Khỏe Mỗi Ngày',

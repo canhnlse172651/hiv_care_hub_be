@@ -11,13 +11,23 @@ import {
 } from '@nestjs/common'
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { PatientTreatment } from '@prisma/client'
-import CustomZodValidationPipe from '../../common/custom-zod-validate'
-import { AuthType } from '../../shared/constants/auth.constant'
-import { Role } from '../../shared/constants/role.constant'
-import { Auth } from '../../shared/decorators/auth.decorator'
-import { CurrentUser } from '../../shared/decorators/current-user.decorator'
-import { Roles } from '../../shared/decorators/roles.decorator'
-import { PaginatedResponse } from '../../shared/schemas/pagination.schema'
+import CustomZodValidationPipe from 'src/common/custom-zod-validate'
+import {
+  TreatmentComplianceStatsDto,
+  TreatmentCostAnalysisDto,
+} from 'src/routes/patient-treatment/patient-treatment.analytics.dto'
+import {
+  CreatePatientTreatmentDto,
+  CreatePatientTreatmentDtoType,
+  PatientTreatmentQueryDto,
+} from 'src/routes/patient-treatment/patient-treatment.dto'
+import { PatientTreatmentService } from 'src/routes/patient-treatment/patient-treatment.service'
+import { AuthType } from 'src/shared/constants/auth.constant'
+import { Role } from 'src/shared/constants/role.constant'
+import { Auth } from 'src/shared/decorators/auth.decorator'
+import { CurrentUser } from 'src/shared/decorators/current-user.decorator'
+import { Roles } from 'src/shared/decorators/roles.decorator'
+import { PaginatedResponse } from 'src/shared/schemas/pagination.schema'
 import {
   ApiCompareProtocolVsCustomTreatments,
   ApiCreatePatientTreatment,
@@ -36,14 +46,7 @@ import {
   ApiGetTreatmentCostAnalysis,
   ApiGetTreatmentsWithCustomMedications,
   ApiSearchPatientTreatments,
-} from '../../swagger/patient-treatment.swagger'
-import { TreatmentComplianceStatsDto, TreatmentCostAnalysisDto } from './patient-treatment.analytics.dto'
-import {
-  CreatePatientTreatmentDto,
-  CreatePatientTreatmentDtoType,
-  PatientTreatmentQueryDto,
-} from './patient-treatment.dto'
-import { PatientTreatmentService } from './patient-treatment.service'
+} from 'src/swagger/patient-treatment.swagger'
 
 @ApiBearerAuth()
 @ApiTags('Patient Treatment Management')
@@ -61,24 +64,19 @@ export class PatientTreatmentController {
   @ApiCreatePatientTreatment()
   async createPatientTreatment(
     @Body(new CustomZodValidationPipe(CreatePatientTreatmentDto)) data: CreatePatientTreatmentDtoType,
-    @CurrentUser() user: any,
+    @CurrentUser() user: { userId?: number; id?: number },
     @Query('autoEndExisting') autoEndExisting?: string,
   ): Promise<PatientTreatment> {
-    const userId = user.userId || user.id
-    return this.patientTreatmentService.createPatientTreatment(
+    const userId = user.userId ?? user.id
+    const result = await this.patientTreatmentService.createPatientTreatment(
       data,
       Number(userId),
       autoEndExisting === 'true',
-    ) as Promise<PatientTreatment>
+    )
+    // Ensure type safety
+    if (!result || typeof result !== 'object') throw new InternalServerErrorException('Unexpected result')
+    return result as PatientTreatment
   }
-
-  // ===============================
-  // STATIC ROUTES FIRST
-  // ===============================
-
-  // ===============================
-  // DYNAMIC ROUTES AFTER STATIC
-  // ===============================
 
   @Get()
   @Roles(Role.Admin, Role.Doctor, Role.Staff)
@@ -92,7 +90,7 @@ export class PatientTreatmentController {
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ): Promise<PaginatedResponse<PatientTreatment>> {
-    return this.patientTreatmentService.getAllPatientTreatments({
+    const result = await this.patientTreatmentService.getAllPatientTreatments({
       page: page ? Number(page) : 1,
       limit: limit ? Number(limit) : 10,
       search,
@@ -101,14 +99,20 @@ export class PatientTreatmentController {
       startDate,
       endDate,
     })
+    return result
   }
+
+
+  // ===============================
+  // Dynamic Endpoints
+  // ===============================
 
   @Get('patient/:patientId')
   @Roles(Role.Admin, Role.Doctor, Role.Staff, Role.Patient)
   @ApiGetPatientTreatmentsByPatient()
   async getPatientTreatmentsByPatient(
     @Param('patientId', ParseIntPipe) patientId: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: { userId?: number; id?: number; role?: { name?: string } },
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('sortBy') sortBy?: string,
@@ -117,11 +121,11 @@ export class PatientTreatmentController {
     @Query('endDate') endDate?: string,
     @Query('includeCompleted') includeCompleted?: string,
   ): Promise<PaginatedResponse<PatientTreatment>> {
-    const userId = user.userId || user.id
+    const userId = user.userId ?? user.id
     if (user.role?.name === 'PATIENT' && Number(userId) !== patientId) {
       throw new ForbiddenException('Patients can only access their own treatment records')
     }
-    return this.patientTreatmentService.getPatientTreatmentsByPatientId({
+    const result = await this.patientTreatmentService.getPatientTreatmentsByPatientId({
       patientId,
       page: page ? Number(page) : 1,
       limit: limit ? Number(limit) : 10,
@@ -131,6 +135,7 @@ export class PatientTreatmentController {
       startDate,
       endDate,
     })
+    return result
   }
 
   @Get('doctor/:doctorId')
@@ -143,13 +148,14 @@ export class PatientTreatmentController {
     @Query('sortBy') sortBy?: string,
     @Query('sortOrder') sortOrder?: string,
   ): Promise<PaginatedResponse<PatientTreatment>> {
-    return this.patientTreatmentService.getPatientTreatmentsByDoctorId({
+    const result = await this.patientTreatmentService.getPatientTreatmentsByDoctorId({
       doctorId,
       page: page ? Number(page) : 1,
       limit: limit ? Number(limit) : 10,
       sortBy: sortBy || 'createdAt',
       sortOrder: sortOrder || 'desc',
     })
+    return result
   }
 
   // ===============================
@@ -169,7 +175,8 @@ export class PatientTreatmentController {
     const searchQuery = search || q || query || ''
     const pageNum = page ? Number(page) : 1
     const limitNum = limit ? Number(limit) : 10
-    return this.patientTreatmentService.searchPatientTreatments(searchQuery, pageNum, limitNum)
+    const result = await this.patientTreatmentService.searchPatientTreatments(searchQuery, pageNum, limitNum)
+    return result
   }
 
   @Get('date-range')
@@ -181,7 +188,8 @@ export class PatientTreatmentController {
   ): Promise<PatientTreatment[]> {
     const startDate = startDateStr ? new Date(startDateStr) : new Date()
     const endDate = endDateStr ? new Date(endDateStr) : new Date()
-    return this.patientTreatmentService.getPatientTreatmentsByDateRange(startDate, endDate)
+    const result = await this.patientTreatmentService.getPatientTreatmentsByDateRange(startDate, endDate)
+    return result
   }
 
   @Get('active')
@@ -196,7 +204,7 @@ export class PatientTreatmentController {
     @Query('doctorId') doctorId?: string,
     @Query('protocolId') protocolId?: string,
   ): Promise<PaginatedResponse<PatientTreatment>> {
-    return this.patientTreatmentService.getActivePatientTreatments({
+    const result = await this.patientTreatmentService.getActivePatientTreatments({
       page: page ? Number(page) : 1,
       limit: limit ? Number(limit) : 10,
       sortBy: sortBy || 'createdAt',
@@ -205,13 +213,17 @@ export class PatientTreatmentController {
       doctorId: doctorId ? Number(doctorId) : undefined,
       protocolId: protocolId ? Number(protocolId) : undefined,
     })
+    return result
   }
 
   @Get('active/patient/:patientId')
   @Roles(Role.Admin, Role.Doctor, Role.Staff, Role.Patient)
   @ApiGetActivePatientTreatmentsByPatient()
-  getActivePatientTreatmentsByPatient(@Param('patientId', ParseIntPipe) patientId: number) {
-    return this.patientTreatmentService.getActivePatientTreatmentsByPatient(patientId)
+  async getActivePatientTreatmentsByPatient(
+    @Param('patientId', ParseIntPipe) patientId: number,
+  ): Promise<PatientTreatment[]> {
+    const result = await this.patientTreatmentService.getActivePatientTreatmentsByPatient(patientId)
+    return result as PatientTreatment[]
   }
 
   @Get('custom-medications')
@@ -224,13 +236,14 @@ export class PatientTreatmentController {
     @Query('sortOrder') sortOrder?: string,
     @Query('hasCustomMeds') hasCustomMeds?: string,
   ): Promise<PaginatedResponse<PatientTreatment>> {
-    return this.patientTreatmentService.findTreatmentsWithCustomMedications({
+    const result = await this.patientTreatmentService.findTreatmentsWithCustomMedications({
       page: page ? Number(page) : 1,
       limit: limit ? Number(limit) : 10,
       sortBy: sortBy || 'createdAt',
       sortOrder: sortOrder || 'desc',
       hasCustomMeds: hasCustomMeds === 'true',
     })
+    return result
   }
 
   // ===============================
@@ -242,33 +255,37 @@ export class PatientTreatmentController {
   @ApiGetPatientTreatmentStats()
   async getPatientTreatmentStats(
     @Param('patientId', ParseIntPipe) patientId: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: { id?: number; role?: { name?: string } },
   ): Promise<any> {
     if (user.role?.name === 'PATIENT' && Number(user.id) !== patientId) {
       throw new ForbiddenException('Patients can only access their own statistics')
     }
-    return this.patientTreatmentService.getPatientTreatmentStats(patientId)
+    const result = await this.patientTreatmentService.getPatientTreatmentStats(patientId)
+    return result
   }
 
   @Get('stats/doctor/:doctorId')
   @Roles(Role.Admin, Role.Doctor, Role.Staff)
   @ApiGetDoctorWorkloadStats()
   async getDoctorWorkloadStats(@Param('doctorId', ParseIntPipe) doctorId: number): Promise<any> {
-    return this.patientTreatmentService.getDoctorWorkloadStats(doctorId)
+    const result = await this.patientTreatmentService.getDoctorWorkloadStats(doctorId)
+    return result
   }
 
   @Get('analytics/custom-medication-stats')
   @Roles(Role.Admin, Role.Doctor, Role.Staff)
   @ApiGetCustomMedicationStats()
-  getCustomMedicationStats() {
-    return this.patientTreatmentService.getCustomMedicationStats()
+  async getCustomMedicationStats(): Promise<any> {
+    const result = await this.patientTreatmentService.getCustomMedicationStats()
+    return result
   }
 
   @Get('analytics/protocol-comparison/:protocolId')
   @Roles(Role.Admin, Role.Doctor, Role.Staff)
   @ApiCompareProtocolVsCustomTreatments()
-  compareProtocolVsCustomTreatments(@Param('protocolId', ParseIntPipe) protocolId: number) {
-    return this.patientTreatmentService.compareProtocolVsCustomTreatments(protocolId)
+  async compareProtocolVsCustomTreatments(@Param('protocolId', ParseIntPipe) protocolId: number): Promise<any> {
+    const result = await this.patientTreatmentService.compareProtocolVsCustomTreatments(protocolId)
+    return result
   }
 
   @Get('analytics/compliance/:patientId')
@@ -307,15 +324,17 @@ export class PatientTreatmentController {
   @Roles(Role.Admin, Role.Doctor, Role.Staff)
   @ApiEndActivePatientTreatments()
   @ApiOperation({ summary: 'End all active treatments for a patient' })
-  endActivePatientTreatments(@Param('patientId', ParseIntPipe) patientId: number) {
-    return this.patientTreatmentService.endActivePatientTreatments(patientId)
+  async endActivePatientTreatments(@Param('patientId', ParseIntPipe) patientId: number): Promise<any> {
+    const result = await this.patientTreatmentService.endActivePatientTreatments(patientId)
+    return result
   }
 
   @Get('validate/single-protocol/:patientId')
   @Roles(Role.Admin, Role.Doctor, Role.Staff)
   @ApiOperation({ summary: 'Validate single protocol rule for a patient' })
-  validateSingleProtocolRule(@Param('patientId', ParseIntPipe) patientId: number) {
-    return this.patientTreatmentService.validateSingleProtocolRule(patientId)
+  async validateSingleProtocolRule(@Param('patientId', ParseIntPipe) patientId: number): Promise<any> {
+    const result = await this.patientTreatmentService.validateSingleProtocolRule(patientId)
+    return result
   }
 
   @Post('calculate-cost')
@@ -355,9 +374,9 @@ export class PatientTreatmentController {
     summary: 'Get general treatment statistics',
     description: 'Comprehensive overview statistics for all treatments including trends and top protocols.',
   })
-  async getGeneralTreatmentStats() {
-    // Ensure this delegates to the modular stats service via the main service
-    return this.patientTreatmentService.getGeneralTreatmentStats()
+  async getGeneralTreatmentStats(): Promise<any> {
+    const result = await this.patientTreatmentService.getGeneralTreatmentStats()
+    return result
   }
 
   @Get(':id')
@@ -365,7 +384,7 @@ export class PatientTreatmentController {
   @ApiGetPatientTreatmentById()
   async getPatientTreatmentById(
     @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: any,
+    @CurrentUser() user: { id?: number; role?: { name?: string } },
   ): Promise<PatientTreatment> {
     const treatment = await this.patientTreatmentService.getPatientTreatmentById(id)
     if (!treatment || typeof treatment !== 'object') throw new InternalServerErrorException('Treatment not found')
