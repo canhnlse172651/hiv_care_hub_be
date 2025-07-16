@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common'
 import { PatientTreatment, Prisma } from '@prisma/client'
 import { PatientTreatmentRepository } from '../../repositories/patient-treatment.repository'
+import { TestResultRepository } from '../../repositories/test-result.repository'
 import { ENTITY_NAMES } from '../../shared/constants/api.constants'
 import { PaginatedResponse } from '../../shared/schemas/pagination.schema'
 import { SharedErrorHandlingService } from '../../shared/services/error-handling.service'
@@ -23,6 +24,7 @@ export class PatientTreatmentService {
     private readonly paginationService: PaginationService,
     private readonly errorHandlingService: SharedErrorHandlingService,
     private readonly followUpAppointmentService: FollowUpAppointmentService,
+    private readonly testResultRepository: TestResultRepository,
   ) {}
 
   // ...existing code...
@@ -1284,10 +1286,10 @@ export class PatientTreatmentService {
   /**
    * Validate viral load monitoring compliance for a patient
    */
-  validateViralLoadMonitoring(
-    patientId: number,
+  async validateViralLoadMonitoring(
+    patientTreatmentId: number,
     treatmentStartDate: Date,
-  ): {
+  ): Promise<{
     isCompliant: boolean
     lastViralLoad: Date | null
     daysSinceLastTest: number | null
@@ -1295,35 +1297,37 @@ export class PatientTreatmentService {
     nextTestDue: Date
     urgencyLevel: 'normal' | 'due' | 'overdue' | 'critical'
     recommendations: string[]
-  } {
+  }> {
     try {
-      // Mock implementation - In real system, this would check actual test results
       const now = new Date()
       const daysSinceStart = Math.floor((now.getTime() - treatmentStartDate.getTime()) / (1000 * 60 * 60 * 24))
 
       // Determine test frequency based on treatment duration
       let requiredTestFrequency: 'monthly' | 'quarterly' | 'biannually' = 'quarterly'
       if (daysSinceStart < 180) {
-        // First 6 months - monthly
         requiredTestFrequency = 'monthly'
       } else if (daysSinceStart < 365) {
-        // 6-12 months - quarterly
         requiredTestFrequency = 'quarterly'
       } else {
-        // > 1 year - biannually
         requiredTestFrequency = 'biannually'
       }
 
-      // Mock last test date (would come from TestResult table)
-      const lastViralLoad = new Date(now.getTime() - 45 * 24 * 60 * 60 * 1000) // 45 days ago
-      const daysSinceLastTest = Math.floor((now.getTime() - lastViralLoad.getTime()) / (1000 * 60 * 60 * 24))
+      // Lấy test viral load gần nhất từ TestResultRepository
+      const lastTest = await this.testResultRepository.findLatestViralLoadTest(patientTreatmentId)
+      let lastViralLoad: Date | null = null
+      let daysSinceLastTest: number | null = null
+      if (lastTest) {
+        lastViralLoad = lastTest.resultDate
+        daysSinceLastTest = Math.floor((now.getTime() - lastViralLoad.getTime()) / (1000 * 60 * 60 * 24))
+      }
 
-      // Calculate next test due date
+      // Nếu chưa có test nào thì coi như quá hạn
       const testIntervalDays =
         requiredTestFrequency === 'monthly' ? 30 : requiredTestFrequency === 'quarterly' ? 90 : 180
-      const nextTestDue = new Date(lastViralLoad.getTime() + testIntervalDays * 24 * 60 * 60 * 1000)
+      const nextTestDue = lastViralLoad
+        ? new Date(lastViralLoad.getTime() + testIntervalDays * 24 * 60 * 60 * 1000)
+        : new Date(treatmentStartDate.getTime() + testIntervalDays * 24 * 60 * 60 * 1000)
 
-      // Determine urgency
       let urgencyLevel: 'normal' | 'due' | 'overdue' | 'critical' = 'normal'
       const daysOverdue = Math.floor((now.getTime() - nextTestDue.getTime()) / (1000 * 60 * 60 * 24))
 
@@ -2476,9 +2480,7 @@ export class PatientTreatmentService {
     }
   }
 
-  async getActivePatientTreatmentsByPatient(
-    patientId: number,
-  ): Promise<
+  async getActivePatientTreatmentsByPatient(patientId: number): Promise<
     (PatientTreatment & {
       isCurrent: boolean
       isStarted: boolean

@@ -8,11 +8,15 @@ import { AuthRepository } from '../../repositories/user.repository'
 import { SharedErrorHandlingService } from '../../shared/services/error-handling.service'
 import { PaginationService } from '../../shared/services/pagination.service'
 import { PrismaService } from '../../shared/services/prisma.service'
+
+import { TestResultRepository } from '../../repositories/test-result.repository'
+import { PatientTreatmentController } from './patient-treatment.controller'
 import { PatientTreatmentService } from './patient-treatment.service'
 import { FollowUpAppointmentService } from './services/follow-up-appointment.service'
 
 @Module({
   imports: [],
+  controllers: [PatientTreatmentController],
   providers: [
     PatientTreatmentService,
     PatientTreatmentRepository,
@@ -25,6 +29,7 @@ import { FollowUpAppointmentService } from './services/follow-up-appointment.ser
     PaginationService,
     SharedErrorHandlingService,
     FollowUpAppointmentService,
+    TestResultRepository,
   ],
   exports: [PatientTreatmentService],
 })
