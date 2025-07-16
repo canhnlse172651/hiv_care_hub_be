@@ -72,6 +72,25 @@ enum TestType {
   HIV_VIRAL_LOAD
 }
 
+// *** Đã thay đổi TestType để linh hoạt hơn và phù hợp với bảng Test mới ***
+enum TestCategory {
+  GENERAL // Ví dụ: xét nghiệm cơ bản
+  STD // Bệnh xã hội
+  HEPATITIS // Viêm gan
+  IMMUNOLOGY // Miễn dịch
+  // Thêm các loại khác tùy nhu cầu
+}
+
+// Enum cho kết quả định tính (Interpretation)
+enum TestInterpretation {
+  POSITIVE // Dương tính
+  NEGATIVE // Âm tính
+  INDETERMINATE // Không xác định / Cần làm lại
+  DETECTED // Phát hiện (cho định lượng viral load)
+  NOT_DETECTED // Không phát hiện (cho định lượng viral load)
+  // Thêm các trạng thái khác nếu cần (e.g., Borderline)
+}
+
 enum DayOfWeek {
   MONDAY
   TUESDAY
@@ -133,7 +152,11 @@ model User {
   receivedMessages   Message[]          @relation("ToUser")
   doctor             Doctor?
   appointments       Appointment[]
-  testResults        TestResult[]
+  // Nếu User là Patient (người sở hữu kết quả):
+  patientTestResults TestResult[]    @relation("PatientTestResults") // Kết quả của bệnh nhân
+  // Nếu User là LabTech (người nhập kết quả):
+  enteredTestResults TestResult[]    @relation("LabTechTestResults") // Kết quả do LabTech nhập
+
   patientTreatments  PatientTreatment[]
   reminders          Reminder[]
   blogPosts          BlogPost[]
@@ -235,9 +258,13 @@ model Doctor {
   schedules         DoctorSchedule[]
   appointments      Appointment[]
   patientTreatments PatientTreatment[]
-  testResults       TestResult[]
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
+  //testResults       TestResult[]
+
+  // Bác sĩ có thể là người duyệt kết quả hoặc người chỉ định xét nghiệm
+  approvedTestResults TestResult[] @relation("DoctorApprovedTestResults")
+
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
 
   @@map("doctors")
 }
@@ -362,34 +389,85 @@ model PatientTreatment {
 }
 
 model Reminder {
-  id       Int          @id @default(autoincrement())
-  userId   Int
-  user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type     ReminderType
-  message  String       @db.Text
-  remindAt DateTime
-  isSent   Boolean      @default(false)
-
-  createdAt DateTime @default(now())
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      ReminderType
+  message   String    @db.Text
+  remindAt  DateTime
+  isSent    Boolean   @default(false)
+  
+  createdAt DateTime  @default(now())
 }
 
-model TestResult {
-  id                 Int              @id @default(autoincrement())
-  name               String           @db.VarChar(500)
-  userId             Int
-  user               User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  doctorId           Int
-  doctor             Doctor           @relation(fields: [doctorId], references: [id], onDelete: Cascade)
-  type               String           @db.VarChar(500)
-  result             String           @db.Text
-  price              Float
-  description        String?          @db.Text
-  patientTreatmentId Int
-  patientTreatment   PatientTreatment @relation(fields: [patientTreatmentId], references: [id])
-  resultDate         DateTime
+// *** BẢNG MỚI: TEST (ĐỊNH NGHĨA CÁC LOẠI XÉT NGHIỆM CÓ SẴN) ***
+model Test {
+  id             Int             @id @default(autoincrement())
+  name           String          @db.VarChar(500) @unique // Tên xét nghiệm (e.g., "HIV Ag/Ab Combo")
+  description    String?         @db.Text
+  method         String?         @db.VarChar(255) // Phương pháp (e.g., "ELISA", "PCR")
+  category       TestCategory?   // Enum mới để phân loại xét nghiệm
+  isQuantitative Boolean         @default(false) // Là xét nghiệm định lượng hay định tính
+  unit           String?         @db.VarChar(50)  // Đơn vị (e.g., "COI", "copies/mL")
+  cutOffValue    Decimal?        @db.Decimal(10, 4) // Ngưỡng cắt cho định lượng
+  price          Decimal         @db.Decimal(10, 2) // Giá của loại xét nghiệm này
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  // Quan hệ 1-n với TestResult (một loại Test có thể có nhiều kết quả)
+  testResults    TestResult[]
+
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+// *** ĐIỀU CHỈNH MODEL TESTRESULT ***
+// TestResult giờ đây chỉ lưu kết quả của một Test cụ thể cho một Appointment
+model TestResult {
+  id                 Int                @id @default(autoincrement())
+  // testId sẽ liên kết đến bảng Test mới
+  testId             Int
+  test               Test               @relation(fields: [testId], references: [id]) // Loại xét nghiệm được thực hiện
+
+  // Kết quả thô (nếu là định lượng)
+  rawResultValue     Decimal?           @db.Decimal(15, 4) // Ví dụ: 0.95, 1200.5
+  // Kết quả diễn giải (Âm tính, Dương tính, v.v.)
+  interpretation     TestInterpretation // Sử dụng enum TestInterpretation mới
+  // Đơn vị của rawResultValue (có thể copy từ Test.unit hoặc ghi đè nếu cần)
+  unit               String?            @db.VarChar(50)
+  // Ngưỡng cắt đã dùng để diễn giải (để lưu lại lịch sử nếu ngưỡng thay đổi)
+  cutOffValueUsed    Decimal?           @db.Decimal(10, 4)
+
+  // Liên kết với Appointment (quan trọng cho yêu cầu của bạn)
+  patientTreatmentId Int
+  patientTreatment   PatientTreatment   @relation(fields: [patientTreatmentId], references: [id], onDelete: Cascade)
+
+  // Liên kết với User (bệnh nhân) - để biết kết quả này của ai.
+  // Có thể bỏ qua nếu luôn truy vấn qua Appointment.user.
+  // Tuy nhiên, việc giữ lại userId có thể hữu ích cho truy vấn trực tiếp kết quả của bệnh nhân
+  // mà không cần qua Appointment.
+  userId             Int
+  user               User               @relation("PatientTestResults", fields: [userId], references: [id], onDelete: Cascade)
+
+
+  // Liên kết với LabTech (người nhập kết quả)
+  labTechId          Int
+  labTech            User               @relation("LabTechTestResults", fields: [labTechId], references: [id])
+
+  resultDate         DateTime // Ngày có kết quả
+  notes              String?            @db.Text // Ghi chú thêm của kỹ thuật viên
+  // Bỏ trường 'price' và 'description' ở đây vì đã có trong bảng 'Test'
+
+  // Bỏ patientTreatmentId nếu TestResult chỉ liên kết với Appointment.
+  // Nếu PatientTreatment cũng cần liên kết với TestResult, bạn cần cân nhắc lại mối quan hệ.
+  // Ví dụ, PatientTreatment có thể có nhiều TestResult (mối quan hệ One-to-Many).
+  // patientTreatmentId Int?
+  // patientTreatment   PatientTreatment? @relation(fields: [patientTreatmentId], references: [id])
+
+
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  // Đảm bảo mỗi Test trong một Appointment là duy nhất
+  @@unique([ testId])
 }
 
 model BlogPost {

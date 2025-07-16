@@ -15,6 +15,8 @@ import { PatientTreatmentModule } from './routes/patient-treatment/patient-treat
 import { PermissionModule } from './routes/permission/permission.module'
 import { RoleModule } from './routes/role/role.module'
 import { ServiceModule } from './routes/service/service.module'
+import { TestResultModule } from './routes/test-result/test-result.module'
+import { TestModule } from './routes/test/test.module'
 import { TreatmentProtocolModule } from './routes/treatment-protocol/treatment-protocol.module'
 import { UserModule } from './routes/user/user.module'
 import { CatchEverythingFilter } from './shared/fillters/catch-everything.fillter'
@@ -32,6 +34,8 @@ import { SharedModule } from './shared/shared.module'
     MedicineModule,
     TreatmentProtocolModule,
     PatientTreatmentModule,
+    TestModule, // Add test module
+    TestResultModule, // Add test result module
     CateBlogModule,
     BlogModule,
     ServiceModule,

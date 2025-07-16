@@ -1,0 +1,175 @@
+import { Injectable, NotFoundException } from '@nestjs/common'
+import { TestResult, TestInterpretation, Prisma } from '@prisma/client'
+import { TestResultRepository } from '../../repositories/test-result.repository'
+import { TestRepository } from '../../repositories/test.repository'
+import { CreateTestResultDto, UpdateTestResultDto } from './test-result.dto'
+import { TestResultQuery } from './test-result.model'
+import {
+  TestWithQuantitativeInfo,
+  TestResultCreateData,
+  TestResultUpdateData,
+} from '../../shared/interfaces/test-result.interface'
+
+@Injectable()
+export class TestResultService {
+  constructor(
+    private readonly testResultRepository: TestResultRepository,
+    private readonly testRepository: TestRepository,
+  ) {}
+
+  /**
+   * Tính toán interpretation tự động dựa trên Test và rawResultValue
+   */
+  private calculateInterpretation(test: TestWithQuantitativeInfo, rawResultValue: number): TestInterpretation {
+    // Nếu Test.isQuantitative là false (định tính)
+    if (!test.isQuantitative) {
+      // Nếu rawResultValue dưới 0.5 thì NEGATIVE, ngược lại POSITIVE
+      return rawResultValue < 0.5 ? TestInterpretation.NEGATIVE : TestInterpretation.POSITIVE
+    }
+
+    // Nếu Test.isQuantitative là true (định lượng)
+    if (test.cutOffValue) {
+      // Nếu rawResultValue dưới cutOffValue thì NOT_DETECTED, ngược lại DETECTED
+      const cutOffNumber =
+        test.cutOffValue instanceof Prisma.Decimal
+          ? parseFloat(test.cutOffValue.toString())
+          : typeof test.cutOffValue === 'string'
+            ? parseFloat(test.cutOffValue)
+            : test.cutOffValue
+
+      return rawResultValue < cutOffNumber ? TestInterpretation.NOT_DETECTED : TestInterpretation.DETECTED
+    }
+
+    // Nếu không có cutOffValue, mặc định là INDETERMINATE
+    return TestInterpretation.INDETERMINATE
+  }
+
+  /**
+   * Tạo mới TestResult với tính toán interpretation tự động
+   */
+  async createTestResult(data: CreateTestResultDto, labTechId: number): Promise<TestResult> {
+    // Kiểm tra Test có tồn tại không
+    const test = await this.testRepository.findTestById(data.testId)
+    if (!test) {
+      throw new NotFoundException(`Test with ID ${data.testId} not found`)
+    }
+
+    // Cast test to proper type for calculation
+    const testInfo: TestWithQuantitativeInfo = {
+      id: test.id,
+      name: test.name,
+      isQuantitative: test.isQuantitative ?? false,
+      cutOffValue: test.cutOffValue ?? null,
+      unit: test.unit ?? null,
+      category: test.category ?? null,
+      description: test.description ?? null,
+    }
+
+    // Tính toán interpretation tự động
+    const interpretation = this.calculateInterpretation(testInfo, data.rawResultValue)
+
+    // Tạo TestResult với interpretation đã tính toán
+    const testResultData: TestResultCreateData = {
+      testId: data.testId,
+      userId: data.userId,
+      patientTreatmentId: data.patientTreatmentId,
+      rawResultValue: new Prisma.Decimal(data.rawResultValue),
+      interpretation,
+      cutOffValueUsed: test.cutOffValue ?? null,
+      labTechId,
+      resultDate: data.resultDate ? new Date(data.resultDate) : new Date(),
+      notes: data.notes || null,
+    }
+
+    return await this.testResultRepository.createTestResult(testResultData)
+  }
+
+  /**
+   * Lấy danh sách TestResult với phân trang
+   */
+  async findTestResults(query: TestResultQuery): Promise<{ data: TestResult[]; total: number }> {
+    return await this.testResultRepository.findMany(query)
+  }
+
+  /**
+   * Lấy TestResult theo ID
+   */
+  async findTestResultById(id: number): Promise<TestResult> {
+    const testResult = await this.testResultRepository.findById(id)
+    if (!testResult) {
+      throw new NotFoundException(`TestResult with ID ${id} not found`)
+    }
+    return testResult
+  }
+
+  /**
+   * Cập nhật TestResult
+   */
+  async updateTestResult(id: number, data: UpdateTestResultDto): Promise<TestResult> {
+    const existingTestResult = await this.testResultRepository.findById(id)
+    if (!existingTestResult) {
+      throw new NotFoundException(`TestResult with ID ${id} not found`)
+    }
+
+    // Nếu cập nhật rawResultValue, tính toán lại interpretation
+    const updateData: TestResultUpdateData = {
+      notes: data.notes,
+      resultDate: data.resultDate ? new Date(data.resultDate) : undefined,
+    }
+
+    if (data.rawResultValue !== undefined) {
+      const test = await this.testRepository.findTestById(existingTestResult.testId)
+      if (test) {
+        // Cast test to proper type for calculation
+        const testInfo: TestWithQuantitativeInfo = {
+          id: test.id,
+          name: test.name,
+          isQuantitative: test.isQuantitative ?? false,
+          cutOffValue: test.cutOffValue ?? null,
+          unit: test.unit ?? null,
+          category: test.category ?? null,
+          description: test.description ?? null,
+        }
+
+        updateData.interpretation = this.calculateInterpretation(testInfo, data.rawResultValue)
+        updateData.cutOffValueUsed = test.cutOffValue ?? null
+        updateData.rawResultValue = new Prisma.Decimal(data.rawResultValue)
+      }
+    }
+
+    return await this.testResultRepository.update(id, updateData)
+  }
+
+  /**
+   * Xóa TestResult
+   */
+  async deleteTestResult(id: number): Promise<void> {
+    const testResult = await this.testResultRepository.findById(id)
+    if (!testResult) {
+      throw new NotFoundException(`TestResult with ID ${id} not found`)
+    }
+
+    await this.testResultRepository.delete(id)
+  }
+
+  /**
+   * Lấy TestResult theo User ID
+   */
+  async findTestResultsByUserId(userId: number): Promise<TestResult[]> {
+    return await this.testResultRepository.findByUserId(userId)
+  }
+
+  /**
+   * Lấy TestResult theo PatientTreatment ID
+   */
+  async findTestResultsByPatientTreatmentId(patientTreatmentId: number): Promise<TestResult[]> {
+    return await this.testResultRepository.findByPatientTreatmentId(patientTreatmentId)
+  }
+
+  /**
+   * Lấy TestResult theo Lab Tech ID (do lab tech nhập)
+   */
+  async findTestResultsByLabTechId(labTechId: number): Promise<TestResult[]> {
+    return await this.testResultRepository.findByLabTechId(labTechId)
+  }
+}
