@@ -67,7 +67,6 @@ export class PatientTreatmentRepository {
 
   private readonly detailedIncludes: Prisma.PatientTreatmentInclude = {
     ...this.defaultIncludes,
-    testResults: true,
   }
 
   /**

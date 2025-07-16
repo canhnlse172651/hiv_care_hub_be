@@ -1237,10 +1237,6 @@ export const ApiGetActivePatientTreatmentsByPatient = () =>
               type: 'object',
               description: 'Patient information',
             },
-            testResults: {
-              type: 'array',
-              description: 'Associated test results (if available)',
-            },
           },
         },
       },
