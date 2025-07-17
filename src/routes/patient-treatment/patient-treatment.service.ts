@@ -792,20 +792,17 @@ export class PatientTreatmentService {
   /**
    * Validate doctor protocol authorization
    */
-  async validateDoctorProtocolAuthorization(
+  validateDoctorProtocolAuthorization(
     doctorId: number,
     protocolId: number,
-  ): Promise<{
+  ): {
     isAuthorized: boolean
     doctorLevel: string
     protocolComplexity: string
     requirements: string[]
-  }> {
+  } {
     try {
-      const result = await this.doctorProtocolAuthorizationService.validateDoctorProtocolAuthorization(
-        doctorId,
-        protocolId,
-      )
+      const result = this.doctorProtocolAuthorizationService.validateDoctorProtocolAuthorization(doctorId, protocolId)
       return {
         isAuthorized: result.isAuthorized,
         doctorLevel: result.doctorLevel,

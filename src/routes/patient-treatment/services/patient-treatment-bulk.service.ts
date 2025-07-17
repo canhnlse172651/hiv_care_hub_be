@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common'
 import { PatientTreatmentRepository } from 'src/repositories/patient-treatment.repository'
-import { CreatePatientTreatmentSchema } from '../patient-treatment.model'
+import { CreatePatientTreatmentSchema, type CustomMedication } from '../patient-treatment.model'
 
 type TreatmentItem = {
   patientId: string | number
@@ -148,16 +148,29 @@ export class PatientTreatmentBulkService {
     }
   }
 
-  private safeParseCustomMedications(value: any, itemIndex: number): any {
+  private safeParseCustomMedications(value: any, itemIndex: number): CustomMedication[] | null {
     try {
       if (!value) return null
-      if (Array.isArray(value)) {
-        return value
-      }
+      let meds = value
       if (typeof value === 'string') {
-        return JSON.parse(value)
+        meds = JSON.parse(value)
       }
-      return value
+      if (Array.isArray(meds)) {
+        return meds.map((med) => ({
+          medicineId: typeof med.medicineId === 'number' ? med.medicineId : undefined,
+          medicineName: typeof med.medicineName === 'string' ? med.medicineName : '',
+          dosage: typeof med.dosage === 'string' ? med.dosage : '',
+          unit: typeof med.unit === 'string' ? med.unit : undefined,
+          frequency: typeof med.frequency === 'string' ? med.frequency : '',
+          time: typeof med.time === 'string' ? med.time : undefined,
+          durationValue: typeof med.durationValue === 'number' ? med.durationValue : 1,
+          durationUnit: typeof med.durationUnit === 'string' ? med.durationUnit : 'DAY',
+          schedule: typeof med.schedule === 'string' ? med.schedule : undefined,
+          notes: typeof med.notes === 'string' ? med.notes : undefined,
+          price: typeof med.price === 'number' ? med.price : undefined,
+        }))
+      }
+      return null
     } catch (error: any) {
       throw new BadRequestException(`Invalid custom medications format for item ${itemIndex}: ${error.message}`)
     }
