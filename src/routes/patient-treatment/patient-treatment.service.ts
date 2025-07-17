@@ -220,7 +220,7 @@ export class PatientTreatmentService {
   }
 
   // Enhanced date range search with flexible date handling
-  async getPatientTreatmentsByDateRange(startDate: Date, endDate: Date): Promise<PatientTreatment[]> {
+  async getPatientTreatmentsByDateRange(startDate: Date, endDate: Date): Promise<PaginatedResponse<PatientTreatment>> {
     try {
       // Handle invalid dates gracefully
       let validStartDate = startDate
@@ -240,7 +240,21 @@ export class PatientTreatmentService {
         ;[validStartDate, validEndDate] = [validEndDate, validStartDate]
       }
 
-      return await this.patientTreatmentRepository.getPatientTreatmentsByDateRange(validStartDate, validEndDate)
+      const treatments = await this.patientTreatmentRepository.getPatientTreatmentsByDateRange(
+        validStartDate,
+        validEndDate,
+      )
+      return {
+        data: treatments,
+        meta: {
+          total: treatments.length,
+          page: 1,
+          limit: treatments.length,
+          totalPages: 1,
+          hasNextPage: false,
+          hasPreviousPage: false,
+        },
+      }
     } catch (error) {
       return this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.PATIENT_TREATMENT)
     }

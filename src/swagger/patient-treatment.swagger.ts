@@ -1,3 +1,6 @@
+import { applyDecorators } from '@nestjs/common'
+import { ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse } from '@nestjs/swagger'
+
 // ===============================
 // STATISTICS AND ANALYTICS
 // ===============================
@@ -58,8 +61,6 @@ export const ApiCalculateTreatmentCost = () =>
     }),
     ApiResponse({ status: 500, description: 'Internal server error' }),
   )
-import { applyDecorators } from '@nestjs/common'
-import { ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse } from '@nestjs/swagger'
 
 export const ApiGetAllPatientTreatments = () =>
   applyDecorators(

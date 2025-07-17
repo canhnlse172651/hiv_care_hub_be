@@ -178,7 +178,7 @@ export class PatientTreatmentController {
   async getPatientTreatmentsByDateRange(
     @Query('startDate') startDateStr?: string,
     @Query('endDate') endDateStr?: string,
-  ): Promise<PatientTreatment[]> {
+  ): Promise<PaginatedResponse<PatientTreatment>> {
     const startDate = startDateStr ? new Date(startDateStr) : new Date()
     const endDate = endDateStr ? new Date(endDateStr) : new Date()
     return this.patientTreatmentService.getPatientTreatmentsByDateRange(startDate, endDate)
