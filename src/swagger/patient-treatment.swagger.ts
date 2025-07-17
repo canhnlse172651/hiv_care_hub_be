@@ -564,20 +564,6 @@ export const ApiSearchPatientTreatments = () =>
       example: 'patient name or treatment notes',
     }),
     ApiQuery({
-      name: 'q',
-      required: false,
-      description: 'Alternative search query parameter',
-      type: String,
-      example: 'treatment name or doctor name',
-    }),
-    ApiQuery({
-      name: 'query',
-      required: false,
-      description: 'Another alternative search query parameter',
-      type: String,
-      example: 'protocol name or notes',
-    }),
-    ApiQuery({
       name: 'page',
       required: false,
       description: 'Page number for pagination',

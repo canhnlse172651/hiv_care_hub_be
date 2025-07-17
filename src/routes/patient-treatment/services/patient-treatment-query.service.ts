@@ -143,17 +143,28 @@ export class PatientTreatmentQueryService {
   ): Promise<PaginatedResponse<PatientTreatment>> {
     try {
       if (!query || query.trim() === '') {
-        return {
-          data: [],
-          meta: {
-            total: 0,
-            page: page,
-            limit: limit,
-            totalPages: 0,
-            hasNextPage: false,
-            hasPreviousPage: false,
-          },
+        const options = {
+          page: Math.max(1, page),
+          limit: Math.min(100, Math.max(1, limit)),
+          sortBy: 'createdAt',
+          sortOrder: 'desc' as const,
         }
+        const result = await this.paginationService.paginate<PatientTreatment>(
+          this.patientTreatmentRepository.getPatientTreatmentModel(),
+          options,
+          {}, // không filter
+          {
+            patient: { select: { id: true, name: true, email: true } },
+            doctor: { include: { user: { select: { id: true, name: true, email: true } } } },
+            protocol: { include: { medicines: { include: { medicine: true } } } },
+            createdBy: { select: { id: true, name: true, email: true } },
+          },
+        )
+        result.data = result.data.map((item) => {
+          item.customMedications = normalizeCustomMedicationsSchedule(item.customMedications)
+          return item
+        })
+        return result
       }
       const validatedQuery = query.trim()
       const where: any = {

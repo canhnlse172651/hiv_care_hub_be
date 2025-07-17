@@ -161,12 +161,10 @@ export class PatientTreatmentController {
   @ApiSearchPatientTreatments()
   async searchPatientTreatments(
     @Query('search') search?: string,
-    @Query('q') q?: string,
-    @Query('query') query?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ): Promise<PaginatedResponse<PatientTreatment>> {
-    const searchQuery = search || q || query || ''
+    const searchQuery = search || ''
     const pageNum = page ? Number(page) : 1
     const limitNum = limit ? Number(limit) : 10
     return this.patientTreatmentService.searchPatientTreatments(searchQuery, pageNum, limitNum)
