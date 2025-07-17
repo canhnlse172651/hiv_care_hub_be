@@ -12,12 +12,20 @@ export class TreatmentAdherenceService {
   } {
     try {
       const { pillsMissed, totalPills, recentAdherencePattern } = adherenceData
-      if (typeof pillsMissed !== 'number' || typeof totalPills !== 'number' || totalPills < 0 || pillsMissed < 0) {
-        throw new Error('Invalid adherence data: pillsMissed and totalPills must be non-negative numbers')
+      if (
+        typeof pillsMissed !== 'number' ||
+        typeof totalPills !== 'number' ||
+        totalPills < 0 ||
+        pillsMissed < 0 ||
+        !Array.isArray(recentAdherencePattern)
+      ) {
+        throw new Error(
+          'Invalid adherence data: pillsMissed, totalPills must be non-negative numbers and recentAdherencePattern must be an array',
+        )
       }
       const adherencePercentage = totalPills > 0 ? ((totalPills - pillsMissed) / totalPills) * 100 : 0
-      let adherenceLevel: 'excellent' | 'good' | 'suboptimal' | 'poor' = 'poor'
-      let riskAssessment: 'low' | 'medium' | 'high' | 'critical' = 'critical'
+      let adherenceLevel: 'excellent' | 'good' | 'suboptimal' | 'poor'
+      let riskAssessment: 'low' | 'medium' | 'high' | 'critical'
       if (adherencePercentage >= 95) {
         adherenceLevel = 'excellent'
         riskAssessment = 'low'
@@ -27,6 +35,9 @@ export class TreatmentAdherenceService {
       } else if (adherencePercentage >= 70) {
         adherenceLevel = 'suboptimal'
         riskAssessment = 'high'
+      } else {
+        adherenceLevel = 'poor'
+        riskAssessment = 'critical'
       }
       const interventionsRequired: string[] = []
       const recommendations: string[] = []
@@ -50,7 +61,7 @@ export class TreatmentAdherenceService {
         recommendations,
       }
     } catch (error: any) {
-      throw new Error(`Error validating treatment adherence: ${error.message}`)
+      throw new Error(`Error validating treatment adherence: ${error?.message || String(error)}`)
     }
   }
 }

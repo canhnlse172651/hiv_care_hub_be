@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import type { SharedErrorHandlingService } from 'src/shared/services/error-handling.service'
+import { SharedErrorHandlingService } from 'src/shared/services/error-handling.service'
 import { PatientTreatmentRepository } from '../../../repositories/patient-treatment.repository'
 import { ENTITY_NAMES } from '../../../shared/constants/api.constants'
 
@@ -29,28 +29,35 @@ export class PatientTreatmentBusinessService {
   }> {
     try {
       const allActiveTreatments = await this.patientTreatmentRepository.getActivePatientTreatments({})
-      // Group treatments by patientId
-      const patientGroups = new Map<number, any[]>()
-      for (const treatment of allActiveTreatments) {
-        if (!patientGroups.has(treatment.patientId)) {
-          patientGroups.set(treatment.patientId, [])
-        }
-        patientGroups.get(treatment.patientId)!.push(treatment)
-      }
+      // Group treatments by patientId using reduce for clarity
+      const patientGroups = allActiveTreatments.reduce(
+        (acc, treatment) => {
+          if (!acc[treatment.patientId]) acc[treatment.patientId] = []
+          acc[treatment.patientId].push(treatment)
+          return acc
+        },
+        {} as Record<number, typeof allActiveTreatments>,
+      )
+
       // Detect violations: patients with >1 active treatment
-      const violatingPatients = Array.from(patientGroups.entries())
+      const violatingPatients = Object.entries(patientGroups)
         .filter(([_, treatments]) => treatments.length > 1)
         .map(([patientId, treatments]) => {
-          const protocols = [...new Set(treatments.map((t: any) => t.protocolId as number))]
+          // Filter out null protocolIds for type safety
+          const protocols = Array.from(
+            new Set(treatments.map((t) => t.protocolId).filter((id): id is number => typeof id === 'number')),
+          )
           return {
-            patientId,
+            patientId: Number(patientId),
             activeTreatmentCount: treatments.length,
-            treatments: treatments.map((t) => ({
-              id: t.id,
-              protocolId: t.protocolId,
-              startDate: t.startDate.toISOString(),
-              endDate: t.endDate ? t.endDate.toISOString() : null,
-            })),
+            treatments: treatments
+              .map((t) => ({
+                id: t.id,
+                protocolId: typeof t.protocolId === 'number' ? t.protocolId : 0, // fallback to 0 if null
+                startDate: t.startDate instanceof Date ? t.startDate.toISOString() : String(t.startDate),
+                endDate: t.endDate ? (t.endDate instanceof Date ? t.endDate.toISOString() : String(t.endDate)) : null,
+              }))
+              .filter((tr) => tr.protocolId !== 0), // remove treatments with fallback protocolId
             protocols,
           }
         })
@@ -91,31 +98,33 @@ export class PatientTreatmentBusinessService {
       let treatmentsEnded = 0
       const fixDate = new Date()
       for (const violation of violations.violatingPatients) {
-        try {
-          // Sort treatments: newest first
-          const sortedTreatments = [...violation.treatments].sort(
-            (a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime(),
-          )
-          // End all but the newest
-          for (let i = 1; i < sortedTreatments.length; i++) {
-            const treatmentToEnd = sortedTreatments[i]
-            const newEndDate = new Date(fixDate)
-            actions.push({
-              patientId: violation.patientId,
-              action: 'end_treatment',
-              treatmentId: treatmentToEnd.id,
-              protocolId: treatmentToEnd.protocolId,
-              newEndDate: newEndDate.toISOString(),
-            })
-            if (!isDryRun) {
+        // Sort treatments: newest first
+        const sortedTreatments = [...violation.treatments].sort(
+          (a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime(),
+        )
+        // End all but the newest
+        for (let i = 1; i < sortedTreatments.length; i++) {
+          const treatmentToEnd = sortedTreatments[i]
+          const newEndDate = fixDate.toISOString()
+          actions.push({
+            patientId: violation.patientId,
+            action: 'end_treatment',
+            treatmentId: treatmentToEnd.id,
+            protocolId: treatmentToEnd.protocolId,
+            newEndDate,
+          })
+          if (!isDryRun) {
+            try {
               await this.patientTreatmentRepository.updatePatientTreatment(treatmentToEnd.id, {
-                endDate: newEndDate,
+                endDate: new Date(newEndDate),
               })
               treatmentsEnded++
+            } catch (error: any) {
+              errors.push(
+                `Failed to end treatment ${treatmentToEnd.id} for patient ${violation.patientId}: ${error?.message || error}`,
+              )
             }
           }
-        } catch (error: any) {
-          errors.push(`Failed to fix violations for patient ${violation.patientId}: ${error?.message || error}`)
         }
       }
       return {

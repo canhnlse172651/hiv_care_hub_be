@@ -1,4 +1,5 @@
-import { BadRequestException, ConflictException } from '@nestjs/common'
+import { BadRequestException, ConflictException, Injectable } from '@nestjs/common'
+import { PatientTreatmentRepository } from 'src/repositories/patient-treatment.repository'
 import { CreatePatientTreatmentSchema } from '../patient-treatment.model'
 
 type TreatmentItem = {
@@ -16,42 +17,37 @@ type BulkData = {
   continueOnError?: boolean
   validateBeforeCreate?: boolean
 }
+
+@Injectable()
 export class PatientTreatmentBulkService {
-  constructor(private readonly patientTreatmentRepository: any) {}
+  constructor(private readonly patientTreatmentRepository: PatientTreatmentRepository) {}
 
   async bulkCreatePatientTreatments(data: any, userId: number): Promise<any[]> {
     const results: any[] = []
     const errors: string[] = []
     const bulkData = data as BulkData
-    if (!bulkData.items || !Array.isArray(bulkData.items)) {
+    if (!bulkData.items || !Array.isArray(bulkData.items) || bulkData.items.length === 0) {
       throw new BadRequestException('Invalid or missing items array in bulk create payload')
     }
     const batchSize = Math.min(10, Math.max(1, bulkData.items.length))
-    const continueOnError = bulkData.continueOnError || false
+    const continueOnError = !!bulkData.continueOnError
     const validateBeforeCreate = bulkData.validateBeforeCreate !== false
 
-    if (!bulkData.items || bulkData.items.length === 0) {
-      throw new BadRequestException('No treatment items provided for bulk creation')
-    }
-
-    const patientGroups = new Map<number, Array<{ index: number; item: any }>>()
+    // Group items by patientId for bulk validation
+    const patientGroups: Record<number, number[]> = {}
     bulkData.items.forEach((item: TreatmentItem, index: number) => {
       const patientId = Number(item.patientId)
-      if (!patientGroups.has(patientId)) {
-        patientGroups.set(patientId, [])
-      }
-      patientGroups.get(patientId)!.push({ index: index + 1, item })
+      if (!patientGroups[patientId]) patientGroups[patientId] = []
+      patientGroups[patientId].push(index + 1)
     })
 
-    const bulkViolations: string[] = []
-    patientGroups.forEach((items, patientId) => {
-      if (items.length > 1) {
-        bulkViolations.push(
-          `Patient ${patientId} has ${items.length} treatments in bulk request (items: ${items.map((i) => i.index).join(', ')}). ` +
-            `Only 1 active treatment per patient is allowed by business rules.`,
-        )
-      }
-    })
+    // Detect bulk violations: more than one treatment per patient in request
+    const bulkViolations: string[] = Object.entries(patientGroups)
+      .filter(([_, indices]) => indices.length > 1)
+      .map(
+        ([patientId, indices]) =>
+          `Patient ${patientId} has ${indices.length} treatments in bulk request (items: ${indices.join(', ')}). Only 1 active treatment per patient is allowed by business rules.`,
+      )
 
     if (bulkViolations.length > 0) {
       throw new BadRequestException(`Bulk create validation failed:\n${bulkViolations.join('\n')}`)
@@ -66,13 +62,13 @@ export class PatientTreatmentBulkService {
             patientId: this.safeParseNumber(treatment.patientId, `patientId for item ${itemIndex}`),
             doctorId: this.safeParseNumber(treatment.doctorId, `doctorId for item ${itemIndex}`),
             protocolId: this.safeParseNumber(treatment.protocolId, `protocolId for item ${itemIndex}`),
-            startDate:
-              treatment.startDate !== undefined &&
-              (typeof treatment.startDate === 'string' || typeof treatment.startDate === 'number')
+            startDate: treatment.startDate
+              ? typeof treatment.startDate === 'string' || typeof treatment.startDate === 'number'
                 ? new Date(treatment.startDate)
                 : treatment.startDate instanceof Date
                   ? treatment.startDate
-                  : undefined,
+                  : new Date()
+              : new Date(),
             endDate:
               treatment.endDate !== undefined
                 ? typeof treatment.endDate === 'string' || typeof treatment.endDate === 'number'
