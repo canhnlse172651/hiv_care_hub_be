@@ -16,21 +16,35 @@ export class ResistancePatternService {
     const { mutations, resistanceLevel, previousFailedRegimens } = resistanceData
     const resistantMedications: string[] = []
     const recommendedAlternatives: string[] = []
-    if (mutations.includes('M184V')) {
-      resistantMedications.push('Lamivudine', 'Emtricitabine')
+
+    // Map mutations to resistant medications
+    const mutationMap: Record<string, string[]> = {
+      M184V: ['Lamivudine', 'Emtricitabine'],
+      K103N: ['Efavirenz', 'Nevirapine'],
+      Q148H: ['Raltegravir', 'Elvitegravir'],
     }
-    if (mutations.includes('K103N')) {
-      resistantMedications.push('Efavirenz', 'Nevirapine')
+    for (const mutation of mutations) {
+      if (mutationMap[mutation]) {
+        resistantMedications.push(...mutationMap[mutation])
+      }
     }
-    if (mutations.includes('Q148H')) {
-      resistantMedications.push('Raltegravir', 'Elvitegravir')
-    }
+
+    // Calculate effectiveness score
     let effectivenessScore = 100
-    if (resistanceLevel === 'high') effectivenessScore -= 60
-    else if (resistanceLevel === 'intermediate') effectivenessScore -= 40
-    else if (resistanceLevel === 'low') effectivenessScore -= 20
+    switch (resistanceLevel) {
+      case 'high':
+        effectivenessScore -= 60
+        break
+      case 'intermediate':
+        effectivenessScore -= 40
+        break
+      case 'low':
+        effectivenessScore -= 20
+        break
+    }
     effectivenessScore -= resistantMedications.length * 15
     effectivenessScore -= previousFailedRegimens.length * 10
+
     const isEffective = effectivenessScore >= 70
     const requiresGenotyping = resistanceLevel !== 'none' || previousFailedRegimens.length > 0
     if (!isEffective) {

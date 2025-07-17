@@ -40,3 +40,11 @@ export function normalizeCustomMedications(customMedications: Record<string, any
   // If not array or object, return null for type safety
   return null
 }
+
+// Utility for normalizing customMedications schedule (move to shared if needed)
+export function normalizeCustomMedicationsSchedule(customMedications: any): any {
+  if (!customMedications) return null
+  if (Array.isArray(customMedications)) return customMedications
+  if (typeof customMedications === 'object' && customMedications !== null) return { ...customMedications }
+  return null
+}

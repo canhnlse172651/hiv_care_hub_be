@@ -161,12 +161,10 @@ export class PatientTreatmentController {
   @ApiSearchPatientTreatments()
   async searchPatientTreatments(
     @Query('search') search?: string,
-    @Query('q') q?: string,
-    @Query('query') query?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ): Promise<PaginatedResponse<PatientTreatment>> {
-    const searchQuery = search || q || query || ''
+    const searchQuery = search || ''
     const pageNum = page ? Number(page) : 1
     const limitNum = limit ? Number(limit) : 10
     return this.patientTreatmentService.searchPatientTreatments(searchQuery, pageNum, limitNum)
@@ -178,7 +176,7 @@ export class PatientTreatmentController {
   async getPatientTreatmentsByDateRange(
     @Query('startDate') startDateStr?: string,
     @Query('endDate') endDateStr?: string,
-  ): Promise<PatientTreatment[]> {
+  ): Promise<PaginatedResponse<PatientTreatment>> {
     const startDate = startDateStr ? new Date(startDateStr) : new Date()
     const endDate = endDateStr ? new Date(endDateStr) : new Date()
     return this.patientTreatmentService.getPatientTreatmentsByDateRange(startDate, endDate)
@@ -325,27 +323,32 @@ export class PatientTreatmentController {
     summary: 'Calculate treatment cost preview',
     description: 'Calculate estimated cost for a treatment before creating it. Useful for cost preview in frontend.',
   })
-  calculateTreatmentCost(
+  async calculateTreatmentCost(
     @Body()
     costData: {
       protocolId: number
-      customMedications?: { cost: number }[]
+      customMedications?: { price?: number; durationUnit?: string; durationValue?: number }[]
       startDate: string
       endDate?: string
     },
-  ) {
-    const result = this.patientTreatmentService.calculateTreatmentCost(
+  ): Promise<{
+    isValid: boolean
+    calculatedTotal: number
+    breakdown: Record<string, any>
+    warnings: string[]
+  }> {
+    const result = await this.patientTreatmentService.calculateTreatmentCost(
       costData.protocolId,
       costData.customMedications,
       new Date(costData.startDate),
       costData.endDate ? new Date(costData.endDate) : undefined,
     )
-    if (!result) throw new InternalServerErrorException('Unexpected result')
+    if (!result || typeof result !== 'object') throw new InternalServerErrorException('Unexpected result')
     return {
       isValid: Boolean(result.isValid),
-      calculatedTotal: result.calculatedTotal ?? 0,
-      breakdown: result.breakdown ?? {},
-      warnings: Array.isArray(result.warnings) ? result.warnings : [],
+      calculatedTotal: Number(result.calculatedTotal ?? 0),
+      breakdown: typeof result.breakdown === 'object' && result.breakdown !== null ? result.breakdown : {},
+      warnings: Array.isArray(result.warnings) ? result.warnings.map(String) : [],
     }
   }
 

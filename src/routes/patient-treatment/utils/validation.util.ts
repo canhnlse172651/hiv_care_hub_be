@@ -122,19 +122,27 @@ export class PatientTreatmentValidator {
    */
   static validateCustomMedications(customMedications?: any): void {
     if (customMedications !== undefined && customMedications !== null) {
-      // If it's a string, try to parse it as JSON
+      let meds = customMedications
       if (typeof customMedications === 'string') {
         try {
-          JSON.parse(customMedications)
+          meds = JSON.parse(customMedications)
         } catch (error) {
           throw new BadRequestException('Custom medications must be valid JSON format')
         }
       }
-
-      // If it's an object, validate its structure
-      if (typeof customMedications === 'object') {
-        // Add specific validation rules for custom medications structure here
-        // For example, check if it has required fields, proper format, etc.
+      if (typeof meds === 'object' && Array.isArray(meds)) {
+        for (const med of meds) {
+          if (!med.medicineName || !med.dosage || !med.frequency || !med.durationValue || !med.durationUnit) {
+            throw new BadRequestException('Missing required fields in customMedications')
+          }
+          // Validate new fields
+          if ('unit' in med && typeof med.unit !== 'string' && med.unit !== undefined) {
+            throw new BadRequestException('Invalid unit in customMedications')
+          }
+          if ('time' in med && typeof med.time !== 'string' && med.time !== undefined) {
+            throw new BadRequestException('Invalid time in customMedications')
+          }
+        }
       }
     }
   }

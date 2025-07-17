@@ -6,15 +6,27 @@ import { PaginatedResponse } from '../../shared/schemas/pagination.schema'
 import { SharedErrorHandlingService } from '../../shared/services/error-handling.service'
 import { PaginationService } from '../../shared/services/pagination.service'
 import {
-  BasicQueryPatientTreatmentSchema,
   BulkCreatePatientTreatment,
   CreatePatientTreatmentSchema,
   CustomMedicationsQuerySchema,
-  GetPatientTreatmentsByPatientSchema,
   QueryPatientTreatmentSchema,
   UpdatePatientTreatment,
 } from './patient-treatment.model'
-import { FollowUpAppointmentService } from './services/follow-up-appointment.service'
+import {
+  DoctorProtocolAuthorizationService,
+  EmergencyProtocolService,
+  FollowUpAppointmentService,
+  OrganFunctionService,
+  PatientTreatmentBulkService,
+  PatientTreatmentBusinessService,
+  PatientTreatmentQueryService,
+  PatientTreatmentStatsService,
+  PregnancySafetyService,
+  ResistancePatternService,
+  TreatmentAdherenceService,
+  TreatmentContinuityService,
+  ViralLoadMonitoringService,
+} from './services'
 
 @Injectable()
 export class PatientTreatmentService {
@@ -23,7 +35,60 @@ export class PatientTreatmentService {
     private readonly paginationService: PaginationService,
     private readonly errorHandlingService: SharedErrorHandlingService,
     private readonly followUpAppointmentService: FollowUpAppointmentService,
+    private readonly patientTreatmentStatsService: PatientTreatmentStatsService,
+    private readonly patientTreatmentQueryService: PatientTreatmentQueryService,
+    private readonly patientTreatmentBusinessService: PatientTreatmentBusinessService,
+    private readonly patientTreatmentBulkService: PatientTreatmentBulkService,
+    private readonly organFunctionService: OrganFunctionService,
+    private readonly pregnancySafetyService: PregnancySafetyService,
+    private readonly resistancePatternService: ResistancePatternService,
+    private readonly treatmentAdherenceService: TreatmentAdherenceService,
+    private readonly viralLoadMonitoringService: ViralLoadMonitoringService,
+    private readonly doctorProtocolAuthorizationService: DoctorProtocolAuthorizationService,
+    private readonly treatmentContinuityService: TreatmentContinuityService,
+    private readonly emergencyProtocolService: EmergencyProtocolService,
   ) {}
+
+  // Validation service usage
+  validateOrganFunction(
+    liverFunction: { alt: number; ast: number; bilirubin: number },
+    kidneyFunction: { creatinine: number; egfr: number },
+    protocolId: number,
+  ) {
+    return this.organFunctionService.validateOrganFunction(liverFunction, kidneyFunction, protocolId)
+  }
+
+  validatePregnancySafety(
+    patientGender: 'male' | 'female' | 'other',
+    isPregnant: boolean,
+    isBreastfeeding: boolean,
+    protocolId: number,
+  ) {
+    return this.pregnancySafetyService.validatePregnancySafety(patientGender, isPregnant, isBreastfeeding, protocolId)
+  }
+
+  validateResistancePattern(
+    resistanceData: {
+      mutations: string[]
+      resistanceLevel: 'none' | 'low' | 'intermediate' | 'high'
+      previousFailedRegimens: string[]
+    },
+    proposedProtocolId: number,
+  ) {
+    return this.resistancePatternService.validateResistancePattern(resistanceData, proposedProtocolId)
+  }
+
+  validateTreatmentAdherence(adherenceData: {
+    pillsMissed: number
+    totalPills: number
+    recentAdherencePattern: number[]
+  }) {
+    return this.treatmentAdherenceService.validateTreatmentAdherence(adherenceData)
+  }
+
+  async validateViralLoadMonitoring(patientTreatmentId: number, treatmentStartDate: Date) {
+    return await this.viralLoadMonitoringService.validateViralLoadMonitoring(patientTreatmentId, treatmentStartDate)
+  }
 
   // Get patient treatment by ID
   async getPatientTreatmentById(id: number): Promise<PatientTreatment> {
@@ -51,22 +116,17 @@ export class PatientTreatmentService {
       // Check if treatment exists
       const existingTreatment = await this.getPatientTreatmentById(id)
 
-      // Validate notes length if present
-      if (data.notes && typeof data.notes === 'string' && data.notes.length > 2000) {
+      // Validate notes length
+      if (typeof data.notes === 'string' && data.notes.length > 2000) {
         throw new BadRequestException('Notes must be at most 2000 characters')
       }
 
-      // If updating dates that might affect active status, validate business rules
+      // Validate business rules if updating dates
       if (data.startDate || data.endDate) {
         const patientId = existingTreatment.patientId
-
-        // Get other active treatments for the same patient (excluding current treatment)
-        const otherActiveTreatments = await this.patientTreatmentRepository.getActivePatientTreatments({
-          patientId: patientId,
-        })
+        const otherActiveTreatments = await this.patientTreatmentRepository.getActivePatientTreatments({ patientId })
         const otherActiveExcludingCurrent = otherActiveTreatments.filter((t) => t.id !== id)
 
-        // If there are other active treatments, check for conflicts with proposed update
         if (otherActiveExcludingCurrent.length > 0) {
           const currentDate = new Date()
           const newStartDate = data.startDate ? new Date(data.startDate) : new Date(existingTreatment.startDate)
@@ -75,23 +135,16 @@ export class PatientTreatmentService {
             : existingTreatment.endDate
               ? new Date(existingTreatment.endDate)
               : null
-
-          // Check if updated treatment would still be active
           const wouldBeActive = !newEndDate || newEndDate > currentDate
 
           if (wouldBeActive) {
-            // Check for date overlaps with other active treatments
             for (const otherTreatment of otherActiveExcludingCurrent) {
               const otherStart = new Date(otherTreatment.startDate)
               const otherEnd = otherTreatment.endDate ? new Date(otherTreatment.endDate) : currentDate
-
-              // Check for overlap: (newStart <= otherEnd) && (otherStart <= newEnd || newEnd is null)
               const hasOverlap = newStartDate <= otherEnd && otherStart <= (newEndDate || currentDate)
-
               if (hasOverlap) {
                 throw new ConflictException(
-                  `Business rule violation: Updated treatment would overlap with active treatment ID ${otherTreatment.id} ` +
-                    `(Protocol ${otherTreatment.protocolId}). Only 1 active protocol per patient is allowed.`,
+                  `Business rule violation: Updated treatment would overlap with active treatment ID ${otherTreatment.id} (Protocol ${otherTreatment.protocolId}). Only 1 active protocol per patient is allowed.`,
                 )
               }
             }
@@ -104,10 +157,8 @@ export class PatientTreatmentService {
 
       const updated = await this.patientTreatmentRepository.updatePatientTreatment(id, data)
       if (
-        updated &&
-        updated.customMedications &&
-        (Array.isArray(updated.customMedications) ||
-          (typeof updated.customMedications === 'object' && updated.customMedications !== null))
+        updated?.customMedications &&
+        (Array.isArray(updated.customMedications) || typeof updated.customMedications === 'object')
       ) {
         updated.customMedications = this.normalizeCustomMedicationsSchedule(updated.customMedications)
       }
@@ -120,9 +171,7 @@ export class PatientTreatmentService {
   // Delete patient treatment
   async deletePatientTreatment(id: number): Promise<PatientTreatment> {
     try {
-      // Check if treatment exists
       await this.getPatientTreatmentById(id)
-      // Audit log for treatment deletion
       this.logTreatmentOperation('delete', { id })
       return this.patientTreatmentRepository.deletePatientTreatment(id)
     } catch (error) {
@@ -130,416 +179,48 @@ export class PatientTreatmentService {
     }
   }
 
-  // Get all patient treatments with pagination and filtering
-  async getAllPatientTreatments(query: unknown): Promise<PaginatedResponse<PatientTreatment>> {
+  async getAllPatientTreatments(query: Record<string, any>): Promise<PaginatedResponse<PatientTreatment>> {
     try {
-      // Validate query with proper schema
-      const validatedQuery = BasicQueryPatientTreatmentSchema.parse(query)
-      console.log('getAllPatientTreatments - Validated query:', validatedQuery)
-
-      const { page, limit, search, sortBy, sortOrder, startDate, endDate } = validatedQuery
-
-      // Build where clause with type-safe approach
-      const where: {
-        AND?: Array<{
-          OR?: Array<{
-            notes?: { contains: string; mode: 'insensitive' }
-            patient?: { name: { contains: string; mode: 'insensitive' } }
-            doctor?: { user: { name: { contains: string; mode: 'insensitive' } } }
-            protocol?: { name: { contains: string; mode: 'insensitive' } }
-          }>
-          startDate?: { gte: Date }
-          endDate?: { lte: Date }
-        }>
-      } = {}
-
-      const whereConditions: Array<any> = []
-
-      // Handle search across multiple fields if provided
-      if (search?.trim()) {
-        whereConditions.push({
-          OR: [
-            { notes: { contains: search, mode: 'insensitive' } },
-            { patient: { name: { contains: search, mode: 'insensitive' } } },
-            { doctor: { user: { name: { contains: search, mode: 'insensitive' } } } },
-            { protocol: { name: { contains: search, mode: 'insensitive' } } },
-          ],
-        } as const)
+      const search = typeof query?.search === 'string' ? query.search : ''
+      const page = typeof query?.page === 'number' ? query.page : Number(query?.page) || 1
+      const limit = typeof query?.limit === 'number' ? query.limit : Number(query?.limit) || 10
+      if (!search || search.trim() === '') {
+        return await this.patientTreatmentQueryService.getAllPatientTreatments({ page, limit })
       }
-
-      // Add date range filters if provided
-      if (startDate) {
-        const parsedStartDate = new Date(startDate)
-        if (!isNaN(parsedStartDate.getTime())) {
-          whereConditions.push({ startDate: { gte: parsedStartDate } })
-        }
-      }
-
-      if (endDate) {
-        const parsedEndDate = new Date(endDate)
-        if (!isNaN(parsedEndDate.getTime())) {
-          whereConditions.push({ endDate: { lte: parsedEndDate } })
-        }
-      }
-
-      // Add AND conditions if we have any
-      if (whereConditions.length > 0) {
-        where.AND = whereConditions
-      }
-
-      const options = {
-        page: Math.max(1, Number(page)),
-        limit: Math.min(100, Math.max(1, Number(limit))), // Cap at 100 items per page
-        sortBy,
-        sortOrder,
-      }
-
-      const result = await this.paginationService.paginate<PatientTreatment>(
-        this.patientTreatmentRepository.getPatientTreatmentModel(),
-        options,
-        where,
-        {
-          patient: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            },
-          },
-          doctor: {
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  name: true,
-                  email: true,
-                },
-              },
-            },
-          },
-          protocol: {
-            include: {
-              medicines: {
-                include: {
-                  medicine: true,
-                },
-              },
-            },
-          },
-          createdBy: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            },
-          },
-        },
-      )
-      // Normalize schedule in customMedications for all items
-      result.data = result.data.map((item) => {
-        if (
-          item.customMedications &&
-          (Array.isArray(item.customMedications) ||
-            (typeof item.customMedications === 'object' && item.customMedications !== null))
-        ) {
-          item.customMedications = this.normalizeCustomMedicationsSchedule(item.customMedications)
-        }
-        return item
-      })
-      return result
+      return await this.searchPatientTreatments(search, page, limit)
     } catch (error) {
-      if (error.name === 'ZodError') {
-        throw new BadRequestException(`Invalid query parameters: ${error.message}`)
-      }
-      return this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.PATIENT_TREATMENT)
+      throw this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.PATIENT_TREATMENT)
     }
   }
 
   // Get patient treatments by patient ID with pagination and filtering
-  async getPatientTreatmentsByPatientId(query: unknown): Promise<PaginatedResponse<PatientTreatment>> {
+  async getPatientTreatmentsByPatientId(query: Record<string, any>): Promise<PaginatedResponse<PatientTreatment>> {
     try {
-      // Validate query with patient-specific schema
-      const validatedQuery = GetPatientTreatmentsByPatientSchema.parse(query)
-      const { patientId, page, limit, sortBy, sortOrder, includeCompleted, startDate, endDate } = validatedQuery
-
-      // Build where clause
-      const where: any = {
-        patientId: patientId,
-      }
-
-      // Add date filters if provided
-      if (startDate && typeof startDate === 'string') {
-        const parsedStartDate = new Date(startDate)
-        if (!isNaN(parsedStartDate.getTime())) {
-          where.startDate = { gte: parsedStartDate }
-        }
-      }
-
-      if (endDate && typeof endDate === 'string') {
-        const parsedEndDate = new Date(endDate)
-        if (!isNaN(parsedEndDate.getTime())) {
-          where.endDate = { lte: parsedEndDate }
-        }
-      }
-
-      const options = {
-        page: Math.max(1, Number(page)),
-        limit: Math.min(100, Math.max(1, Number(limit))),
-        sortBy,
-        sortOrder,
-      }
-
-      const result = await this.paginationService.paginate<PatientTreatment>(
-        this.patientTreatmentRepository.getPatientTreatmentModel(),
-        options,
-        where,
-        {
-          patient: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            },
-          },
-          doctor: {
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  name: true,
-                  email: true,
-                },
-              },
-            },
-          },
-          protocol: {
-            include: {
-              medicines: {
-                include: {
-                  medicine: true,
-                },
-              },
-            },
-          },
-          createdBy: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            },
-          },
-        },
-      )
-      result.data = result.data.map((item) => {
-        if (
-          item.customMedications &&
-          (Array.isArray(item.customMedications) ||
-            (typeof item.customMedications === 'object' && item.customMedications !== null))
-        ) {
-          item.customMedications = this.normalizeCustomMedicationsSchedule(item.customMedications)
-        }
-        return item
-      })
-      return result
+      return await this.patientTreatmentQueryService.getPatientTreatmentsByPatientId(query)
     } catch (error) {
-      if (error.name === 'ZodError') {
-        throw new BadRequestException(`Invalid query parameters: ${error.message}`)
-      }
       return this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.PATIENT_TREATMENT)
     }
   }
 
   // Get patient treatments by doctor ID
   async getPatientTreatmentsByDoctorId(query: unknown): Promise<PaginatedResponse<PatientTreatment>> {
-    try {
-      // Validate query with doctor-specific schema (we're using the generic one for now)
-      const validatedQuery = QueryPatientTreatmentSchema.parse(query)
-      const { doctorId, page, limit, sortBy, sortOrder } = validatedQuery
-
-      if (!doctorId) {
-        throw new BadRequestException('Doctor ID is required')
-      }
-
-      const where = {
-        doctorId: Number(doctorId),
-      }
-
-      const options = {
-        page: Math.max(1, Number(page) || 1),
-        limit: Math.min(100, Math.max(1, Number(limit) || 10)),
-        sortBy: sortBy || 'createdAt',
-        sortOrder: sortOrder || 'desc',
-      }
-
-      const result = await this.paginationService.paginate<PatientTreatment>(
-        this.patientTreatmentRepository.getPatientTreatmentModel(),
-        options,
-        where,
-        {
-          patient: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            },
-          },
-          protocol: true,
-          createdBy: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-        },
-      )
-      result.data = result.data.map((item) => {
-        if (
-          item.customMedications &&
-          (Array.isArray(item.customMedications) ||
-            (typeof item.customMedications === 'object' && item.customMedications !== null))
-        ) {
-          item.customMedications = this.normalizeCustomMedicationsSchedule(item.customMedications)
-        }
-        return item
-      })
-      return result
-    } catch (error) {
-      if (error.name === 'ZodError') {
-        throw new BadRequestException(`Invalid query parameters: ${error.message}`)
-      }
-      return this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.PATIENT_TREATMENT)
-    }
+    return await this.patientTreatmentQueryService.getPatientTreatmentsByDoctorId(query)
   }
 
-  // ===============================
-  // ENHANCED SEARCH AND FLEXIBLE QUERIES
-  // ===============================
-
-  // Enhanced search with flexible query handling
-  // Enhanced search with pagination support
   async searchPatientTreatments(
     query: string,
     page: number = 1,
     limit: number = 10,
   ): Promise<PaginatedResponse<PatientTreatment>> {
     try {
-      // Handle empty or invalid queries
-      if (!query || query.trim() === '') {
-        return {
-          data: [],
-          meta: {
-            total: 0,
-            page: page,
-            limit: limit,
-            totalPages: 0,
-            hasNextPage: false,
-            hasPreviousPage: false,
-          },
-        }
-      }
-
-      // Use repository search with proper pagination
-      const validatedQuery = query.trim()
-
-      // Build search criteria
-      const where: any = {
-        OR: [
-          {
-            notes: {
-              contains: validatedQuery,
-              mode: 'insensitive',
-            },
-          },
-          {
-            patient: {
-              name: {
-                contains: validatedQuery,
-                mode: 'insensitive',
-              },
-            },
-          },
-          {
-            doctor: {
-              user: {
-                name: {
-                  contains: validatedQuery,
-                  mode: 'insensitive',
-                },
-              },
-            },
-          },
-        ],
-      }
-
-      // Use pagination service for consistent results
-      const options = {
-        page: Math.max(1, page),
-        limit: Math.min(100, Math.max(1, limit)),
-        sortBy: 'createdAt',
-        sortOrder: 'desc' as const,
-      }
-
-      const result = await this.paginationService.paginate<PatientTreatment>(
-        this.patientTreatmentRepository.getPatientTreatmentModel(),
-        options,
-        where,
-        {
-          patient: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            },
-          },
-          doctor: {
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  name: true,
-                  email: true,
-                },
-              },
-            },
-          },
-          protocol: {
-            include: {
-              medicines: {
-                include: {
-                  medicine: true,
-                },
-              },
-            },
-          },
-          createdBy: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            },
-          },
-        },
-      )
-      result.data = result.data.map((item) => {
-        if (item.customMedications) {
-          if (
-            item.customMedications &&
-            (Array.isArray(item.customMedications) ||
-              (typeof item.customMedications === 'object' && item.customMedications !== null))
-          ) {
-            item.customMedications = this.normalizeCustomMedicationsSchedule(item.customMedications)
-          }
-        }
-        return item
-      })
-      return result
+      return await this.patientTreatmentQueryService.searchPatientTreatments(query, page, limit)
     } catch (error) {
-      return this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.PATIENT_TREATMENT)
+      throw this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.PATIENT_TREATMENT)
     }
   }
 
   // Enhanced date range search with flexible date handling
-  async getPatientTreatmentsByDateRange(startDate: Date, endDate: Date): Promise<PatientTreatment[]> {
+  async getPatientTreatmentsByDateRange(startDate: Date, endDate: Date): Promise<PaginatedResponse<PatientTreatment>> {
     try {
       // Handle invalid dates gracefully
       let validStartDate = startDate
@@ -559,7 +240,21 @@ export class PatientTreatmentService {
         ;[validStartDate, validEndDate] = [validEndDate, validStartDate]
       }
 
-      return await this.patientTreatmentRepository.getPatientTreatmentsByDateRange(validStartDate, validEndDate)
+      const treatments = await this.patientTreatmentRepository.getPatientTreatmentsByDateRange(
+        validStartDate,
+        validEndDate,
+      )
+      return {
+        data: treatments,
+        meta: {
+          total: treatments.length,
+          page: 1,
+          limit: treatments.length,
+          totalPages: 1,
+          hasNextPage: false,
+          hasPreviousPage: false,
+        },
+      }
     } catch (error) {
       return this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.PATIENT_TREATMENT)
     }
@@ -701,121 +396,11 @@ export class PatientTreatmentService {
   // ===============================
 
   async getPatientTreatmentStats(patientId: number): Promise<any> {
-    try {
-      const validatedPatientId = this.errorHandlingService.validateId(patientId)
-      const pid = typeof validatedPatientId === 'string' ? Number(validatedPatientId) : validatedPatientId
-      // Get all treatments for patient
-      let allTreatments = await this.patientTreatmentRepository.findPatientTreatmentsByPatientId(pid, {
-        page: 1,
-        limit: 1000,
-      })
-      // Normalize schedule in customMedications for all items
-      allTreatments = allTreatments.map((item) => {
-        if (
-          item.customMedications &&
-          (Array.isArray(item.customMedications) ||
-            (typeof item.customMedications === 'object' && item.customMedications !== null))
-        ) {
-          item.customMedications = this.normalizeCustomMedicationsSchedule(item.customMedications)
-        }
-        return item
-      })
-
-      // Get active treatments
-      let activeTreatments = await this.patientTreatmentRepository.getActivePatientTreatments({
-        patientId: validatedPatientId,
-        page: 1,
-        limit: 1000,
-      })
-      activeTreatments = activeTreatments.map((item) => {
-        if (
-          item.customMedications &&
-          (Array.isArray(item.customMedications) ||
-            (typeof item.customMedications === 'object' && item.customMedications !== null))
-        ) {
-          item.customMedications = this.normalizeCustomMedicationsSchedule(item.customMedications)
-        }
-        return item
-      })
-
-      // Calculate basic stats
-      const totalTreatments = allTreatments.length
-      const activeTreatmentsCount = activeTreatments.length
-      const completedTreatments = totalTreatments - activeTreatmentsCount
-      const totalCost = allTreatments.reduce((sum, t) => sum + (t.total || 0), 0)
-
-      return {
-        patientId: validatedPatientId,
-        totalTreatments,
-        activeTreatments: activeTreatmentsCount,
-        completedTreatments,
-        totalCost,
-        averageCost: totalTreatments > 0 ? totalCost / totalTreatments : 0,
-      }
-    } catch (error) {
-      return this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.PATIENT_TREATMENT)
-    }
+    return this.patientTreatmentStatsService.getPatientTreatmentStats(patientId)
   }
 
   async getDoctorWorkloadStats(doctorId: number): Promise<any> {
-    try {
-      const validatedDoctorId = this.errorHandlingService.validateId(doctorId)
-
-      // Get all treatments for doctor
-      let allTreatments = await this.patientTreatmentRepository.findPatientTreatmentsByDoctorId(validatedDoctorId, {
-        page: 1,
-        limit: 1000,
-      })
-      allTreatments = allTreatments.map((item) => {
-        if (
-          item.customMedications &&
-          (Array.isArray(item.customMedications) ||
-            (typeof item.customMedications === 'object' && item.customMedications !== null))
-        ) {
-          item.customMedications = this.normalizeCustomMedicationsSchedule(item.customMedications)
-        }
-        return item
-      })
-
-      // Get active treatments
-      const activeTreatments = await this.patientTreatmentRepository.getActivePatientTreatments({
-        page: 1,
-        limit: 1000,
-      })
-      let doctorActiveTreatments = activeTreatments.filter((t) => t.doctorId === validatedDoctorId)
-      doctorActiveTreatments = doctorActiveTreatments.map((item) => {
-        if (
-          item.customMedications &&
-          (Array.isArray(item.customMedications) ||
-            (typeof item.customMedications === 'object' && item.customMedications !== null))
-        ) {
-          item.customMedications = this.normalizeCustomMedicationsSchedule(item.customMedications)
-        }
-        return item
-      })
-      // ===============================
-      // STUBS FOR MISSING METHODS
-      // ===============================
-
-      /**
-       * Calculate statistics for a list of treatments (stub implementation)
-       */
-
-      // Calculate stats
-      const totalTreatments = allTreatments.length
-      const activeTreatmentsCount = doctorActiveTreatments.length
-      const uniquePatients = new Set(allTreatments.map((t) => t.patientId)).size
-
-      return {
-        doctorId: validatedDoctorId,
-        totalTreatments,
-        activeTreatments: activeTreatmentsCount,
-        uniquePatients,
-        averageTreatmentsPerPatient: uniquePatients > 0 ? totalTreatments / uniquePatients : 0,
-      }
-    } catch (error) {
-      return this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.PATIENT_TREATMENT)
-    }
+    return this.patientTreatmentStatsService.getDoctorWorkloadStats(doctorId)
   }
 
   async getCustomMedicationStats(): Promise<{
@@ -828,69 +413,7 @@ export class PatientTreatmentService {
       usageCount: number
     }>
   }> {
-    try {
-      // Get all treatments
-      let allTreatments = await this.patientTreatmentRepository.findPatientTreatments({
-        page: 1,
-        limit: 10000, // Large number to get all
-      })
-      allTreatments = allTreatments.map((item) => {
-        if (
-          item.customMedications &&
-          (Array.isArray(item.customMedications) ||
-            (typeof item.customMedications === 'object' && item.customMedications !== null))
-        ) {
-          item.customMedications = this.normalizeCustomMedicationsSchedule(item.customMedications)
-        }
-        return item
-      })
-
-      // Filter treatments with custom medications
-      const treatmentsWithCustomMeds = allTreatments.filter((t) => t.customMedications && t.customMedications !== null)
-
-      const totalTreatments = allTreatments.length
-      const treatmentsWithCustomMedsCount = treatmentsWithCustomMeds.length
-      const customMedicationUsageRate =
-        totalTreatments > 0 ? (treatmentsWithCustomMedsCount / totalTreatments) * 100 : 0
-
-      // Analyze custom medications (simplified)
-      const medicationUsage = new Map<string, number>()
-
-      treatmentsWithCustomMeds.forEach((treatment) => {
-        if (treatment.customMedications && typeof treatment.customMedications === 'object') {
-          const customMeds = Array.isArray(treatment.customMedications)
-            ? treatment.customMedications
-            : [treatment.customMedications]
-
-          customMeds.forEach((med: any) => {
-            if (med && med.name && typeof med.name === 'string') {
-              const medName = med.name as string
-              const currentCount = medicationUsage.get(medName) || 0
-              medicationUsage.set(medName, currentCount + 1)
-            }
-          })
-        }
-      })
-
-      // Convert to array and sort by usage
-      const topCustomMedicines = Array.from(medicationUsage.entries())
-        .map(([name, count], index) => ({
-          medicineId: index + 1000, // Generate fake ID for compatibility
-          medicineName: name,
-          usageCount: count,
-        }))
-        .sort((a, b) => b.usageCount - a.usageCount)
-        .slice(0, 10) // Top 10
-
-      return {
-        totalTreatments,
-        treatmentsWithCustomMeds: treatmentsWithCustomMedsCount,
-        customMedicationUsageRate: Math.round(customMedicationUsageRate * 100) / 100,
-        topCustomMedicines,
-      }
-    } catch (error) {
-      return this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.PATIENT_TREATMENT)
-    }
+    return this.patientTreatmentStatsService.getCustomMedicationStats()
   }
 
   async compareProtocolVsCustomTreatments(protocolId: number): Promise<{
@@ -909,157 +432,15 @@ export class PatientTreatmentService {
     }
     customizationRate: number
   }> {
+    return this.patientTreatmentStatsService.compareProtocolVsCustomTreatments(protocolId)
+  }
+
+  async bulkCreatePatientTreatments(data: BulkCreatePatientTreatment, userId: number): Promise<any> {
     try {
-      const validatedProtocolId = this.errorHandlingService.validateId(protocolId)
-
-      // Get all treatments for this protocol
-      let allTreatments = await this.patientTreatmentRepository.findPatientTreatments({
-        where: { protocolId: validatedProtocolId },
-        page: 1,
-        limit: 10000,
-      })
-      allTreatments = allTreatments.map((item) => {
-        if (
-          item.customMedications &&
-          (Array.isArray(item.customMedications) ||
-            (typeof item.customMedications === 'object' && item.customMedications !== null))
-        ) {
-          item.customMedications = this.normalizeCustomMedicationsSchedule(item.customMedications)
-        }
-        return item
-      })
-
-      // Separate standard vs custom treatments
-      const standardTreatments = allTreatments.filter((t) => !t.customMedications || t.customMedications === null)
-      const customTreatments = allTreatments.filter((t) => t.customMedications && t.customMedications !== null)
-
-      // Calculate stats for standard treatments
-      const standardStats = this.calculateTreatmentStats(standardTreatments)
-      const customStats = this.calculateTreatmentStats(customTreatments)
-
-      const customizationRate = allTreatments.length > 0 ? (customTreatments.length / allTreatments.length) * 100 : 0
-
-      return {
-        protocol: { id: validatedProtocolId }, // Simplified protocol info
-        standardTreatments: standardStats,
-        customTreatments: customStats,
-        customizationRate: Math.round(customizationRate * 100) / 100,
-      }
+      return await this.patientTreatmentBulkService.bulkCreatePatientTreatments(data, userId)
     } catch (error) {
       return this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.PATIENT_TREATMENT)
     }
-  }
-
-  async bulkCreatePatientTreatments(data: BulkCreatePatientTreatment, userId: number): Promise<PatientTreatment[]> {
-    const results: PatientTreatment[] = []
-    const errors: string[] = []
-
-    const batchSize = Math.min(10, Math.max(1, data.items.length)) // Ensure valid batch size
-    const continueOnError = data.continueOnError || false
-    const validateBeforeCreate = data.validateBeforeCreate !== false // Default true
-
-    // Validate input
-    if (!data.items || data.items.length === 0) {
-      throw new BadRequestException('No treatment items provided for bulk creation')
-    }
-
-    // PRE-VALIDATION: Check for business rule violations within the bulk request
-    const patientGroups = new Map<number, Array<{ index: number; item: any }>>()
-    data.items.forEach((item, index) => {
-      const patientId = Number(item.patientId)
-      if (!patientGroups.has(patientId)) {
-        patientGroups.set(patientId, [])
-      }
-      patientGroups.get(patientId)!.push({ index: index + 1, item })
-    })
-
-    // Check for multiple treatments per patient in the same request
-    const bulkViolations: string[] = []
-    patientGroups.forEach((items, patientId) => {
-      if (items.length > 1) {
-        bulkViolations.push(
-          `Patient ${patientId} has ${items.length} treatments in bulk request (items: ${items.map((i) => i.index).join(', ')}). ` +
-            `Only 1 active treatment per patient is allowed by business rules.`,
-        )
-      }
-    })
-
-    if (bulkViolations.length > 0) {
-      throw new BadRequestException(`Bulk create validation failed:\n${bulkViolations.join('\n')}`)
-    }
-
-    // Process treatments in batches
-    for (let i = 0; i < data.items.length; i += batchSize) {
-      const batch = data.items.slice(i, i + batchSize)
-
-      for (const [batchIndex, treatment] of batch.entries()) {
-        const itemIndex = i + batchIndex + 1
-        try {
-          // Flexible data transformation with better error handling
-          const processedTreatment = {
-            patientId: this.safeParseNumber(treatment.patientId, `patientId for item ${itemIndex}`),
-            doctorId: this.safeParseNumber(treatment.doctorId, `doctorId for item ${itemIndex}`),
-            protocolId: this.safeParseNumber(treatment.protocolId, `protocolId for item ${itemIndex}`),
-            startDate: typeof treatment.startDate === 'string' ? new Date(treatment.startDate) : treatment.startDate,
-            endDate: treatment.endDate
-              ? typeof treatment.endDate === 'string'
-                ? new Date(treatment.endDate)
-                : treatment.endDate
-              : undefined,
-            notes: treatment.notes,
-            total: Math.max(0, this.safeParseNumber((treatment as any).total || 0, `total for item ${itemIndex}`, 0)), // Ensure non-negative
-            customMedications: this.safeParseCustomMedications(treatment.customMedications, itemIndex),
-            createdById: userId,
-          }
-
-          // Validate processed data if requested
-          if (validateBeforeCreate) {
-            CreatePatientTreatmentSchema.parse(processedTreatment)
-          }
-
-          // BUSINESS RULE CHECK: Check if patient already has active treatments
-          const existingActive = await this.patientTreatmentRepository.getActivePatientTreatments({
-            patientId: processedTreatment.patientId,
-          })
-
-          if (existingActive.length > 0) {
-            const activeProtocols = new Set(existingActive.map((t) => t.protocolId))
-            const activeProtocolsList = Array.from(activeProtocols).join(', ')
-
-            const warningMessage =
-              `Item ${itemIndex}: Patient ${processedTreatment.patientId} already has ${existingActive.length} active treatment(s) ` +
-              `with protocol(s): ${activeProtocolsList}. Creating additional treatment may violate business rules.`
-
-            console.warn(warningMessage)
-
-            if (!continueOnError) {
-              throw new ConflictException(warningMessage + ' Use continueOnError=true to proceed anyway.')
-            }
-          }
-
-          // Create the treatment record
-          const created = await this.patientTreatmentRepository.createPatientTreatment(processedTreatment)
-          results.push(created)
-        } catch (error) {
-          const errorMessage = `Item ${itemIndex}: ${error instanceof Error ? error.message : 'Unknown error'}`
-          errors.push(errorMessage)
-
-          if (!continueOnError) {
-            throw new ConflictException(
-              `Bulk create failed at ${errorMessage}. Successfully created ${results.length} treatments.`,
-            )
-          }
-        }
-      }
-    }
-
-    // Log summary
-    console.log(`Bulk create completed: ${results.length} treatments created, ${errors.length} errors`)
-    if (errors.length > 0) {
-      console.log('Errors:', errors)
-    }
-
-    return results
   }
 
   // Helper methods for bulk create
@@ -1081,18 +462,57 @@ export class PatientTreatmentService {
     }
   }
 
+  /**
+   * Kiểm tra sâu customMedications: phải là mảng hoặc object, mỗi phần tử phải có các trường cần thiết
+   * Trường schedule phải thuộc danh sách hợp lệ, các trường như price, durationUnit, durationValue phải đúng kiểu
+   */
   private safeParseCustomMedications(value: any, itemIndex: number): any {
     try {
       if (!value) return null
+      let meds: any[] = []
       if (Array.isArray(value)) {
-        return value
+        meds = value
+      } else if (typeof value === 'string') {
+        meds = JSON.parse(value)
+      } else if (typeof value === 'object' && value !== null) {
+        meds = [value]
+      } else {
+        throw new BadRequestException(
+          `customMedications phải là mảng, object hoặc chuỗi JSON hợp lệ (item ${itemIndex})`,
+        )
       }
-      if (typeof value === 'string') {
-        return JSON.parse(value)
-      }
-      return value
+
+      const validSchedules = ['MORNING', 'AFTERNOON', 'NIGHT']
+      meds.forEach((med, idx) => {
+        if (!med || typeof med !== 'object') {
+          throw new BadRequestException(`customMedications[${idx}] phải là object hợp lệ (item ${itemIndex})`)
+        }
+        // Kiểm tra schedule
+        if ('schedule' in med) {
+          const scheduleStr = String(med.schedule)
+          if (typeof med.schedule !== 'string' || !validSchedules.includes(scheduleStr)) {
+            throw new BadRequestException(`customMedications[${idx}].schedule không hợp lệ (item ${itemIndex})`)
+          }
+        }
+        // Kiểm tra price
+        if ('price' in med && (typeof med.price !== 'number' || med.price < 0)) {
+          throw new BadRequestException(`customMedications[${idx}].price phải là số >= 0 (item ${itemIndex})`)
+        }
+        // Kiểm tra durationUnit
+        if ('durationUnit' in med) {
+          const unitStr = String(med.durationUnit)
+          if (!['DAY', 'WEEK', 'MONTH', 'YEAR'].includes(unitStr)) {
+            throw new BadRequestException(`customMedications[${idx}].durationUnit không hợp lệ (item ${itemIndex})`)
+          }
+        }
+        // Kiểm tra durationValue
+        if ('durationValue' in med && (typeof med.durationValue !== 'number' || med.durationValue <= 0)) {
+          throw new BadRequestException(`customMedications[${idx}].durationValue phải là số > 0 (item ${itemIndex})`)
+        }
+      })
+      return meds
     } catch (error) {
-      throw new BadRequestException(`Invalid custom medications format for item ${itemIndex}: ${error.message}`)
+      throw new BadRequestException(`customMedications không hợp lệ cho item ${itemIndex}: ${error.message}`)
     }
   }
 
@@ -1142,53 +562,6 @@ export class PatientTreatmentService {
     // If not array or object, return null for type safety
     return null
   }
-  /**
-   * Calculate statistics for a list of treatments (stub implementation)
-   */
-  private calculateTreatmentStats(treatments: any[]): {
-    count: number
-    averageDuration: number | null
-    averageCost: number
-    completionRate: number
-  } {
-    if (!Array.isArray(treatments) || treatments.length === 0) {
-      return {
-        count: 0,
-        averageDuration: null,
-        averageCost: 0,
-        completionRate: 0,
-      }
-    }
-    const count = treatments.length
-    const completed = treatments.filter((t) => t.endDate).length
-    const averageDuration =
-      completed > 0
-        ? Math.round(
-            treatments
-              .filter((t) => t.endDate)
-              .reduce((sum: number, t: any) => {
-                const start = t.startDate ? new Date(t.startDate as string | number | Date) : new Date()
-                const end = t.endDate ? new Date(t.endDate as string | number | Date) : new Date()
-                return sum + Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
-              }, 0) / completed,
-          )
-        : null
-    const averageCost =
-      count > 0
-        ? treatments.reduce((sum: number, t: any) => {
-            const safeSum = typeof sum === 'number' ? sum : 0
-            const total = typeof t.total === 'number' ? t.total : 0
-            return Number(safeSum) + Number(total)
-          }, 0) / count
-        : 0
-    const completionRate = count > 0 ? (completed / count) * 100 : 0
-    return {
-      count,
-      averageDuration,
-      averageCost: Math.round(averageCost * 100) / 100,
-      completionRate: Math.round(completionRate * 100) / 100,
-    }
-  }
 
   // Create a patient treatment with validation, business rule check, and normalization
   async createPatientTreatment(data: any, userId: number, validate: boolean = true): Promise<any> {
@@ -1232,11 +605,15 @@ export class PatientTreatmentService {
       }
       if (data.customMedications) {
         try {
-          customMeds = Array.isArray(data.customMedications)
-            ? data.customMedications
-            : typeof data.customMedications === 'string'
-              ? JSON.parse(data.customMedications)
-              : [data.customMedications]
+          if (Array.isArray(data.customMedications)) {
+            customMeds = data.customMedications
+          } else if (typeof data.customMedications === 'string') {
+            customMeds = JSON.parse(String(data.customMedications))
+          } else if (typeof data.customMedications === 'object' && data.customMedications !== null) {
+            customMeds = [data.customMedications]
+          } else {
+            customMeds = []
+          }
         } catch {
           customMeds = []
         }
@@ -1293,7 +670,17 @@ export class PatientTreatmentService {
       }
 
       // Only include protocolId if it is defined, otherwise omit it
-      const processedData: any = {
+      const processedData: {
+        patientId: number
+        doctorId: number
+        startDate: Date
+        endDate?: Date
+        notes?: string
+        total: number
+        customMedications?: any[] | Record<string, any> | null
+        createdById: number
+        protocolId?: number
+      } = {
         patientId,
         doctorId,
         startDate,
@@ -1358,267 +745,6 @@ export class PatientTreatmentService {
     }
   }
 
-  // ===============================
-  // MISSING VALIDATION METHODS
-  // ===============================
-
-  /**
-   * Validate treatment adherence and get recommendations
-   */
-  validateTreatmentAdherence(adherenceData: {
-    pillsMissed: number
-    totalPills: number
-    recentAdherencePattern: number[]
-  }): {
-    adherencePercentage: number
-    adherenceLevel: 'excellent' | 'good' | 'suboptimal' | 'poor'
-    riskAssessment: 'low' | 'medium' | 'high' | 'critical'
-    interventionsRequired: string[]
-    recommendations: string[]
-  } {
-    try {
-      const { pillsMissed, totalPills, recentAdherencePattern } = adherenceData
-      if (typeof pillsMissed !== 'number' || typeof totalPills !== 'number' || totalPills < 0 || pillsMissed < 0) {
-        throw new BadRequestException('Invalid adherence data: pillsMissed and totalPills must be non-negative numbers')
-      }
-      const adherencePercentage = totalPills > 0 ? ((totalPills - pillsMissed) / totalPills) * 100 : 0
-      let adherenceLevel: 'excellent' | 'good' | 'suboptimal' | 'poor' = 'poor'
-      let riskAssessment: 'low' | 'medium' | 'high' | 'critical' = 'critical'
-      if (adherencePercentage >= 95) {
-        adherenceLevel = 'excellent'
-        riskAssessment = 'low'
-      } else if (adherencePercentage >= 85) {
-        adherenceLevel = 'good'
-        riskAssessment = 'medium'
-      } else if (adherencePercentage >= 70) {
-        adherenceLevel = 'suboptimal'
-        riskAssessment = 'high'
-      }
-      const interventionsRequired: string[] = []
-      const recommendations: string[] = []
-      if (adherencePercentage < 95) {
-        interventionsRequired.push('Adherence counseling required')
-        recommendations.push('Schedule adherence counseling session')
-      }
-      if (adherencePercentage < 85) {
-        interventionsRequired.push('Enhanced support measures')
-        recommendations.push('Consider pill organizers, reminders, or directly observed therapy')
-      }
-      if (adherencePercentage < 70) {
-        interventionsRequired.push('Urgent clinical review')
-        recommendations.push('Immediate clinical assessment for treatment modification')
-      }
-      return {
-        adherencePercentage: Math.round(adherencePercentage * 100) / 100,
-        adherenceLevel,
-        riskAssessment,
-        interventionsRequired,
-        recommendations,
-      }
-    } catch (error) {
-      throw new BadRequestException(`Error validating treatment adherence: ${error.message}`)
-    }
-  }
-
-  /**
-   * Validate pregnancy safety for HIV treatment protocol
-   */
-  validatePregnancySafety(
-    patientGender: 'male' | 'female' | 'other',
-    isPregnant: boolean,
-    isBreastfeeding: boolean,
-    protocolId: number,
-  ): {
-    isSafe: boolean
-    pregnancyCategory: 'A' | 'B' | 'C' | 'D' | 'X' | 'N/A'
-    contraindicatedMedications: string[]
-    alternativeRecommendations: string[]
-    monitoringRequirements: string[]
-  } {
-    // Mock implementation - In real system, check protocol medications against pregnancy safety database
-    let pregnancyCategory: 'A' | 'B' | 'C' | 'D' | 'X' | 'N/A' = 'N/A'
-    const contraindicatedMedications: string[] = []
-    const alternativeRecommendations: string[] = []
-    const monitoringRequirements: string[] = []
-
-    if (patientGender !== 'female') {
-      pregnancyCategory = 'N/A'
-      return {
-        isSafe: true,
-        pregnancyCategory,
-        contraindicatedMedications,
-        alternativeRecommendations,
-        monitoringRequirements: ['Standard monitoring applies'],
-      }
-    }
-
-    // Mock safety assessment for female patients
-    if (isPregnant || isBreastfeeding) {
-      pregnancyCategory = 'B' // Most HIV medications are category B
-
-      // Mock contraindicated medications (efavirenz is contraindicated in pregnancy)
-      if (protocolId === 1) {
-        // Assuming protocol 1 contains efavirenz
-        contraindicatedMedications.push('Efavirenz')
-        alternativeRecommendations.push('Switch to integrase inhibitor-based regimen')
-      }
-
-      if (isPregnant) {
-        monitoringRequirements.push('Monthly viral load monitoring')
-        monitoringRequirements.push('Obstetric consultation')
-        monitoringRequirements.push('Fetal development monitoring')
-      }
-
-      if (isBreastfeeding) {
-        monitoringRequirements.push('Infant HIV testing at 6 weeks, 3 months, 6 months')
-        monitoringRequirements.push('Monitor for medication side effects in infant')
-      }
-    }
-
-    const isSafe = contraindicatedMedications.length === 0
-
-    return {
-      isSafe,
-      pregnancyCategory,
-      contraindicatedMedications,
-      alternativeRecommendations,
-      monitoringRequirements,
-    }
-  }
-
-  /**
-   * Validate organ function for HIV treatment dosing
-   */
-  validateOrganFunction(
-    liverFunction: { alt: number; ast: number; bilirubin: number },
-    kidneyFunction: { creatinine: number; egfr: number },
-    protocolId: number,
-  ): {
-    liverStatus: 'normal' | 'mild-impairment' | 'moderate-impairment' | 'severe-impairment'
-    kidneyStatus: 'normal' | 'mild-impairment' | 'moderate-impairment' | 'severe-impairment'
-    doseAdjustmentsRequired: string[]
-    contraindicatedMedications: string[]
-    monitoringRequirements: string[]
-  } {
-    const { alt, ast, bilirubin } = liverFunction
-    const { creatinine, egfr } = kidneyFunction
-
-    // Determine liver status
-    let liverStatus: 'normal' | 'mild-impairment' | 'moderate-impairment' | 'severe-impairment' = 'normal'
-    if (alt > 120 || ast > 120 || bilirubin > 3) {
-      liverStatus = 'severe-impairment'
-    } else if (alt > 80 || ast > 80 || bilirubin > 2) {
-      liverStatus = 'moderate-impairment'
-    } else if (alt > 40 || ast > 40 || bilirubin > 1.5) {
-      liverStatus = 'mild-impairment'
-    }
-
-    // Determine kidney status
-    let kidneyStatus: 'normal' | 'mild-impairment' | 'moderate-impairment' | 'severe-impairment' = 'normal'
-    if (egfr < 30 || creatinine > 3) {
-      kidneyStatus = 'severe-impairment'
-    } else if (egfr < 60 || creatinine > 2) {
-      kidneyStatus = 'moderate-impairment'
-    } else if (egfr < 90 || creatinine > 1.5) {
-      kidneyStatus = 'mild-impairment'
-    }
-
-    const doseAdjustmentsRequired: string[] = []
-    const contraindicatedMedications: string[] = []
-    const monitoringRequirements: string[] = []
-
-    // Liver-related adjustments
-    if (liverStatus !== 'normal') {
-      doseAdjustmentsRequired.push('Consider dose reduction for hepatically metabolized drugs')
-      monitoringRequirements.push('Weekly liver function monitoring')
-
-      if (liverStatus === 'severe-impairment') {
-        contraindicatedMedications.push('Nevirapine')
-        monitoringRequirements.push('Consider hepatology consultation')
-      }
-    }
-
-    // Kidney-related adjustments
-    if (kidneyStatus !== 'normal') {
-      doseAdjustmentsRequired.push('Adjust doses for renally eliminated drugs')
-      monitoringRequirements.push('Weekly kidney function monitoring')
-
-      if (kidneyStatus === 'severe-impairment') {
-        doseAdjustmentsRequired.push('Reduce tenofovir dose by 50%')
-        monitoringRequirements.push('Consider nephrology consultation')
-      }
-    }
-
-    return {
-      liverStatus,
-      kidneyStatus,
-      doseAdjustmentsRequired,
-      contraindicatedMedications,
-      monitoringRequirements,
-    }
-  }
-
-  /**
-   * Validate HIV resistance pattern for treatment effectiveness
-   */
-  validateResistancePattern(
-    resistanceData: {
-      mutations: string[]
-      resistanceLevel: 'none' | 'low' | 'intermediate' | 'high'
-      previousFailedRegimens: string[]
-    },
-    proposedProtocolId: number,
-  ): {
-    isEffective: boolean
-    effectivenessScore: number
-    resistantMedications: string[]
-    recommendedAlternatives: string[]
-    requiresGenotyping: boolean
-  } {
-    const { mutations, resistanceLevel, previousFailedRegimens } = resistanceData
-
-    // Mock resistance analysis
-    const resistantMedications: string[] = []
-    const recommendedAlternatives: string[] = []
-
-    // Check for common resistance mutations
-    if (mutations.includes('M184V')) {
-      resistantMedications.push('Lamivudine', 'Emtricitabine')
-    }
-    if (mutations.includes('K103N')) {
-      resistantMedications.push('Efavirenz', 'Nevirapine')
-    }
-    if (mutations.includes('Q148H')) {
-      resistantMedications.push('Raltegravir', 'Elvitegravir')
-    }
-
-    // Calculate effectiveness score
-    let effectivenessScore = 100
-
-    if (resistanceLevel === 'high') effectivenessScore -= 60
-    else if (resistanceLevel === 'intermediate') effectivenessScore -= 40
-    else if (resistanceLevel === 'low') effectivenessScore -= 20
-
-    effectivenessScore -= resistantMedications.length * 15
-    effectivenessScore -= previousFailedRegimens.length * 10
-
-    const isEffective = effectivenessScore >= 70
-    const requiresGenotyping = resistanceLevel !== 'none' || previousFailedRegimens.length > 0
-
-    if (!isEffective) {
-      recommendedAlternatives.push('Consider second-line regimen with integrase inhibitor')
-      recommendedAlternatives.push('Evaluate for newer agents (bictegravir, cabotegravir)')
-    }
-
-    return {
-      isEffective,
-      effectivenessScore: Math.max(0, effectivenessScore),
-      resistantMedications,
-      recommendedAlternatives,
-      requiresGenotyping,
-    }
-  }
-
   /**
    * Validate emergency treatment protocols (PEP/PrEP)
    */
@@ -1633,50 +759,17 @@ export class PatientTreatmentService {
     protocolRecommendations: string[]
     followUpRequirements: string[]
   } {
-    const now = new Date()
-    const protocolRecommendations: string[] = []
-    const followUpRequirements: string[] = []
-
-    let isValidTiming = true
-    let timeWindow = 'Standard treatment timing'
-    let urgencyLevel: 'routine' | 'urgent' | 'emergency' = 'routine'
-
-    if (treatmentType === 'pep' && exposureDate) {
-      const hoursAfterExposure = (now.getTime() - exposureDate.getTime()) / (1000 * 60 * 60)
-
-      if (hoursAfterExposure > 72) {
-        isValidTiming = false
-        timeWindow = 'PEP window expired (>72 hours)'
-        urgencyLevel = 'emergency'
-        protocolRecommendations.push('PEP may not be effective - consult HIV specialist')
-      } else if (hoursAfterExposure > 24) {
-        timeWindow = 'Late PEP initiation (24-72 hours)'
-        urgencyLevel = 'emergency'
-        protocolRecommendations.push('Start PEP immediately - reduced efficacy expected')
-      } else {
-        timeWindow = 'Optimal PEP window (<24 hours)'
-        urgencyLevel = 'emergency'
-        protocolRecommendations.push('Start PEP within 2 hours of presentation')
+    try {
+      const result = this.emergencyProtocolService.validateEmergencyProtocol(treatmentType, exposureDate, riskFactors)
+      return {
+        isValidTiming: result.isValidTiming,
+        timeWindow: result.timeWindow,
+        urgencyLevel: result.urgencyLevel,
+        protocolRecommendations: result.protocolRecommendations,
+        followUpRequirements: result.followUpRequirements,
       }
-
-      followUpRequirements.push('HIV testing at baseline, 6 weeks, 3 months, 6 months')
-      followUpRequirements.push('Monitor for drug side effects')
-    }
-
-    if (treatmentType === 'prep') {
-      urgencyLevel = 'routine'
-      protocolRecommendations.push('Confirm HIV negative status before starting')
-      protocolRecommendations.push('Assess kidney function (creatinine, eGFR)')
-      followUpRequirements.push('HIV testing every 3 months')
-      followUpRequirements.push('Kidney function monitoring every 6 months')
-    }
-
-    return {
-      isValidTiming,
-      timeWindow,
-      urgencyLevel,
-      protocolRecommendations,
-      followUpRequirements,
+    } catch (error) {
+      throw new BadRequestException('Error validating emergency protocol: ' + (error?.message || 'Unknown error'))
     }
   }
 
@@ -1693,60 +786,12 @@ export class PatientTreatmentService {
     recommendations: string[]
   }> {
     try {
-      // Get patient's treatment history
-      const pid = typeof patientId === 'string' ? Number(patientId) : patientId
-      const allTreatments = await this.patientTreatmentRepository.findPatientTreatmentsByPatientId(pid, {
-        page: 1,
-        limit: 100,
-      })
-
-      // Sort by start date
-      const sortedTreatments = allTreatments.sort(
-        (a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime(),
-      )
-
-      // Find previous treatment before current one
-      const currentIndex = sortedTreatments.findIndex(
-        (t) => new Date(t.startDate).getTime() === currentTreatmentStart.getTime(),
-      )
-
-      if (currentIndex <= 0) {
-        return {
-          isContinuous: true,
-          gapDays: null,
-          riskLevel: 'low',
-          recommendations: ['First treatment for patient - no continuity concerns'],
-        }
-      }
-
-      const previousTreatment = sortedTreatments[currentIndex - 1]
-      const previousEndDate = previousTreatment.endDate ? new Date(previousTreatment.endDate) : new Date()
-      const gapDays = Math.floor((currentTreatmentStart.getTime() - previousEndDate.getTime()) / (1000 * 60 * 60 * 24))
-
-      let isContinuous = true
-      let riskLevel: 'low' | 'medium' | 'high' | 'critical' = 'low'
-      const recommendations: string[] = []
-
-      if (gapDays > 7) {
-        isContinuous = false
-        if (gapDays > 30) {
-          riskLevel = 'critical'
-          recommendations.push('Treatment gap >30 days - high risk of viral rebound')
-          recommendations.push('Consider resistance testing before restarting')
-        } else if (gapDays > 14) {
-          riskLevel = 'high'
-          recommendations.push('Treatment gap >14 days - monitor for viral rebound')
-        } else {
-          riskLevel = 'medium'
-          recommendations.push('Short treatment gap detected - monitor closely')
-        }
-      }
-
+      const result = await this.treatmentContinuityService.validateTreatmentContinuity(patientId, currentTreatmentStart)
       return {
-        isContinuous,
-        gapDays,
-        riskLevel,
-        recommendations,
+        isContinuous: result.isContinuous,
+        gapDays: result.gapDays,
+        riskLevel: result.riskLevel,
+        recommendations: result.recommendations,
       }
     } catch (error) {
       return {
@@ -1764,190 +809,49 @@ export class PatientTreatmentService {
   validateDoctorProtocolAuthorization(
     doctorId: number,
     protocolId: number,
-  ): Promise<{
+  ): {
     isAuthorized: boolean
     doctorLevel: string
     protocolComplexity: string
     requirements: string[]
-  }> {
-    return new Promise((resolve) => {
-      try {
-        // Mock implementation - In real system, check doctor credentials and protocol requirements
-        const requirements: string[] = []
-
-        // Mock doctor level assessment
-        const doctorLevel = doctorId % 3 === 0 ? 'specialist' : doctorId % 2 === 0 ? 'experienced' : 'general'
-
-        // Mock protocol complexity
-        const protocolComplexity = protocolId > 10 ? 'complex' : protocolId > 5 ? 'intermediate' : 'standard'
-
-        let isAuthorized = true
-
-        if (protocolComplexity === 'complex' && doctorLevel === 'general') {
-          isAuthorized = false
-          requirements.push('Complex protocols require specialist authorization')
-          requirements.push('Obtain HIV specialist consultation')
-        }
-
-        if (protocolComplexity === 'intermediate' && doctorLevel === 'general') {
-          requirements.push('Consider specialist consultation for intermediate protocols')
-        }
-
-        resolve({
-          isAuthorized,
-          doctorLevel,
-          protocolComplexity,
-          requirements,
-        })
-      } catch (error) {
-        resolve({
-          isAuthorized: false,
-          doctorLevel: 'unknown',
-          protocolComplexity: 'unknown',
-          requirements: ['Error validating doctor authorization - manual review required'],
-        })
+  } {
+    try {
+      const result = this.doctorProtocolAuthorizationService.validateDoctorProtocolAuthorization(doctorId, protocolId)
+      return {
+        isAuthorized: result.isAuthorized,
+        doctorLevel: result.doctorLevel,
+        protocolComplexity: result.protocolComplexity,
+        requirements: result.requirements,
       }
-    })
+    } catch (error) {
+      return {
+        isAuthorized: false,
+        doctorLevel: 'unknown',
+        protocolComplexity: 'unknown',
+        requirements: ['Error validating doctor authorization - manual review required'],
+      }
+    }
   }
 
   /**
    * Detect business rule violations across all patients
    */
-  async detectBusinessRuleViolations(): Promise<{
-    totalViolations: number
-    violatingPatients: Array<{
-      patientId: number
-      activeTreatmentCount: number
-      treatments: Array<{
-        id: number
-        protocolId: number
-        startDate: string
-        endDate: string | null
-      }>
-      protocols: number[]
-    }>
-  }> {
+  async detectBusinessRuleViolations(): Promise<any> {
     try {
-      // Get all active treatments
-      const allActiveTreatments = await this.patientTreatmentRepository.getActivePatientTreatments({})
-
-      // Group by patient
-      const patientGroups = new Map<number, any[]>()
-      allActiveTreatments.forEach((treatment) => {
-        if (!patientGroups.has(treatment.patientId)) {
-          patientGroups.set(treatment.patientId, [])
-        }
-        patientGroups.get(treatment.patientId)!.push(treatment)
-      })
-
-      // Find violations (patients with multiple active treatments)
-      const violatingPatients: Array<{
-        patientId: number
-        activeTreatmentCount: number
-        treatments: Array<{
-          id: number
-          protocolId: number
-          startDate: string
-          endDate: string | null
-        }>
-        protocols: number[]
-      }> = []
-
-      patientGroups.forEach((treatments, patientId) => {
-        if (treatments.length > 1) {
-          const protocols = [...new Set(treatments.map((t: any) => t.protocolId as number))]
-          violatingPatients.push({
-            patientId,
-            activeTreatmentCount: treatments.length,
-            treatments: treatments.map((t) => ({
-              id: t.id,
-              protocolId: t.protocolId,
-              startDate: t.startDate.toISOString(),
-              endDate: t.endDate ? t.endDate.toISOString() : null,
-            })),
-            protocols,
-          })
-        }
-      })
-
-      return {
-        totalViolations: violatingPatients.length,
-        violatingPatients,
-      }
+      return await this.patientTreatmentBusinessService.detectBusinessRuleViolations()
     } catch (error) {
-      return this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.PATIENT_TREATMENT)
+      throw this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.PATIENT_TREATMENT)
     }
   }
 
   /**
    * Fix business rule violations by ending older treatments
    */
-  async fixBusinessRuleViolations(isDryRun: boolean = true): Promise<{
-    processedPatients: number
-    treatmentsEnded: number
-    errors: string[]
-    actions: Array<{
-      patientId: number
-      action: 'end_treatment'
-      treatmentId: number
-      protocolId: number
-      newEndDate: string
-    }>
-  }> {
+  async fixBusinessRuleViolations(isDryRun: boolean = true): Promise<any> {
     try {
-      const violations = await this.detectBusinessRuleViolations()
-      const actions: Array<{
-        patientId: number
-        action: 'end_treatment'
-        treatmentId: number
-        protocolId: number
-        newEndDate: string
-      }> = []
-      const errors: string[] = []
-      let treatmentsEnded = 0
-
-      const fixDate = new Date()
-
-      for (const violation of violations.violatingPatients) {
-        try {
-          // Sort treatments by start date (keep the most recent)
-          const sortedTreatments = violation.treatments.sort(
-            (a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime(),
-          )
-
-          // End all but the most recent treatment
-          for (let i = 1; i < sortedTreatments.length; i++) {
-            const treatmentToEnd = sortedTreatments[i]
-            const newEndDate = new Date(fixDate)
-
-            actions.push({
-              patientId: violation.patientId,
-              action: 'end_treatment',
-              treatmentId: treatmentToEnd.id,
-              protocolId: treatmentToEnd.protocolId,
-              newEndDate: newEndDate.toISOString(),
-            })
-
-            if (!isDryRun) {
-              await this.patientTreatmentRepository.updatePatientTreatment(treatmentToEnd.id, {
-                endDate: newEndDate,
-              })
-              treatmentsEnded++
-            }
-          }
-        } catch (error) {
-          errors.push(`Failed to fix violations for patient ${violation.patientId}: ${error.message}`)
-        }
-      }
-
-      return {
-        processedPatients: violations.violatingPatients.length,
-        treatmentsEnded: isDryRun ? actions.length : treatmentsEnded,
-        errors,
-        actions,
-      }
+      return await this.patientTreatmentBusinessService.fixBusinessRuleViolations(isDryRun)
     } catch (error) {
-      return this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.PATIENT_TREATMENT)
+      this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.PATIENT_TREATMENT)
     }
   }
 
@@ -1962,11 +866,7 @@ export class PatientTreatmentService {
     averageTreatmentDuration: number | null
     totalCost: number
     averageCostPerTreatment: number
-    topProtocols: Array<{
-      protocolId: number
-      count: number
-      percentage: number
-    }>
+    topProtocols: Array<{ protocolId: number; count: number; percentage: number }>
     monthlyTrends: Array<{
       month: string
       newTreatments: number
@@ -1975,112 +875,22 @@ export class PatientTreatmentService {
     }>
   }> {
     try {
-      // Get all treatments
-      const allTreatments = await this.patientTreatmentRepository.findPatientTreatments({
-        page: 1,
-        limit: 10000, // Large number to get all
-      })
-
-      // Get active treatments
-      const activeTreatments = await this.patientTreatmentRepository.getActivePatientTreatments({})
-
-      // Calculate basic stats
-      const totalTreatments = allTreatments.length
-      const activeTreatmentsCount = activeTreatments.length
-      const completedTreatments = totalTreatments - activeTreatmentsCount
-      const totalPatients = new Set(allTreatments.map((t) => t.patientId)).size
-      const totalCost = allTreatments.reduce((sum, t) => sum + (t.total || 0), 0)
-      const averageCostPerTreatment = totalTreatments > 0 ? totalCost / totalTreatments : 0
-
-      // Calculate average duration
-      const completedTreatmentsWithDuration = allTreatments.filter((t) => t.endDate)
-      let averageTreatmentDuration: number | null = null
-
-      if (completedTreatmentsWithDuration.length > 0) {
-        const totalDuration = completedTreatmentsWithDuration.reduce((sum, t) => {
-          const start = new Date(t.startDate)
-          const end = new Date(t.endDate!)
-          const duration = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
-          return sum + duration
-        }, 0)
-        averageTreatmentDuration = Math.round(totalDuration / completedTreatmentsWithDuration.length)
-      }
-
-      // Calculate top protocols
-      const protocolCounts = new Map<number, number>()
-      allTreatments.forEach((t) => {
-        if (typeof t.protocolId === 'number') {
-          const count = protocolCounts.get(t.protocolId) || 0
-          protocolCounts.set(t.protocolId, count + 1)
-        }
-      })
-
-      const topProtocols = Array.from(protocolCounts.entries())
-        .map(([protocolId, count]) => ({
-          protocolId,
-          count,
-          percentage: totalTreatments > 0 ? Math.round((count / totalTreatments) * 10000) / 100 : 0, // 2 decimal places
-        }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 5)
-
-      // Calculate monthly trends (last 12 months)
-      const monthlyTrends: Array<{
-        month: string
-        newTreatments: number
-        completedTreatments: number
-        totalCost: number
-      }> = []
-
-      const now = new Date()
-      for (let i = 11; i >= 0; i--) {
-        const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1)
-        const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0)
-
-        const newTreatments = allTreatments.filter((t) => {
-          const startDate = new Date(t.startDate)
-          return startDate >= monthStart && startDate <= monthEnd
-        })
-
-        const completedTreatmentsArr = allTreatments.filter((t) => {
-          if (!t.endDate) return false
-          const endDate = new Date(t.endDate)
-          return endDate >= monthStart && endDate <= monthEnd
-        })
-
-        monthlyTrends.push({
-          month: monthStart.toISOString().slice(0, 7), // YYYY-MM format
-          newTreatments: newTreatments.length,
-          completedTreatments: completedTreatmentsArr.length,
-          totalCost: newTreatments.reduce((sum, t) => sum + (t.total || 0), 0),
-        })
-      }
-
-      return {
-        totalTreatments,
-        activeTreatments: activeTreatmentsCount,
-        completedTreatments,
-        totalPatients,
-        averageTreatmentDuration,
-        totalCost: Math.round(totalCost * 100) / 100,
-        averageCostPerTreatment: Math.round(averageCostPerTreatment * 100) / 100,
-        topProtocols,
-        monthlyTrends,
-      }
+      const stats = await this.patientTreatmentStatsService.getGeneralTreatmentStats()
+      return stats
     } catch (error) {
       return this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.PATIENT_TREATMENT)
     }
   }
 
   /**
-   * Calculate estimated treatment cost for preview (protocol + custom meds + duration)
+   * Tính toán chi phí điều trị dựa trên protocol và customMedications, có thể dùng cho preview
    */
-  calculateTreatmentCost(
+  async calculateTreatmentCost(
     protocolId: number,
-    customMedications: Array<{ cost: number }> | undefined,
+    customMedications: Array<{ price?: number; durationUnit?: string; durationValue?: number }> | undefined,
     startDate: Date,
     endDate?: Date,
-  ): {
+  ): Promise<{
     isValid: boolean
     calculatedTotal: number
     breakdown: {
@@ -2090,27 +900,69 @@ export class PatientTreatmentService {
       durationInDays: number | null
     }
     warnings: string[]
-  } {
-    // Mock implementation - replace with real cost logic as needed
-    let protocolCost = 1000 // default protocol cost
+  }> {
+    let protocolCost = 0
     let customMedicationCost = 0
     let durationInDays: number | null = null
     let durationMultiplier = 1
     const warnings: string[] = []
 
-    // Example: protocol cost lookup (replace with real DB lookup)
-    if (protocolId === 2) protocolCost = 1500
-    if (protocolId === 3) protocolCost = 2000
-
-    // Example: custom medication cost
-    if (customMedications && Array.isArray(customMedications)) {
-      customMedicationCost = customMedications.reduce(
-        (sum: number, med: { cost: number }) => sum + (typeof med.cost === 'number' ? med.cost : 0),
-        0,
-      )
+    // Tính chi phí protocol
+    if (protocolId) {
+      try {
+        const protocol = await this.patientTreatmentRepository.findProtocolWithMedicines(protocolId)
+        if (protocol && Array.isArray(protocol.medicines)) {
+          for (const pm of protocol.medicines) {
+            if (pm.medicine && pm.medicine.price) {
+              let multiplier = 1
+              switch (pm.durationUnit) {
+                case 'DAY':
+                  multiplier = pm.durationValue
+                  break
+                case 'WEEK':
+                  multiplier = pm.durationValue * 7
+                  break
+                case 'MONTH':
+                  multiplier = pm.durationValue * 30
+                  break
+                case 'YEAR':
+                  multiplier = pm.durationValue * 365
+                  break
+              }
+              protocolCost += Number(pm.medicine.price) * multiplier
+            }
+          }
+        }
+      } catch (err) {
+        warnings.push('Không lấy được thông tin protocol hoặc giá thuốc.')
+      }
     }
 
-    // Duration calculation
+    // Tính chi phí customMedications
+    if (customMedications && Array.isArray(customMedications)) {
+      for (const cm of customMedications) {
+        if (cm.price) {
+          let multiplier = 1
+          switch (cm.durationUnit) {
+            case 'DAY':
+              multiplier = cm.durationValue || 1
+              break
+            case 'WEEK':
+              multiplier = (cm.durationValue || 1) * 7
+              break
+            case 'MONTH':
+              multiplier = (cm.durationValue || 1) * 30
+              break
+            case 'YEAR':
+              multiplier = (cm.durationValue || 1) * 365
+              break
+          }
+          customMedicationCost += Number(cm.price) * multiplier
+        }
+      }
+    }
+
+    // Tính duration
     if (endDate && startDate && endDate > startDate) {
       durationInDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
       durationMultiplier = Math.max(1, Math.round(durationInDays / 30)) // per month
@@ -2191,9 +1043,6 @@ export class PatientTreatmentService {
   // ===============================
   // FOLLOW-UP APPOINTMENT INTEGRATION
   // ===============================
-  /**
-   * Integration with follow-up appointment system for patient treatments
-   */
 
   /**
    * Tạo treatment với tự động hẹn lịch tái khám
@@ -2487,14 +1336,12 @@ export class PatientTreatmentService {
   }
 
   async getTreatmentComplianceStats(patientId: number): Promise<any> {
-    // Example: compliance = 100% if all treatments present, else lower
     const pid = typeof patientId === 'string' ? Number(patientId) : patientId
     const treatments = await this.patientTreatmentRepository.findPatientTreatmentsByPatientId(pid, {
       page: 0,
       limit: 100,
     })
     const totalDoses = treatments.reduce((sum, t) => sum + (t.total || 0), 0)
-    // No missedDoses field, so just use total for now
     const adherence = totalDoses > 0 ? 100 : 0
     let riskLevel: 'low' | 'medium' | 'high' = 'low'
     if (adherence < 95) riskLevel = 'medium'
@@ -2505,7 +1352,6 @@ export class PatientTreatmentService {
   }
 
   async getTreatmentCostAnalysis(params: any): Promise<any> {
-    // Example: sum cost for patient or filter
     const patientId = typeof params.patientId === 'string' ? Number(params.patientId) : params.patientId
     const pid: number = Number(patientId)
     const treatments = await this.patientTreatmentRepository.findPatientTreatmentsByPatientId(pid, {
@@ -2525,7 +1371,6 @@ export class PatientTreatmentService {
     endDate: Date
     activeTreatments: PatientTreatment[]
   }> {
-    // End all active treatments for a patient by setting endDate = now
     const activeTreatments = await this.patientTreatmentRepository.getActivePatientTreatments({ patientId })
     if (!activeTreatments.length) {
       return {
@@ -2556,7 +1401,6 @@ export class PatientTreatmentService {
     errors: string[]
     currentTreatments: any[]
   }> {
-    // Check if patient has more than one active treatment (should only have one)
     const activeTreatments = await this.patientTreatmentRepository.getActivePatientTreatments({ patientId })
     const errors: string[] = []
     if (activeTreatments.length > 1) {
@@ -2570,7 +1414,6 @@ export class PatientTreatmentService {
   }
 
   testBusinessRuleCompliance(patientId: number): any {
-    // Mock: always compliant
     return {
       passed: true,
       tests: [],
@@ -2596,7 +1439,6 @@ export class PatientTreatmentService {
       specializedRules: number
     }
   } {
-    // Mock: return status
     return {
       totalRules: 10,
       implementedRules: 8,

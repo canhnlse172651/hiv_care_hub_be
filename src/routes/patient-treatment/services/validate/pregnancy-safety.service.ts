@@ -17,10 +17,9 @@ export class PregnancySafetyService {
     const monitoringRequirements: string[] = []
 
     if (patientGender !== 'female') {
-      pregnancyCategory = 'N/A'
       return {
         isSafe: true,
-        pregnancyCategory,
+        pregnancyCategory: 'N/A',
         contraindicatedMedications,
         alternativeRecommendations,
         monitoringRequirements: ['Standard monitoring applies'],
@@ -43,13 +42,15 @@ export class PregnancySafetyService {
         monitoringRequirements.push('Monitor for medication side effects in infant')
       }
     }
+
     const isSafe = contraindicatedMedications.length === 0
     return {
       isSafe,
       pregnancyCategory,
       contraindicatedMedications,
       alternativeRecommendations,
-      monitoringRequirements,
+      monitoringRequirements:
+        monitoringRequirements.length > 0 ? monitoringRequirements : ['Standard monitoring applies'],
     }
   }
 }
