@@ -1,3 +1,63 @@
+// ===============================
+// STATISTICS AND ANALYTICS
+// ===============================
+
+export const ApiCalculateTreatmentCost = () =>
+  applyDecorators(
+    ApiOperation({
+      summary: 'Calculate treatment cost preview',
+      description: 'Calculate estimated cost for a treatment before creating it. Useful for cost preview in frontend.',
+    }),
+    ApiBody({
+      description: 'Cost calculation input data',
+      schema: {
+        type: 'object',
+        properties: {
+          protocolId: { type: 'number', example: 1 },
+          customMedications: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                price: { type: 'number', example: 100000 },
+                durationUnit: { type: 'string', example: 'MONTH', enum: ['DAY', 'WEEK', 'MONTH', 'YEAR'] },
+                durationValue: { type: 'number', example: 1 },
+              },
+            },
+          },
+          startDate: { type: 'string', format: 'date-time', example: '2025-07-17T00:00:00.000Z' },
+          endDate: { type: 'string', format: 'date-time', example: '2025-08-17T00:00:00.000Z' },
+        },
+        required: ['protocolId', 'startDate'],
+      },
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Successful cost calculation',
+      schema: {
+        type: 'object',
+        properties: {
+          isValid: { type: 'boolean', example: true },
+          calculatedTotal: { type: 'number', example: 1200000 },
+          breakdown: {
+            type: 'object',
+            properties: {
+              protocolCost: { type: 'number', example: 1000000 },
+              customMedicationCost: { type: 'number', example: 200000 },
+              durationMultiplier: { type: 'number', example: 1 },
+              durationInDays: { type: 'number', example: 30, nullable: true },
+            },
+          },
+          warnings: {
+            type: 'array',
+            items: { type: 'string' },
+            example: [],
+          },
+        },
+      },
+    }),
+    ApiResponse({ status: 500, description: 'Internal server error' }),
+  )
 import { applyDecorators } from '@nestjs/common'
 import { ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse } from '@nestjs/swagger'
 
