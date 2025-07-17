@@ -364,9 +364,14 @@ export class AppoinmentService {
           {
             patientId: existed.user.id,
             doctorId: existed.doctor.id,
-            appointmentId: existed.id,
-            serviceId: existed.service.id,
-            // Có thể bổ sung các trường khác nếu cần
+            protocolId: null,
+            notes: existed.notes || '',
+            status: true,
+            startDate: existed.appointmentTime || new Date(),
+            endDate: null,
+            customMedications: null,
+            createdById: existed.user.id,
+            total: 0,
           },
           existed.user.id,
         )

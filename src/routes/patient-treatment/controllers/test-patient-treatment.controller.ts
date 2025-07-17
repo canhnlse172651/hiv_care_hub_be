@@ -36,7 +36,14 @@ export class TestPatientTreatmentController {
 
     try {
       // Create patient treatment with follow-up
-      const result = await this.patientTreatmentService.createPatientTreatment(treatmentData, mockUserId, false)
+      const result = await this.patientTreatmentService.createPatientTreatment(
+        {
+          ...treatmentData,
+          protocolId: treatmentData.protocolId ?? null,
+        },
+        mockUserId,
+        false,
+      )
 
       return {
         success: true,

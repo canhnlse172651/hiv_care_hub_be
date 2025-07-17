@@ -66,7 +66,10 @@ export class PatientTreatmentController {
   ): Promise<PatientTreatment> {
     const userId = user.userId || user.id
     return this.patientTreatmentService.createPatientTreatment(
-      data,
+      {
+        ...data,
+        protocolId: data.protocolId ?? null,
+      },
       Number(userId),
       autoEndExisting === 'true',
     ) as Promise<PatientTreatment>

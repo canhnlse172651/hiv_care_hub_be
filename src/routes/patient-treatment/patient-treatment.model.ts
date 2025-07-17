@@ -84,6 +84,7 @@ export const PatientTreatmentSchema = z.object({
   createdAt: z.date(),
   updatedAt: z.date(),
   total: z.number().min(0, 'Total must be non-negative').optional(),
+  status: z.boolean().default(false),
 })
 
 // Query Patient Treatment Schema with explicit validation
@@ -320,6 +321,7 @@ export const CreatePatientTreatmentSchema = z.object({
     })
     .pipe(z.date())
     .optional(),
+  status: z.boolean().default(false),
 })
 
 // Update Patient Treatment Schema

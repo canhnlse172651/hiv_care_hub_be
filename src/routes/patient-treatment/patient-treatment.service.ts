@@ -154,8 +154,12 @@ export class PatientTreatmentService {
 
       // Audit log for treatment update
       this.logTreatmentOperation('update', { id, ...data })
-
-      const updated = await this.patientTreatmentRepository.updatePatientTreatment(id, data)
+      // Đảm bảo truyền status khi cập nhật
+      const updatePayload = { ...data }
+      if (typeof data.status === 'boolean') {
+        updatePayload.status = data.status
+      }
+      const updated = await this.patientTreatmentRepository.updatePatientTreatment(id, updatePayload)
       if (
         updated?.customMedications &&
         (Array.isArray(updated.customMedications) || typeof updated.customMedications === 'object')
@@ -571,7 +575,7 @@ export class PatientTreatmentService {
       const doctorId = this.safeParseNumber(data.doctorId, 'doctorId')
       // protocolId is now optional
       let protocolId: number | undefined = undefined
-      if (data.protocolId !== undefined && data.protocolId !== null && data.protocolId !== '') {
+      if (data.protocolId !== undefined && data.protocolId !== null) {
         protocolId = this.safeParseNumber(data.protocolId, 'protocolId')
       }
       // optional test result
@@ -680,6 +684,7 @@ export class PatientTreatmentService {
         customMedications?: any[] | Record<string, any> | null
         createdById: number
         protocolId?: number
+        status?: boolean
       } = {
         patientId,
         doctorId,
@@ -689,6 +694,7 @@ export class PatientTreatmentService {
         total,
         customMedications,
         createdById: userId,
+        status: typeof data.status === 'boolean' ? data.status : false,
       }
       if (protocolId !== undefined) {
         processedData.protocolId = protocolId
