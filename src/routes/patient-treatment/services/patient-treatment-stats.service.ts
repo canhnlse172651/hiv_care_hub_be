@@ -21,8 +21,8 @@ export class PatientTreatmentStatsService {
       const validatedPatientId = this.errorHandlingService.validateId(patientId)
       const pid = typeof validatedPatientId === 'string' ? Number(validatedPatientId) : validatedPatientId
       const allTreatments = await this.patientTreatmentRepository.findPatientTreatmentsByPatientId(pid, {
-        skip: 0,
-        take: 1000,
+        page: 1,
+        limit: 1000,
       })
       const activeTreatments = await this.patientTreatmentRepository.getActivePatientTreatments({
         patientId: validatedPatientId,
@@ -54,8 +54,8 @@ export class PatientTreatmentStatsService {
     try {
       const validatedDoctorId = this.errorHandlingService.validateId(doctorId)
       const allTreatments = await this.patientTreatmentRepository.findPatientTreatmentsByDoctorId(validatedDoctorId, {
-        skip: 0,
-        take: 1000,
+        page: 1,
+        limit: 1000,
       })
       const activeTreatments = await this.patientTreatmentRepository.getActivePatientTreatments({})
       const doctorActiveTreatments = activeTreatments.filter((t) => t.doctorId === validatedDoctorId)
@@ -86,8 +86,8 @@ export class PatientTreatmentStatsService {
   }> {
     try {
       const allTreatments = await this.patientTreatmentRepository.findPatientTreatments({
-        skip: 0,
-        take: 10000,
+        page: 1,
+        limit: 10000,
       })
       const treatmentsWithCustomMeds = allTreatments.filter((t) => t.customMedications && t.customMedications !== null)
       const totalTreatments = allTreatments.length
@@ -145,8 +145,8 @@ export class PatientTreatmentStatsService {
       const validatedProtocolId = this.errorHandlingService.validateId(protocolId)
       const allTreatments = await this.patientTreatmentRepository.findPatientTreatments({
         where: { protocolId: validatedProtocolId },
-        skip: 0,
-        take: 10000,
+        page: 1,
+        limit: 10000,
       })
       const standardTreatments = allTreatments.filter((t) => !t.customMedications || t.customMedications === null)
       const customTreatments = allTreatments.filter((t) => t.customMedications && t.customMedications !== null)

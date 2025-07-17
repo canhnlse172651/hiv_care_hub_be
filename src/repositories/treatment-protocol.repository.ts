@@ -555,26 +555,42 @@ export class TreatmentProtocolRepository {
       }
 
       // Extract medicines from both protocol and custom medications
-      const protocolMedicines = treatment.protocol.medicines.map((pm) => ({
-        medicineId: pm.medicineId,
-        dosage: pm.dosage,
-        durationValue: pm.durationValue,
-        durationUnit: pm.durationUnit,
-        notes: pm.notes,
-      }))
+      const protocolMedicines =
+        treatment.protocol && Array.isArray(treatment.protocol.medicines)
+          ? treatment.protocol.medicines.map((pm) => ({
+              medicineId: pm.medicineId,
+              dosage: pm.dosage,
+              durationValue: pm.durationValue,
+              durationUnit: pm.durationUnit,
+              notes: pm.notes,
+            }))
+          : []
 
       // Parse custom medications if they exist
       let customMedicines: any[] = []
       if (treatment.customMedications) {
         try {
-          const customMeds = treatment.customMedications as any[]
-          customMedicines = customMeds.map((cm) => ({
-            medicineId: cm.medicineId,
-            dosage: cm.dosage,
-            durationValue: cm.duration?.value || 1,
-            durationUnit: cm.duration?.unit || 'DAY',
-            notes: cm.notes || `Custom: ${cm.frequency}, Duration: ${cm.duration?.value} ${cm.duration?.unit}`,
-          }))
+          let customMeds: any[] = []
+          if (typeof treatment.customMedications === 'string') {
+            // If customMedications is a JSON string, parse it
+            customMeds = JSON.parse(treatment.customMedications)
+          } else if (Array.isArray(treatment.customMedications)) {
+            customMeds = treatment.customMedications
+          } else {
+            // If it's an object, wrap in array
+            customMeds = [treatment.customMedications]
+          }
+          customMedicines = customMeds
+            .filter((cm) => cm && cm.medicineId)
+            .map((cm) => ({
+              medicineId: cm.medicineId,
+              dosage: cm.dosage,
+              durationValue: cm.duration?.value || 1,
+              durationUnit: cm.duration?.unit || 'DAY',
+              notes:
+                cm.notes ||
+                `Custom: ${cm.frequency ?? ''}, Duration: ${cm.duration?.value ?? ''} ${cm.duration?.unit ?? ''}`,
+            }))
         } catch (error) {
           console.warn('Error parsing custom medications:', error)
         }
@@ -589,7 +605,7 @@ export class TreatmentProtocolRepository {
           name: validatedProtocolData.name,
           description:
             validatedProtocolData.description ||
-            `Custom protocol created from successful treatment. Original protocol: ${treatment.protocol.name}`,
+            `Custom protocol created from successful treatment. Original protocol: ${treatment.protocol?.name ?? 'N/A'}`,
           targetDisease: validatedProtocolData.targetDisease,
           createdById: validatedCreatedById,
           updatedById: validatedCreatedById,

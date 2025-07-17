@@ -318,7 +318,6 @@ export const CreatePatientTreatmentSchema = z.object({
     })
     .pipe(z.date())
     .optional(),
-  total: z.number().min(0).optional(),
 })
 
 // Update Patient Treatment Schema
@@ -331,8 +330,6 @@ export const BulkCreatePatientTreatmentSchema = z.object({
   continueOnError: booleanValue.default(false),
   dryRun: booleanValue.default(false),
 })
-
-// Simplified schemas for specific endpoints
 
 // Basic query schema for GET all patient treatments
 export const BasicQueryPatientTreatmentSchema = z.object({

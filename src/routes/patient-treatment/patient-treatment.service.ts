@@ -19,7 +19,6 @@ import { FollowUpAppointmentService } from './services/follow-up-appointment.ser
 @Injectable()
 export class PatientTreatmentService {
   constructor(
-
     private readonly patientTreatmentRepository: PatientTreatmentRepository,
     private readonly paginationService: PaginationService,
     private readonly errorHandlingService: SharedErrorHandlingService,
@@ -1220,7 +1219,70 @@ export class PatientTreatmentService {
         }
       }
       const notes = typeof data.notes === 'string' ? data.notes : undefined
-      const total = data.total !== undefined ? Math.max(0, this.safeParseNumber(data.total, 'total', 0)) : 0
+      // Tính total từ protocol.medicines và customMedications
+      let total = 0
+      let protocolMedicines: any[] = []
+      let customMeds: any[] = []
+      if (protocolId) {
+        // Lấy protocol và giá thuốc
+        const protocol = await this.patientTreatmentRepository.findProtocolWithMedicines(protocolId)
+        if (protocol && Array.isArray(protocol.medicines)) {
+          protocolMedicines = protocol.medicines
+        }
+      }
+      if (data.customMedications) {
+        try {
+          customMeds = Array.isArray(data.customMedications)
+            ? data.customMedications
+            : typeof data.customMedications === 'string'
+              ? JSON.parse(data.customMedications)
+              : [data.customMedications]
+        } catch {
+          customMeds = []
+        }
+      }
+      // Tính tổng tiền protocol medicines
+      for (const pm of protocolMedicines) {
+        if (pm.medicine && pm.medicine.price) {
+          let multiplier = 1
+          switch (pm.durationUnit) {
+            case 'DAY':
+              multiplier = pm.durationValue
+              break
+            case 'WEEK':
+              multiplier = pm.durationValue * 7
+              break
+            case 'MONTH':
+              multiplier = pm.durationValue * 30
+              break
+            case 'YEAR':
+              multiplier = pm.durationValue * 365
+              break
+          }
+          total += Number(pm.medicine.price) * multiplier
+        }
+      }
+      // Tính tổng tiền custom medicines
+      for (const cm of customMeds) {
+        if (cm.price) {
+          let multiplier = 1
+          switch (cm.durationUnit) {
+            case 'DAY':
+              multiplier = cm.durationValue
+              break
+            case 'WEEK':
+              multiplier = cm.durationValue * 7
+              break
+            case 'MONTH':
+              multiplier = cm.durationValue * 30
+              break
+            case 'YEAR':
+              multiplier = cm.durationValue * 365
+              break
+          }
+          total += Number(cm.price) * multiplier
+        }
+      }
       let customMedications: any[] | Record<string, any> | null = null
       if (data.customMedications) {
         try {
@@ -1243,6 +1305,18 @@ export class PatientTreatmentService {
       }
       if (protocolId !== undefined) {
         processedData.protocolId = protocolId
+      }
+
+      // Business rule: Nếu customMedications có giá trị thì protocolId phải tồn tại
+      if (
+        customMedications &&
+        ((Array.isArray(customMedications) && customMedications.length > 0) ||
+          (typeof customMedications === 'object' && Object.keys(customMedications).length > 0)) &&
+        (protocolId === undefined || protocolId === null)
+      ) {
+        throw new BadRequestException(
+          'Custom medications require a valid protocolId. Personalized treatments must be based on an existing protocol.',
+        )
       }
 
       if (validate && typeof CreatePatientTreatmentSchema !== 'undefined') {
@@ -1935,8 +2009,10 @@ export class PatientTreatmentService {
       // Calculate top protocols
       const protocolCounts = new Map<number, number>()
       allTreatments.forEach((t) => {
-        const count = protocolCounts.get(t.protocolId) || 0
-        protocolCounts.set(t.protocolId, count + 1)
+        if (typeof t.protocolId === 'number') {
+          const count = protocolCounts.get(t.protocolId) || 0
+          protocolCounts.set(t.protocolId, count + 1)
+        }
       })
 
       const topProtocols = Array.from(protocolCounts.entries())
