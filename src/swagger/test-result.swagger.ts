@@ -8,19 +8,21 @@ export const TestResultResponseSchema = {
     id: { type: 'number', example: 1 },
     testId: { type: 'number', example: 1 },
     userId: { type: 'number', example: 123 },
-    appointmentId: { type: 'number', example: 456 },
-    rawResultValue: { type: 'number', example: 0.3 },
+    patientTreatmentId: { type: 'number', example: 456 },
+    rawResultValue: { type: 'number', nullable: true, example: 0.3 },
     interpretation: {
       type: 'string',
+      nullable: true,
       enum: ['POSITIVE', 'NEGATIVE', 'INDETERMINATE', 'DETECTED', 'NOT_DETECTED'],
       example: 'NEGATIVE',
     },
-    unit: { type: 'string', example: 'ratio' },
-    cutOffValueUsed: { type: 'number', example: 1.0 },
-    labTechId: { type: 'number', example: 789 },
+    unit: { type: 'string', nullable: true, example: 'ratio' },
+    cutOffValueUsed: { type: 'number', nullable: true, example: 1.0 },
+    labTechId: { type: 'number', nullable: true, example: 789 },
     doctorId: { type: 'number', nullable: true, example: null },
-    resultDate: { type: 'string', format: 'date-time', example: '2025-07-14T10:00:00Z' },
-    notes: { type: 'string', example: 'Kết quả xét nghiệm HIV âm tính' },
+    resultDate: { type: 'string', format: 'date-time', nullable: true, example: '2025-07-14T10:00:00Z' },
+    notes: { type: 'string', nullable: true, example: 'Kết quả xét nghiệm HIV âm tính' },
+    status: { type: 'string', enum: ['Processing', 'Completed'], example: 'Processing' },
     createdAt: { type: 'string', format: 'date-time', example: '2025-07-14T10:00:00Z' },
     updatedAt: { type: 'string', format: 'date-time', example: '2025-07-14T10:00:00Z' },
     test: {
@@ -60,27 +62,17 @@ export const TestResultResponseSchema = {
 export const ApiCreateTestResult = () => {
   return applyDecorators(
     ApiOperation({
-      summary: 'Tạo kết quả xét nghiệm mới',
+      summary: 'Tạo yêu cầu xét nghiệm mới',
       description:
-        'Tạo kết quả xét nghiệm mới cho một xét nghiệm cụ thể. Chỉ nhân viên xét nghiệm (STAFF) có thể tạo kết quả.',
+        'Tạo yêu cầu xét nghiệm mới với status "Processing". Chỉ bác sĩ (DOCTOR) có thể tạo yêu cầu xét nghiệm.',
     }),
     ApiBearerAuth(),
     ApiBody({
-      description: 'Dữ liệu kết quả xét nghiệm',
+      description: 'Thông tin yêu cầu xét nghiệm',
       schema: {
         type: 'object',
-        required: ['rawResultValue', 'testId', 'userId', 'appointmentId', 'resultDate'],
+        required: ['testId', 'userId', 'patientTreatmentId'],
         properties: {
-          rawResultValue: {
-            type: 'number',
-            description: 'Giá trị kết quả xét nghiệm (phụ thuộc vào loại xét nghiệm)',
-            examples: {
-              'STD/HEPATITIS': '0.3 (định tính, ratio)',
-              CD4: '350 (cells/μL)',
-              'Viral Load': '1500 (copies/mL)',
-              Hemoglobin: '14.5 (g/dL)',
-            },
-          },
           testId: {
             type: 'number',
             description: 'ID của loại xét nghiệm',
@@ -91,28 +83,22 @@ export const ApiCreateTestResult = () => {
             description: 'ID của bệnh nhân',
             example: 123,
           },
-          appointmentId: {
+          patientTreatmentId: {
             type: 'number',
-            description: 'ID của cuộc hẹn',
+            description: 'ID của đợt điều trị bệnh nhân',
             example: 456,
-          },
-          resultDate: {
-            type: 'string',
-            format: 'date-time',
-            description: 'Thời gian có kết quả xét nghiệm',
-            example: '2025-07-14T10:00:00Z',
           },
           notes: {
             type: 'string',
-            description: 'Ghi chú về kết quả xét nghiệm',
-            example: 'Kết quả xét nghiệm bình thường',
+            description: 'Ghi chú về yêu cầu xét nghiệm',
+            example: 'Xét nghiệm định kỳ theo lịch điều trị',
           },
         },
       },
     }),
     ApiResponse({
       status: 201,
-      description: 'Tạo kết quả xét nghiệm thành công',
+      description: 'Tạo yêu cầu xét nghiệm thành công',
       schema: TestResultResponseSchema,
     }),
     ApiResponse({
@@ -122,7 +108,7 @@ export const ApiCreateTestResult = () => {
         type: 'object',
         properties: {
           error: { type: 'string', example: 'BAD_REQUEST' },
-          message: { type: 'string', example: 'rawResultValue phải là số dương' },
+          message: { type: 'string', example: 'Thiếu thông tin bắt buộc' },
         },
       },
     }),
@@ -139,12 +125,12 @@ export const ApiCreateTestResult = () => {
     }),
     ApiResponse({
       status: 403,
-      description: 'Không có quyền - Chỉ nhân viên xét nghiệm (STAFF) có thể tạo kết quả',
+      description: 'Không có quyền - Chỉ bác sĩ (DOCTOR) có thể tạo yêu cầu xét nghiệm',
       schema: {
         type: 'object',
         properties: {
           error: { type: 'string', example: 'FORBIDDEN' },
-          message: { type: 'string', example: 'Chỉ nhân viên xét nghiệm mới có thể tạo kết quả' },
+          message: { type: 'string', example: 'Chỉ bác sĩ mới có thể tạo yêu cầu xét nghiệm' },
         },
       },
     }),
@@ -226,30 +212,40 @@ export const ApiUpdateTestResult = () => {
     ApiOperation({
       summary: 'Cập nhật kết quả xét nghiệm',
       description:
-        'Cập nhật thông tin kết quả xét nghiệm. Chỉ nhân viên tạo kết quả hoặc có quyền cao hơn mới được cập nhật.',
+        'Cập nhật kết quả xét nghiệm với giá trị thực tế. Nhân viên (STAFF) hoặc bác sĩ (DOCTOR) có thể cập nhật.',
     }),
     ApiBearerAuth(),
     ApiBody({
-      description: 'Dữ liệu cập nhật',
-      type: UpdateTestResultDto,
+      description: 'Dữ liệu cập nhật kết quả xét nghiệm',
       schema: {
         type: 'object',
         properties: {
           rawResultValue: {
             type: 'number',
-            description: 'Giá trị kết quả xét nghiệm mới',
+            description: 'Giá trị kết quả xét nghiệm (sẽ tự động tính interpretation và chuyển status thành Completed)',
             example: 0.8,
+          },
+          labTechId: {
+            type: 'number',
+            description: 'ID của kỹ thuật viên thực hiện xét nghiệm',
+            example: 789,
           },
           notes: {
             type: 'string',
-            description: 'Ghi chú mới',
-            example: 'Cập nhật kết quả sau khi kiểm tra lại',
+            description: 'Ghi chú về kết quả xét nghiệm',
+            example: 'Kết quả xét nghiệm bình thường',
           },
           resultDate: {
             type: 'string',
             format: 'date-time',
-            description: 'Thời gian có kết quả mới',
+            description: 'Thời gian có kết quả (tùy chọn, mặc định sẽ là thời gian hiện tại)',
             example: '2025-07-14T11:00:00Z',
+          },
+          status: {
+            type: 'string',
+            description: 'Trạng thái kết quả xét nghiệm',
+            enum: ['Processing', 'Completed'],
+            example: 'Completed',
           },
         },
       },
@@ -259,10 +255,40 @@ export const ApiUpdateTestResult = () => {
       description: 'Cập nhật thành công',
       schema: TestResultResponseSchema,
     }),
-    ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ' }),
-    ApiResponse({ status: 404, description: 'Không tìm thấy kết quả xét nghiệm' }),
+    ApiResponse({
+      status: 400,
+      description: 'Dữ liệu không hợp lệ',
+      schema: {
+        type: 'object',
+        properties: {
+          error: { type: 'string', example: 'BAD_REQUEST' },
+          message: { type: 'string', example: 'rawResultValue phải là số dương' },
+        },
+      },
+    }),
+    ApiResponse({
+      status: 404,
+      description: 'Không tìm thấy kết quả xét nghiệm',
+      schema: {
+        type: 'object',
+        properties: {
+          error: { type: 'string', example: 'NOT_FOUND' },
+          message: { type: 'string', example: 'TestResult với ID 1 không tồn tại' },
+        },
+      },
+    }),
     ApiResponse({ status: 401, description: 'Không có token hoặc token không hợp lệ' }),
-    ApiResponse({ status: 403, description: 'Không có quyền hoặc kết quả đã được duyệt' }),
+    ApiResponse({
+      status: 403,
+      description: 'Không có quyền - Chỉ nhân viên (STAFF) hoặc bác sĩ (DOCTOR) có thể cập nhật',
+      schema: {
+        type: 'object',
+        properties: {
+          error: { type: 'string', example: 'FORBIDDEN' },
+          message: { type: 'string', example: 'Chỉ nhân viên hoặc bác sĩ mới có thể cập nhật kết quả' },
+        },
+      },
+    }),
   )
 }
 
@@ -362,6 +388,42 @@ export const ApiUnapproveTestResult = () => {
         properties: {
           error: { type: 'string', example: 'BAD_REQUEST' },
           message: { type: 'string', example: 'Kết quả xét nghiệm chưa được duyệt' },
+        },
+      },
+    }),
+  )
+}
+
+export const ApiGetTestResultsByStatus = () => {
+  return applyDecorators(
+    ApiOperation({
+      summary: 'Lấy kết quả xét nghiệm theo trạng thái',
+      description: 'Lấy danh sách kết quả xét nghiệm theo trạng thái (Processing, Completed)',
+    }),
+    ApiBearerAuth(),
+    ApiResponse({
+      status: 200,
+      description: 'Thành công',
+      schema: {
+        type: 'object',
+        properties: {
+          data: {
+            type: 'array',
+            items: TestResultResponseSchema,
+          },
+          total: { type: 'number', example: 100 },
+        },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Không có token hoặc token không hợp lệ' }),
+    ApiResponse({
+      status: 403,
+      description: 'Không có quyền - Chỉ admin, bác sĩ, và nhân viên có thể xem kết quả',
+      schema: {
+        type: 'object',
+        properties: {
+          error: { type: 'string', example: 'FORBIDDEN' },
+          message: { type: 'string', example: 'Bạn không có quyền truy cập' },
         },
       },
     }),

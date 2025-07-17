@@ -12,11 +12,13 @@ export const TestResultSchema = z.object({
   patientTreatmentId: z.number(),
   rawResultValue: decimalSchema.nullable(),
   unit: z.string().nullable(),
-  interpretation: z.nativeEnum(TestInterpretation),
+  interpretation: z.nativeEnum(TestInterpretation).nullable(),
   cutOffValueUsed: decimalSchema.nullable(),
-  labTechId: z.number(),
-  resultDate: z.date(),
+  labTechId: z.number().nullable(),
+  resultDate: z.date().nullable(),
+  createdByDoctorId: z.number().nullable(),
   notes: z.string().nullable(),
+  status: z.string(),
   createdAt: z.date(),
   updatedAt: z.date(),
 })
@@ -25,15 +27,17 @@ export const CreateTestResultSchema = z.object({
   testId: z.number(),
   userId: z.number(),
   patientTreatmentId: z.number(),
-  rawResultValue: z.number(),
   notes: z.string().optional(),
-  resultDate: z.string().optional(),
 })
 
 export const UpdateTestResultSchema = z.object({
   rawResultValue: z.number().optional(),
-  notes: z.string().optional(),
+  interpretation: z.nativeEnum(TestInterpretation).optional(),
+  cutOffValueUsed: z.number().optional(),
+  labTechId: z.number().optional(),
   resultDate: z.string().optional(),
+  notes: z.string().optional(),
+  status: z.string().optional(),
 })
 
 export const TestResultQuerySchema = z.object({

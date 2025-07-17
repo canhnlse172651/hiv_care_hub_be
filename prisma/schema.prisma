@@ -258,7 +258,7 @@ model Doctor {
   schedules           DoctorSchedule[]
   appointments        Appointment[]
   patientTreatments   PatientTreatment[]
-  approvedTestResults TestResult[]       @relation("DoctorApprovedTestResults")
+  createdTestResults  TestResult[]       @relation("createdByDoctor")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -439,20 +439,19 @@ model TestResult {
   user   User @relation("PatientTestResults", fields: [userId], references: [id], onDelete: Cascade)
 
   // LabTech nhập kết quả
-  labTechId Int
-  labTech   User @relation("LabTechTestResults", fields: [labTechId], references: [id])
+  labTechId Int?
+  labTech   User? @relation("LabTechTestResults", fields: [labTechId], references: [id])
 
   // Thêm relation mới cho Doctor duyệt kết quả
-  approvedByDoctorId Int?
-  approvedByDoctor   Doctor? @relation("DoctorApprovedTestResults", fields: [approvedByDoctorId], references: [id])
+  createdByDoctorId Int?
+  createdByDoctor   Doctor? @relation("createdByDoctor", fields: [createdByDoctorId], references: [id])
 
-  resultDate DateTime
+  resultDate DateTime?
   notes      String?  @db.Text
-
+  status     String  @db.VarChar(100) // Trạng thái kết quả (e.g., "Proccessing", "Complete")
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  @@unique([testId])
 }
 
 model BlogPost {

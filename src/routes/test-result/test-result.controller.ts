@@ -4,13 +4,11 @@ import { TestResultService } from './test-result.service'
 import { CreateTestResultDto, UpdateTestResultDto, TestResultQueryDto } from './test-result.dto'
 import { AuthenticationGuard } from '../../shared/guards/authentication.guard'
 import { RolesGuard } from '../../shared/guards/roles.guard'
-import { CurrentUser } from '../../shared/decorators/current-user.decorator'
 import { Roles } from '../../shared/decorators/roles.decorator'
 import { Role } from 'src/shared/constants/role.constant'
-import { User } from '@prisma/client'
 import { Auth } from 'src/shared/decorators/auth.decorator'
 import { AuthType } from 'src/shared/constants/auth.constant'
-import { ApiCreateTestResult } from 'src/swagger/test-result.swagger'
+import { ApiCreateTestResult, ApiUpdateTestResult, ApiGetTestResultsByStatus } from 'src/swagger/test-result.swagger'
 import { ActiveUser } from 'src/shared/decorators/active-user.decorator'
 import { TokenPayload } from 'src/shared/types/jwt.type'
 
@@ -23,51 +21,30 @@ export class TestResultController {
   constructor(private readonly testResultService: TestResultService) {}
 
   @Post()
-  @Roles(Role.Staff)
+  @Roles(Role.Doctor)
   @ApiOperation({
-    summary: 'Tạo kết quả xét nghiệm mới',
-    description: `Chỉ nhân viên (STAFF) có thể nhập kết quả xét nghiệm.
-Quy tắc xử lý theo Category:
-
-1. STD (Sexually Transmitted Diseases):
-   - Định tính (HIV, Syphilis):
-     + rawResultValue: tỉ lệ phản ứng (0.0 - 10.0)
-     + cutOffValue: thường là 1.0
-     + interpretation: POSITIVE nếu rawResultValue >= cutOffValue
+    summary: 'Tạo yêu cầu xét nghiệm mới',
+    description: `Chỉ bác sĩ (DOCTOR) có thể tạo yêu cầu xét nghiệm mới.   
+Flow hoạt động:
+1. Bác sĩ tạo yêu cầu xét nghiệm với thông tin cơ bản:
+   - testId: ID của loại xét nghiệm
+   - userId: ID của bệnh nhân
+   - patientTreatmentId: ID của đợt điều trị
+   - notes: Ghi chú (tùy chọn)
    
-2. HEPATITIS (Viêm gan):
-   - Định tính (HBsAg, Anti-HCV):
-     + rawResultValue: chỉ số S/CO (0.0 - 1000.0)
-     + cutOffValue: thường là 1.0
-     + interpretation: POSITIVE nếu rawResultValue >= cutOffValue
-
-3. IMMUNOLOGY (Miễn dịch):
-   - CD4 (Định lượng):
-     + rawResultValue: số tế bào/μL (0 - 2000)
-     + cutOffValue: 200 cells/μL
-     + interpretation: 
-       * DETECTED nếu rawResultValue >= cutOffValue
-       * NOT_DETECTED nếu rawResultValue < cutOffValue
-   - HIV Viral Load (Định lượng):
-     + rawResultValue: copies/mL (20 - 10,000,000)
-     + cutOffValue: 20 copies/mL (ngưỡng phát hiện)
-     + interpretation:
-       * DETECTED nếu rawResultValue >= cutOffValue
-       * NOT_DETECTED nếu rawResultValue < cutOffValue
-
-4. GENERAL (Xét nghiệm cơ bản):
-   - Các chỉ số máu, sinh hóa (Định lượng):
-     + rawResultValue: theo đơn vị tương ứng
-     + cutOffValue: giá trị tham chiếu
-     + interpretation: dựa vào khoảng tham chiếu
-
-Lưu ý quan trọng:
-- Hệ thống tự động lấy thông tin unit và cutOffValue từ bảng Test
-- Khi rawResultValue gần với cutOffValue (±10%), có thể cân nhắc kết quả INDETERMINATE
-- Mỗi test trong một appointment phải là duy nhất (không thể tạo 2 kết quả cho cùng 1 loại test)`,
+2. Hệ thống tự động tạo test result với:
+   - status: "Processing"
+   - rawResultValue: null
+   - interpretation: null
+   - cutOffValueUsed: null
+   - labTechId: null
+   - resultDate: null
+   
+3. Sau đó staff/bác sĩ sẽ cập nhật kết quả thực tế thông qua API update`,
   })
   @ApiCreateTestResult()
   async createTestResult(@ActiveUser() user: TokenPayload, @Body() createTestResultDto: CreateTestResultDto) {
+    console.log('createTestResult called with user:', createTestResultDto)
     return this.testResultService.createTestResult(createTestResultDto, user.userId)
   }
 
@@ -117,16 +94,42 @@ Lưu ý quan trọng:
   }
 
   @Put(':id')
-  @Roles(Role.Staff)
+  @Roles(Role.Staff, Role.Doctor)
   @ApiOperation({
     summary: 'Cập nhật kết quả xét nghiệm',
-    description:
-      'Chỉ nhân viên có thể cập nhật kết quả xét nghiệm. Nếu cập nhật rawResultValue, hệ thống sẽ tự động tính toán lại interpretation.',
+    description: `Nhân viên (STAFF) hoặc bác sĩ (DOCTOR) có thể cập nhật kết quả xét nghiệm.
+    
+Flow hoạt động:
+1. Staff/Bác sĩ nhập kết quả xét nghiệm:
+   - rawResultValue: Giá trị kết quả thực tế
+   - labTechId: ID của kỹ thuật viên thực hiện
+   - notes: Ghi chú (tùy chọn)
+   
+2. Hệ thống tự động:
+   - Tính toán interpretation dựa trên rawResultValue và cutOffValue
+   - Cập nhật cutOffValueUsed từ thông tin Test
+   - Set resultDate = thời gian hiện tại
+   - Chuyển status thành "Completed"
+   
+3. Nếu chỉ cập nhật notes/status mà không có rawResultValue:
+   - Chỉ cập nhật những trường được gửi lên`,
   })
+  @ApiUpdateTestResult()
   @ApiResponse({ status: 200, description: 'Cập nhật thành công' })
   @ApiResponse({ status: 404, description: 'Không tìm thấy' })
-  async updateTestResult(@Param('id', ParseIntPipe) id: number, @Body() updateTestResultDto: UpdateTestResultDto) {
-    return this.testResultService.updateTestResult(id, updateTestResultDto)
+  async updateTestResult(
+    @Param('id', ParseIntPipe) id: number,
+    @ActiveUser() user: TokenPayload,
+    @Body() updateTestResultDto: UpdateTestResultDto,
+  ) {
+    return this.testResultService.updateTestResult(id, updateTestResultDto, user.userId)
+  }
+
+  @Get('status/:status')
+  @Roles(Role.Admin, Role.Doctor, Role.Staff)
+  @ApiGetTestResultsByStatus()
+  async getTestResultsByStatus(@Param('status') status: string, @Query() query: TestResultQueryDto) {
+    return this.testResultService.findTestResultsByStatus(status, query)
   }
 
   @Delete(':id')
