@@ -1,0 +1,68 @@
+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Query } from '@nestjs/common'
+import { MeetingRecordService } from './meeting-record.service'
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger'
+
+import { Auth } from 'src/shared/decorators/auth.decorator'
+import { AuthType } from 'src/shared/constants/auth.constant'
+import { Roles } from 'src/shared/decorators/roles.decorator'
+import { Role } from 'src/shared/constants/role.constant'
+import {
+  CreateMeetingRecordDto,
+  CreateMeetingRecordDtoType,
+  MeetingRecordResponseType,
+  UpdateMeetingRecordDto,
+  UpdateMeetingRecordDtoType,
+} from './meeting-record.dto'
+import CustomZodValidationPipe from 'src/common/custom-zod-validate'
+import { PaginatedResponse } from 'src/shared/schemas/pagination.schema'
+import { ApiCreateMeetingRecord, ApiDeleteMeetingRecord, ApiGetAllMeetingRecords, ApiGetMeetingRecordByAppointmentId, ApiGetMeetingRecordById, ApiUpdateMeetingRecord } from 'src/swagger/meeting-record.swagger'
+
+@ApiTags('Meeting Record')
+@ApiBearerAuth()
+@Auth([AuthType.Bearer])
+@Roles(Role.Doctor, Role.Staff)
+@Controller('meeting-record')
+export class MeetingRecordController {
+  constructor(private readonly meetingRecordService: MeetingRecordService) {}
+
+  @ApiCreateMeetingRecord()
+  @Post()
+  async createMeetingRecord(
+    @Body(new CustomZodValidationPipe(CreateMeetingRecordDto)) data: CreateMeetingRecordDtoType,
+  ): Promise<MeetingRecordResponseType> {
+    return this.meetingRecordService.createMeetingRecord(data)
+  }
+
+  @ApiGetAllMeetingRecords()
+  @Get()
+  async getAllMeetingRecord(@Query() query: unknown): Promise<PaginatedResponse<MeetingRecordResponseType>> {
+    return this.meetingRecordService.getAllMeetingRecord(query)
+  }
+
+  @ApiGetMeetingRecordById()
+  @Get(':id')
+  async getMeetingRecordById(@Param('id', ParseIntPipe) id: number): Promise<MeetingRecordResponseType> {
+    return this.meetingRecordService.getMeetingRecordById(id)
+  }
+
+  @ApiGetMeetingRecordByAppointmentId()
+  @Get('appointment/:id')
+  async getMeetingRecordByAppointmentId(@Param('id', ParseIntPipe) id: number): Promise<MeetingRecordResponseType> {
+    return this.meetingRecordService.getMeetingRecordByAppointmentId(id)
+  }
+
+  @ApiUpdateMeetingRecord()
+  @Patch(':id')
+  async updateMeetingRecord(
+    @Param('id', ParseIntPipe) id: number,
+    @Body(new CustomZodValidationPipe(UpdateMeetingRecordDto)) data: UpdateMeetingRecordDtoType,
+  ): Promise<MeetingRecordResponseType> {
+    return this.meetingRecordService.updateMeetingRecord(id, data)
+  }
+
+  @ApiDeleteMeetingRecord()
+  @Delete(':id')
+  async deleteMeetingRecord(@Param('id', ParseIntPipe) id: number): Promise<MeetingRecordResponseType> {
+    return this.meetingRecordService.deleteMeetingRecord(id)
+  }
+}
