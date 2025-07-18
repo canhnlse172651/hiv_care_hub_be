@@ -5,7 +5,7 @@ import { PatientTreatmentRepository } from '../../../repositories/patient-treatm
 import { ENTITY_NAMES } from '../../../shared/constants/api.constants'
 import { PaginatedResponse, type PaginationOptions } from '../../../shared/schemas/pagination.schema'
 import { PaginationService } from '../../../shared/services/pagination.service'
-import { GetPatientTreatmentsByPatientSchema, QueryPatientTreatmentSchema } from '../patient-treatment.model'
+import { GetPatientTreatmentsByPatientSchema, PatientTreatmentQuerySchema } from '../patient-treatment.model'
 import { normalizeCustomMedicationsSchedule } from '../utils/custom-medications.utils'
 
 @Injectable()
@@ -112,7 +112,7 @@ export class PatientTreatmentQueryService {
 
   async getPatientTreatmentsByDoctorId(query: unknown): Promise<PaginatedResponse<PatientTreatment>> {
     try {
-      const validatedQuery = QueryPatientTreatmentSchema.parse(query)
+      const validatedQuery = PatientTreatmentQuerySchema.parse(query)
       const { doctorId, page, limit, sortBy, sortOrder } = validatedQuery
       if (!doctorId) {
         throw new BadRequestException('Doctor ID is required')

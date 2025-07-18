@@ -38,11 +38,8 @@ import {
   ApiSearchPatientTreatments,
 } from '../../swagger/patient-treatment.swagger'
 import { TreatmentComplianceStatsDto, TreatmentCostAnalysisDto } from './patient-treatment.analytics.dto'
-import {
-  CreatePatientTreatmentDto,
-  CreatePatientTreatmentDtoType,
-  PatientTreatmentQueryDto,
-} from './patient-treatment.dto'
+import { CreatePatientTreatmentDto, PatientTreatmentQueryDto } from './patient-treatment.dto'
+import type { CreatePatientTreatmentType } from './patient-treatment.model'
 import { PatientTreatmentService } from './patient-treatment.service'
 
 @ApiBearerAuth()
@@ -60,7 +57,7 @@ export class PatientTreatmentController {
   @Roles(Role.Admin, Role.Doctor)
   @ApiCreatePatientTreatment()
   async createPatientTreatment(
-    @Body(new CustomZodValidationPipe(CreatePatientTreatmentDto)) data: CreatePatientTreatmentDtoType,
+    @Body(new CustomZodValidationPipe(CreatePatientTreatmentDto)) data: CreatePatientTreatmentType,
     @CurrentUser() user: any,
     @Query('autoEndExisting') autoEndExisting?: string,
   ): Promise<PatientTreatment> {
