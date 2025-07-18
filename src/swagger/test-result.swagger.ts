@@ -1,5 +1,5 @@
 import { applyDecorators } from '@nestjs/common'
-import { ApiOperation, ApiResponse, ApiBody, ApiBearerAuth } from '@nestjs/swagger'
+import { ApiOperation, ApiResponse, ApiBody, ApiBearerAuth, ApiQuery } from '@nestjs/swagger'
 import { CreateTestResultDto, UpdateTestResultDto } from '../routes/test-result/test-result.dto'
 
 export const TestResultResponseSchema = {
@@ -154,7 +154,37 @@ export const ApiGetTestResults = () => {
       summary: 'Lấy danh sách kết quả xét nghiệm',
       description: 'Lấy danh sách kết quả xét nghiệm có phân trang và lọc',
     }),
+    ApiQuery({ name: 'page', type: 'number', description: 'Page number', example: 1, required: false }),
+    ApiQuery({ name: 'limit', type: 'number', description: 'Items per page', example: 10, required: false }),
     ApiBearerAuth(),
+    ApiQuery({
+      name: 'page',
+      required: false,
+      type: 'number',
+      description: 'Số trang (mặc định là 1)',
+      example: 1,
+    }),
+    ApiQuery({
+      name: 'limit',
+      required: false,
+      type: 'number',
+      description: 'Số lượng kết quả trên mỗi trang (mặc định là 10)',
+      example: 10,
+    }),
+    ApiQuery({
+      name: 'sortBy',
+      required: false,
+      type: 'string',
+      description: 'Trường để sắp xếp (mặc định là createdAt)',
+      example: 'createdAt',
+    }),
+    ApiQuery({
+      name: 'sortOrder',
+      required: false,
+      type: 'string',
+      description: 'Thứ tự sắp xếp (asc hoặc desc, mặc định là desc)',
+      example: 'desc',
+    }),
     ApiResponse({
       status: 200,
       description: 'Lấy danh sách thành công',
@@ -190,6 +220,9 @@ export const ApiGetTestResultById = () => {
       summary: 'Lấy kết quả xét nghiệm theo ID',
       description: 'Lấy thông tin chi tiết của một kết quả xét nghiệm',
     }),
+    ApiQuery({ name: 'page', type: 'number', description: 'Page number', example: 1, required: false }),
+    ApiQuery({ name: 'limit', type: 'number', description: 'Items per page', example: 10, required: false }),
+
     ApiBearerAuth(),
     ApiResponse({
       status: 200,
@@ -400,6 +433,9 @@ export const ApiGetTestResultsByStatus = () => {
       summary: 'Lấy kết quả xét nghiệm theo trạng thái',
       description: 'Lấy danh sách kết quả xét nghiệm theo trạng thái (Processing, Completed)',
     }),
+    ApiQuery({ name: 'page', type: 'number', description: 'Page number', example: 1, required: false }),
+    ApiQuery({ name: 'limit', type: 'number', description: 'Items per page', example: 10, required: false }),
+
     ApiBearerAuth(),
     ApiResponse({
       status: 200,
