@@ -52,6 +52,17 @@ export class PatientTreatmentQueryService {
       doctor: { include: { user: { select: { id: true, name: true, email: true } } } },
       protocol: { include: { medicines: { include: { medicine: true } } } },
       createdBy: { select: { id: true, name: true, email: true } },
+      testResults: {
+        select: {
+          id: true,
+          rawResultValue: true,
+          interpretation: true,
+          cutOffValueUsed: true,
+          notes: true,
+          resultDate: true,
+          status: true,
+        },
+      },
     }
   }
 
@@ -121,6 +132,17 @@ export class PatientTreatmentQueryService {
           patient: { select: { id: true, name: true, email: true } },
           protocol: true,
           createdBy: { select: { id: true, name: true } },
+          testResults: {
+            select: {
+              id: true,
+              rawResultValue: true,
+              interpretation: true,
+              cutOffValueUsed: true,
+              notes: true,
+              resultDate: true,
+              status: true,
+            },
+          },
         },
       )
       result.data = result.data.map((item) => {
@@ -158,6 +180,17 @@ export class PatientTreatmentQueryService {
             doctor: { include: { user: { select: { id: true, name: true, email: true } } } },
             protocol: { include: { medicines: { include: { medicine: true } } } },
             createdBy: { select: { id: true, name: true, email: true } },
+            testResults: {
+              select: {
+                id: true,
+                rawResultValue: true,
+                interpretation: true,
+                cutOffValueUsed: true,
+                notes: true,
+                resultDate: true,
+                status: true,
+              },
+            },
           },
         )
         result.data = result.data.map((item) => {
@@ -189,6 +222,17 @@ export class PatientTreatmentQueryService {
           doctor: { include: { user: { select: { id: true, name: true, email: true } } } },
           protocol: { include: { medicines: { include: { medicine: true } } } },
           createdBy: { select: { id: true, name: true, email: true } },
+          testResults: {
+            select: {
+              id: true,
+              rawResultValue: true,
+              interpretation: true,
+              cutOffValueUsed: true,
+              notes: true,
+              resultDate: true,
+              status: true,
+            },
+          },
         },
       )
       result.data = result.data.map((item) => {
