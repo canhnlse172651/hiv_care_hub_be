@@ -51,7 +51,7 @@ export class TestResultService {
     // Kiểm tra Test có tồn tại không
     const test = await this.testRepository.findTestById(data.testId)
     if (!test) {
-      throw new NotFoundException(`Test with ID ${data.testId} not found`)
+      throw new NotFoundException(`Không tìm thấy bài kiểm tra với ID ${data.testId}`)
     }
 
     // Tạo TestResult với status "Processing"
@@ -86,7 +86,7 @@ export class TestResultService {
   async findTestResultById(id: number): Promise<TestResult> {
     const testResult = await this.testResultRepository.findById(id)
     if (!testResult) {
-      throw new NotFoundException(`TestResult with ID ${id} not found`)
+      throw new NotFoundException(`Không tìm thấy kết quả xét nghiệm với ID ${id}`)
     }
     return testResult
   }
@@ -97,7 +97,7 @@ export class TestResultService {
   async updateTestResult(id: number, data: UpdateTestResultDto, userId: number): Promise<TestResult> {
     const existingTestResult = await this.testResultRepository.findById(id)
     if (!existingTestResult) {
-      throw new NotFoundException(`TestResult with ID ${id} not found`)
+      throw new NotFoundException(`Không tìm thấy kết quả xét nghiệm với ID ${id}`)
     }
 
     // Tạo object cập nhật
@@ -140,7 +140,7 @@ export class TestResultService {
   async deleteTestResult(id: number): Promise<void> {
     const testResult = await this.testResultRepository.findById(id)
     if (!testResult) {
-      throw new NotFoundException(`TestResult with ID ${id} not found`)
+      throw new NotFoundException(`Không tìm thấy kết quả xét nghiệm với ID ${id}`)
     }
 
     await this.testResultRepository.delete(id)
