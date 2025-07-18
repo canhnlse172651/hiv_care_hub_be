@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common'
 import { PatientTreatmentRepository } from 'src/repositories/patient-treatment.repository'
-import { CreatePatientTreatmentSchema, type CustomMedication } from '../patient-treatment.model'
+import { CreatePatientTreatmentSchema, type CustomMedicationType } from '../patient-treatment.model'
 
 type TreatmentItem = {
   patientId: string | number
@@ -148,7 +148,7 @@ export class PatientTreatmentBulkService {
     }
   }
 
-  private safeParseCustomMedications(value: any, itemIndex: number): CustomMedication[] | null {
+  private safeParseCustomMedications(value: any, itemIndex: number): CustomMedicationType[] | null {
     try {
       if (!value) return null
       let meds = value

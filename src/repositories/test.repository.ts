@@ -36,9 +36,11 @@ export class TestRepository {
   }
 
   async createTest(data: CreateTestDtoType): Promise<TestModel> {
+    console.log('Creating new test with data:', data)
     const result = await this.prisma.test.create({
       data,
     })
+    console.log('result', result)
     return result as TestModel
   }
 
@@ -46,7 +48,7 @@ export class TestRepository {
     const test = await this.prisma.test.findUnique({
       where: { id },
     })
-    if (!test) throw new Error(`Test with ID ${id} not found`)
+    if (!test) throw new Error(`Không tìm thấy bài kiểm tra với ID ${id}`)
     return test as TestModel
   }
 
@@ -104,7 +106,7 @@ export class TestRepository {
   }
 
   async findTestByName(name: string): Promise<TestModel | null> {
-    const result = await this.prisma.test.findUnique({
+    const result = await this.prisma.test.findFirst({
       where: { name },
     })
     return result as TestModel | null

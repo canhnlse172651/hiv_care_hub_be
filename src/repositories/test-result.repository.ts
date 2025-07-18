@@ -177,7 +177,7 @@ export class TestResultRepository {
   }
 
   async findById(id: number): Promise<TestResult | null> {
-    return await this.prisma.testResult.findUnique({
+    const result = await this.prisma.testResult.findUnique({
       where: { id },
       include: {
         test: true,
@@ -188,6 +188,10 @@ export class TestResultRepository {
         labTech: { select: { id: true, name: true } },
       },
     })
+    if (!result) {
+      throw new Error(`Không tìm thấy kết quả xét nghiệm với ID ${id}`)
+    }
+    return result
   }
 
   async update(id: number, data: TestResultUpdateData): Promise<TestResult> {
@@ -212,6 +216,10 @@ export class TestResultRepository {
   }
 
   async delete(id: number): Promise<TestResult> {
+    const result = await this.prisma.testResult.findUnique({ where: { id } })
+    if (!result) {
+      throw new Error(`Không tìm thấy kết quả xét nghiệm với ID ${id}`)
+    }
     return await this.prisma.testResult.delete({
       where: { id },
     })

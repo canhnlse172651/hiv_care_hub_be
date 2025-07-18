@@ -7,9 +7,8 @@ import { SharedErrorHandlingService } from '../../shared/services/error-handling
 import { PaginationService } from '../../shared/services/pagination.service'
 import {
   BulkCreatePatientTreatment,
-  CreatePatientTreatmentSchema,
   CustomMedicationsQuerySchema,
-  QueryPatientTreatmentSchema,
+  PatientTreatmentQuerySchema,
   UpdatePatientTreatment,
 } from './patient-treatment.model'
 import {
@@ -26,6 +25,7 @@ import {
   TreatmentAdherenceService,
   TreatmentContinuityService,
   ViralLoadMonitoringService,
+  PatientTreatmentCreateService,
 } from './services'
 
 @Injectable()
@@ -47,6 +47,7 @@ export class PatientTreatmentService {
     private readonly doctorProtocolAuthorizationService: DoctorProtocolAuthorizationService,
     private readonly treatmentContinuityService: TreatmentContinuityService,
     private readonly emergencyProtocolService: EmergencyProtocolService,
+    private readonly patientTreatmentCreateService: PatientTreatmentCreateService,
   ) {}
 
   // Validation service usage
@@ -267,7 +268,7 @@ export class PatientTreatmentService {
   async getActivePatientTreatments(query: unknown): Promise<PaginatedResponse<PatientTreatment>> {
     try {
       // Validate query for pagination
-      const validatedQuery = QueryPatientTreatmentSchema.parse(query)
+      const validatedQuery = PatientTreatmentQuerySchema.parse(query)
       const { page = 1, limit = 10, patientId, doctorId, protocolId, sortBy, sortOrder } = validatedQuery
 
       // Build order by clause
@@ -446,80 +447,6 @@ export class PatientTreatmentService {
       return this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.PATIENT_TREATMENT)
     }
   }
-
-  // Helper methods for bulk create
-  private safeParseNumber(value: any, fieldName: string, defaultValue?: number): number {
-    try {
-      if (value === null || value === undefined) {
-        if (defaultValue !== undefined) {
-          return defaultValue
-        }
-        throw new Error(`${fieldName} is required`)
-      }
-      const parsed: number = typeof value === 'string' ? Number(value) : Number(value)
-      if (isNaN(parsed) || !isFinite(parsed)) {
-        throw new Error(`${fieldName} must be a valid number`)
-      }
-      return parsed
-    } catch (error) {
-      throw new BadRequestException(`Error parsing number for ${fieldName}: ${error.message}`)
-    }
-  }
-
-  /**
-   * Kiểm tra sâu customMedications: phải là mảng hoặc object, mỗi phần tử phải có các trường cần thiết
-   * Trường schedule phải thuộc danh sách hợp lệ, các trường như price, durationUnit, durationValue phải đúng kiểu
-   */
-  private safeParseCustomMedications(value: any, itemIndex: number): any {
-    try {
-      if (!value) return null
-      let meds: any[] = []
-      if (Array.isArray(value)) {
-        meds = value
-      } else if (typeof value === 'string') {
-        meds = JSON.parse(value)
-      } else if (typeof value === 'object' && value !== null) {
-        meds = [value]
-      } else {
-        throw new BadRequestException(
-          `customMedications phải là mảng, object hoặc chuỗi JSON hợp lệ (item ${itemIndex})`,
-        )
-      }
-
-      const validSchedules = ['MORNING', 'AFTERNOON', 'NIGHT']
-      meds.forEach((med, idx) => {
-        if (!med || typeof med !== 'object') {
-          throw new BadRequestException(`customMedications[${idx}] phải là object hợp lệ (item ${itemIndex})`)
-        }
-        // Kiểm tra schedule
-        if ('schedule' in med) {
-          const scheduleStr = String(med.schedule)
-          if (typeof med.schedule !== 'string' || !validSchedules.includes(scheduleStr)) {
-            throw new BadRequestException(`customMedications[${idx}].schedule không hợp lệ (item ${itemIndex})`)
-          }
-        }
-        // Kiểm tra price
-        if ('price' in med && (typeof med.price !== 'number' || med.price < 0)) {
-          throw new BadRequestException(`customMedications[${idx}].price phải là số >= 0 (item ${itemIndex})`)
-        }
-        // Kiểm tra durationUnit
-        if ('durationUnit' in med) {
-          const unitStr = String(med.durationUnit)
-          if (!['DAY', 'WEEK', 'MONTH', 'YEAR'].includes(unitStr)) {
-            throw new BadRequestException(`customMedications[${idx}].durationUnit không hợp lệ (item ${itemIndex})`)
-          }
-        }
-        // Kiểm tra durationValue
-        if ('durationValue' in med && (typeof med.durationValue !== 'number' || med.durationValue <= 0)) {
-          throw new BadRequestException(`customMedications[${idx}].durationValue phải là số > 0 (item ${itemIndex})`)
-        }
-      })
-      return meds
-    } catch (error) {
-      throw new BadRequestException(`customMedications không hợp lệ cho item ${itemIndex}: ${error.message}`)
-    }
-  }
-
   /**
    * Normalize custom medications to ensure schedule is valid and type-safe
    */
@@ -567,185 +494,9 @@ export class PatientTreatmentService {
     return null
   }
 
-  // Create a patient treatment with validation, business rule check, and normalization
   async createPatientTreatment(data: any, userId: number, validate: boolean = true): Promise<any> {
     try {
-      // Parse and validate input
-      const patientId = this.safeParseNumber(data.patientId, 'patientId')
-      const doctorId = this.safeParseNumber(data.doctorId, 'doctorId')
-      // protocolId is now optional
-      let protocolId: number | undefined = undefined
-      if (data.protocolId !== undefined && data.protocolId !== null) {
-        protocolId = this.safeParseNumber(data.protocolId, 'protocolId')
-      }
-      // optional test result
-      let startDate: Date = new Date()
-      if (data.startDate) {
-        if (
-          typeof data.startDate === 'string' ||
-          typeof data.startDate === 'number' ||
-          data.startDate instanceof Date
-        ) {
-          startDate = new Date(data.startDate as string | number | Date)
-        }
-      }
-      let endDate: Date | undefined = undefined
-      if (data.endDate) {
-        if (typeof data.endDate === 'string' || typeof data.endDate === 'number' || data.endDate instanceof Date) {
-          endDate = new Date(data.endDate as string | number | Date)
-        }
-      }
-      const notes = typeof data.notes === 'string' ? data.notes : undefined
-      // Tính total từ protocol.medicines và customMedications
-      let total = 0
-      let protocolMedicines: any[] = []
-      let customMeds: any[] = []
-      if (protocolId) {
-        // Lấy protocol và giá thuốc
-        const protocol = await this.patientTreatmentRepository.findProtocolWithMedicines(protocolId)
-        if (protocol && Array.isArray(protocol.medicines)) {
-          protocolMedicines = protocol.medicines
-        }
-      }
-      if (data.customMedications) {
-        try {
-          if (Array.isArray(data.customMedications)) {
-            customMeds = data.customMedications
-          } else if (typeof data.customMedications === 'string') {
-            customMeds = JSON.parse(String(data.customMedications))
-          } else if (typeof data.customMedications === 'object' && data.customMedications !== null) {
-            customMeds = [data.customMedications]
-          } else {
-            customMeds = []
-          }
-        } catch {
-          customMeds = []
-        }
-      }
-      // Tính tổng tiền protocol medicines
-      for (const pm of protocolMedicines) {
-        if (pm.medicine && pm.medicine.price) {
-          let multiplier = 1
-          switch (pm.durationUnit) {
-            case 'DAY':
-              multiplier = pm.durationValue
-              break
-            case 'WEEK':
-              multiplier = pm.durationValue * 7
-              break
-            case 'MONTH':
-              multiplier = pm.durationValue * 30
-              break
-            case 'YEAR':
-              multiplier = pm.durationValue * 365
-              break
-          }
-          total += Number(pm.medicine.price) * multiplier
-        }
-      }
-      // Tính tổng tiền custom medicines
-      for (const cm of customMeds) {
-        if (cm.price) {
-          let multiplier = 1
-          switch (cm.durationUnit) {
-            case 'DAY':
-              multiplier = cm.durationValue
-              break
-            case 'WEEK':
-              multiplier = cm.durationValue * 7
-              break
-            case 'MONTH':
-              multiplier = cm.durationValue * 30
-              break
-            case 'YEAR':
-              multiplier = cm.durationValue * 365
-              break
-          }
-          total += Number(cm.price) * multiplier
-        }
-      }
-      let customMedications: any[] | Record<string, any> | null = null
-      if (data.customMedications) {
-        try {
-          customMedications = this.safeParseCustomMedications(data.customMedications, 1)
-        } catch (err) {
-          customMedications = null
-        }
-      }
-
-      // Only include protocolId if it is defined, otherwise omit it
-      const processedData: {
-        patientId: number
-        doctorId: number
-        startDate: Date
-        endDate?: Date
-        notes?: string
-        total: number
-        customMedications?: any[] | Record<string, any> | null
-        createdById: number
-        protocolId?: number
-        status?: boolean
-      } = {
-        patientId,
-        doctorId,
-        startDate,
-        endDate,
-        notes,
-        total,
-        customMedications,
-        createdById: userId,
-        status: typeof data.status === 'boolean' ? data.status : false,
-      }
-      if (protocolId !== undefined) {
-        processedData.protocolId = protocolId
-      }
-
-      // Business rule: Nếu customMedications có giá trị thì protocolId phải tồn tại
-      if (
-        customMedications &&
-        ((Array.isArray(customMedications) && customMedications.length > 0) ||
-          (typeof customMedications === 'object' && Object.keys(customMedications).length > 0)) &&
-        (protocolId === undefined || protocolId === null)
-      ) {
-        throw new BadRequestException(
-          'Custom medications require a valid protocolId. Personalized treatments must be based on an existing protocol.',
-        )
-      }
-
-      if (validate && typeof CreatePatientTreatmentSchema !== 'undefined') {
-        CreatePatientTreatmentSchema.parse(processedData)
-      }
-
-      // Business rule: Only 1 active treatment per patient
-      const existingActive = await this.patientTreatmentRepository.getActivePatientTreatments({ patientId })
-      if (existingActive && existingActive.length > 0) {
-        const activeProtocols = Array.from(new Set(existingActive.map((t) => t.protocolId)))
-        throw new ConflictException(
-          `Patient ${patientId} already has ${existingActive.length} active treatment(s) with protocol(s): ${activeProtocols.join(', ')}. Only 1 active protocol per patient is allowed.`,
-        )
-      }
-
-      // Normalize customMedications schedule before save
-      if (
-        processedData.customMedications &&
-        (Array.isArray(processedData.customMedications) || typeof processedData.customMedications === 'object')
-      ) {
-        processedData.customMedications = this.normalizeCustomMedicationsSchedule(processedData.customMedications)
-      }
-
-      // Create treatment record in DB
-      const created = await this.patientTreatmentRepository.createPatientTreatment(processedData)
-
-      // Normalize customMedications in response
-      if (
-        created &&
-        created.customMedications &&
-        (Array.isArray(created.customMedications) || typeof created.customMedications === 'object')
-      ) {
-        created.customMedications = this.normalizeCustomMedicationsSchedule(created.customMedications)
-      }
-
-      return created
+      return await this.patientTreatmentCreateService.createPatientTreatment(data, userId, validate)
     } catch (error) {
       return this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.PATIENT_TREATMENT)
     }

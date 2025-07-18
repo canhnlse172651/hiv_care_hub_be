@@ -403,7 +403,7 @@ model Reminder {
 // *** BẢNG MỚI: TEST (ĐỊNH NGHĨA CÁC LOẠI XÉT NGHIỆM CÓ SẴN) ***
 model Test {
   id             Int           @id @default(autoincrement())
-  name           String        @unique @db.VarChar(500) // Tên xét nghiệm (e.g., "HIV Ag/Ab Combo")
+  name           String        @db.VarChar(500) // Tên xét nghiệm (e.g., "HIV Ag/Ab Combo")
   description    String?       @db.Text
   method         String?       @db.VarChar(255) // Phương pháp (e.g., "ELISA", "PCR")
   category       TestCategory? // Enum mới để phân loại xét nghiệm
