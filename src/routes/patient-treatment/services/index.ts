@@ -1,6 +1,7 @@
 export * from './follow-up-appointment.service'
 export * from './patient-treatment-bulk.service'
 export * from './patient-treatment-business.service'
+export * from './patient-treatment-create.service'
 export * from './patient-treatment-query.service'
 export * from './patient-treatment-stats.service'
 export * from './validate/doctor-protocol-authorization.service'

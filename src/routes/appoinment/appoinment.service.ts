@@ -1,18 +1,19 @@
 import { BadRequestException, Injectable } from '@nestjs/common'
-import { AppoinmentRepository } from '../../repositories/appoinment.repository'
-import { AppointmentResponseType, CreateAppointmentDtoType, UpdateAppointmentDtoType } from './appoinment.dto'
-import { PaginatedResponse, PaginationOptions } from 'src/shared/schemas/pagination.schema'
 import { AppointmentStatus } from '@prisma/client'
-import { AuthRepository } from 'src/repositories/user.repository'
+import { DoctorRepository } from 'src/repositories/doctor.repository'
 import { ServiceRepository } from 'src/repositories/service.repository'
+import { AuthRepository } from 'src/repositories/user.repository'
+import { PaginatedResponse } from 'src/shared/schemas/pagination.schema'
+import { EmailService } from 'src/shared/services/email.service'
 import { PaginationService } from 'src/shared/services/pagination.service'
 import { formatTimeHHMM, isTimeBetween } from 'src/shared/utils/date.utils'
-import { PatientTreatmentService } from '../patient-treatment/patient-treatment.service'
-import { DoctorRepository } from 'src/repositories/doctor.repository'
+import { AppoinmentRepository } from '../../repositories/appoinment.repository'
 import { MeetingService } from '../meeting/meeting.service'
-import { EmailService } from 'src/shared/services/email.service'
-import { AppointmentHistoryService } from './appointment-history.service'
+import { PatientTreatmentService } from '../patient-treatment/patient-treatment.service'
 import { ReminderService } from '../reminder/reminder.service'
+import { AppointmentResponseType, CreateAppointmentDtoType, UpdateAppointmentDtoType } from './appoinment.dto'
+import { AppointmentHistoryService } from './appointment-history.service'
+import { custom } from 'zod'
 
 const slots = [
   { start: '07:00', end: '07:30' },
@@ -332,7 +333,11 @@ export class AppoinmentService {
     return updatedAppointment
   }
 
-  async updateAppointmentStatus(id: number, status: AppointmentStatus): Promise<AppointmentResponseType> {
+  async updateAppointmentStatus(
+    id: number,
+    status: AppointmentStatus,
+    autoEndExisting?: boolean,
+  ): Promise<AppointmentResponseType> {
     const existed = await this.appoinmentRepository.findAppointmentById(id)
     if (!existed) throw new BadRequestException('Appointment not found')
     // Ghi log lịch sử thay đổi trạng thái
@@ -348,33 +353,30 @@ export class AppoinmentService {
     }
 
     const updated = await this.appoinmentRepository.updateAppointmentStatus(id, status)
+    const refreshed = await this.appoinmentRepository.findAppointmentById(id)
 
     // Nếu trạng thái là CHECKIN hoặc COMPLETED thì tạo/cập nhật hồ sơ điều trị
     if (
-      (status === 'CHECKIN' || status === 'COMPLETED') &&
-      existed.user &&
+      refreshed &&
+      (refreshed.status === 'CHECKIN' || refreshed.status === 'COMPLETED') &&
       existed.user.id &&
-      existed.doctor &&
       existed.doctor.id &&
-      existed.service &&
       existed.service.id
     ) {
       try {
-        await this.patientTreatmentService.createPatientTreatment(
-          {
-            patientId: existed.user.id,
-            doctorId: existed.doctor.id,
-            protocolId: null,
-            notes: existed.notes || '',
-            status: true,
-            startDate: existed.appointmentTime || new Date(),
-            endDate: null,
-            customMedications: null,
-            createdById: existed.user.id,
-            total: 0,
-          },
-          existed.user.id,
-        )
+        const treatmentPayload: any = {
+          patientId: existed.user.id,
+          doctorId: existed.doctor.id,
+          protocolId: undefined,
+          notes: existed.notes || '',
+          status: true,
+          startDate: existed.appointmentTime || new Date(),
+          endDate: undefined,
+          createdById: existed.user.id,
+          total: 0,
+          autoEndExisting,
+        }
+        await this.patientTreatmentService.createPatientTreatment(treatmentPayload, existed.user.id)
       } catch (e) {
         console.error('Auto create PatientTreatment failed:', e)
       }

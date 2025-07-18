@@ -18,6 +18,7 @@ import {
   OrganFunctionService,
   PatientTreatmentBulkService,
   PatientTreatmentBusinessService,
+  PatientTreatmentCreateService,
   PatientTreatmentQueryService,
   PatientTreatmentStatsService,
   PregnancySafetyService,
@@ -55,6 +56,7 @@ import {
     DoctorProtocolAuthorizationService,
     TreatmentContinuityService,
     EmergencyProtocolService,
+    PatientTreatmentCreateService,
   ],
   exports: [PatientTreatmentService],
 })
