@@ -4,10 +4,6 @@ import { SharedErrorHandlingService } from '../../shared/services/error-handling
 import { PaginationService } from '../../shared/services/pagination.service'
 import { PatientTreatmentService } from './patient-treatment.service'
 import { FollowUpAppointmentService } from './services/follow-up-appointment.service'
-import { PatientTreatmentAnalyticsService } from './modules/analytics/patient-treatment-analytics.service'
-import { PatientTreatmentValidationService } from './modules/validation/patient-treatment-validation.service'
-import { PatientTreatmentCoreService } from './modules/core/patient-treatment-core.service'
-import { PatientTreatmentManagementService } from './modules/management/patient-treatment-management.service'
 
 describe('PatientTreatmentService', () => {
   let service: PatientTreatmentService
@@ -40,10 +36,6 @@ describe('PatientTreatmentService', () => {
         { provide: SharedErrorHandlingService, useValue: errorHandlingService },
         { provide: PaginationService, useValue: paginationService },
         { provide: FollowUpAppointmentService, useValue: followUpAppointmentService },
-        { provide: PatientTreatmentAnalyticsService, useValue: {} },
-        { provide: PatientTreatmentValidationService, useValue: {} },
-        { provide: PatientTreatmentCoreService, useValue: {} },
-        { provide: PatientTreatmentManagementService, useValue: {} },
       ],
     }).compile()
 
@@ -61,14 +53,28 @@ describe('PatientTreatmentService', () => {
     const treatmentData = { patientId: 1, protocolId: 2, doctorId: 3, startDate }
     const created = { id: 10, ...treatmentData }
     ;(patientTreatmentRepository.createPatientTreatment as jest.Mock).mockResolvedValue(created)
-    const result = await service.createPatientTreatment(treatmentData, 99)
+    const result = await service.createPatientTreatment(
+      {
+        ...treatmentData,
+        protocolId: treatmentData.protocolId ?? null,
+      },
+      99,
+    )
     expect(result).toEqual(created)
   })
 
   it('should throw if patient already has active treatment', async () => {
     const treatmentData = { patientId: 1, protocolId: 2, doctorId: 3, startDate: '2024-01-01' }
     ;(patientTreatmentRepository.getActivePatientTreatments as jest.Mock).mockResolvedValue([{ id: 1, protocolId: 2 }])
-    await expect(service.createPatientTreatment(treatmentData, 99)).rejects.toThrow('Business rule violation')
+    await expect(
+      service.createPatientTreatment(
+        {
+          ...treatmentData,
+          protocolId: treatmentData.protocolId ?? null,
+        },
+        99,
+      ),
+    ).rejects.toThrow('Business rule violation')
   })
 
   it('should update treatment successfully', async () => {
@@ -116,7 +122,14 @@ describe('PatientTreatmentService', () => {
     })
     const treatmentData = { patientId: 1, protocolId: 3, doctorId: 3, startDate }
     ;(patientTreatmentRepository.createPatientTreatment as jest.Mock).mockResolvedValue({ id: 2, ...treatmentData })
-    const result = await service.createPatientTreatment(treatmentData, 99, true)
+    const result = await service.createPatientTreatment(
+      {
+        ...treatmentData,
+        protocolId: treatmentData.protocolId ?? null,
+      },
+      99,
+      true,
+    )
     expect(result.id).toBe(2)
     expect(patientTreatmentRepository.updatePatientTreatment).toHaveBeenCalledWith(
       1,
@@ -127,17 +140,29 @@ describe('PatientTreatmentService', () => {
   it('should throw if startDate is more than 1 year in the past', async () => {
     const oldDate = new Date(Date.now() - 370 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
     const treatmentData = { patientId: 1, protocolId: 2, doctorId: 3, startDate: oldDate }
-    await expect(service.createPatientTreatment(treatmentData, 99)).rejects.toThrow(
-      'Start date cannot be more than 1 year in the past',
-    )
+    await expect(
+      service.createPatientTreatment(
+        {
+          ...treatmentData,
+          protocolId: treatmentData.protocolId ?? null,
+        },
+        99,
+      ),
+    ).rejects.toThrow('Start date cannot be more than 1 year in the past')
   })
 
   it('should throw if startDate is more than 2 years in the future', async () => {
     const futureDate = new Date(Date.now() + 3 * 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
     const treatmentData = { patientId: 1, protocolId: 2, doctorId: 3, startDate: futureDate }
-    await expect(service.createPatientTreatment(treatmentData, 99)).rejects.toThrow(
-      'Start date cannot be more than 2 years in the future',
-    )
+    await expect(
+      service.createPatientTreatment(
+        {
+          ...treatmentData,
+          protocolId: treatmentData.protocolId ?? null,
+        },
+        99,
+      ),
+    ).rejects.toThrow('Start date cannot be more than 2 years in the future')
   })
 
   it('should throw if endDate is before startDate', async () => {
@@ -145,7 +170,15 @@ describe('PatientTreatmentService', () => {
     const startDate = today.toISOString().slice(0, 10)
     const endDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
     const treatmentData = { patientId: 1, protocolId: 2, doctorId: 3, startDate, endDate }
-    await expect(service.createPatientTreatment(treatmentData, 99)).rejects.toThrow('End date must be after start date')
+    await expect(
+      service.createPatientTreatment(
+        {
+          ...treatmentData,
+          protocolId: treatmentData.protocolId ?? null,
+        },
+        99,
+      ),
+    ).rejects.toThrow('End date must be after start date')
   })
 
   it('should parse customMedications if stringified JSON', async () => {
@@ -156,7 +189,13 @@ describe('PatientTreatmentService', () => {
       ...treatmentData,
       customMedications: { foo: 1 },
     })
-    const result = await service.createPatientTreatment(treatmentData, 99)
+    const result = await service.createPatientTreatment(
+      {
+        ...treatmentData,
+        protocolId: treatmentData.protocolId ?? null,
+      },
+      99,
+    )
     expect(result.customMedications).toEqual({ foo: 1 })
   })
 
@@ -167,14 +206,28 @@ describe('PatientTreatmentService', () => {
       id: 12,
       ...treatmentData,
     })
-    const result = await service.createPatientTreatment(treatmentData, 100)
+    const result = await service.createPatientTreatment(
+      {
+        ...treatmentData,
+        protocolId: treatmentData.protocolId ?? null,
+      },
+      100,
+    )
     expect(result.customMedications).toEqual({ bar: 2 })
   })
 
   it('should throw if userId is invalid', async () => {
     const today = new Date().toISOString().slice(0, 10)
     const treatmentData = { patientId: 1, protocolId: 2, doctorId: 3, startDate: today }
-    await expect(service.createPatientTreatment(treatmentData, 0)).rejects.toThrow('Valid user ID is required')
+    await expect(
+      service.createPatientTreatment(
+        {
+          ...treatmentData,
+          protocolId: treatmentData.protocolId ?? null,
+        },
+        0,
+      ),
+    ).rejects.toThrow('Valid user ID is required')
   })
 
   it('should throw when updating treatment with invalid notes (too long)', async () => {

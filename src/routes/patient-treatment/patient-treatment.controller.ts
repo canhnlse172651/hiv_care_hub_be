@@ -38,11 +38,8 @@ import {
   ApiSearchPatientTreatments,
 } from '../../swagger/patient-treatment.swagger'
 import { TreatmentComplianceStatsDto, TreatmentCostAnalysisDto } from './patient-treatment.analytics.dto'
-import {
-  CreatePatientTreatmentDto,
-  CreatePatientTreatmentDtoType,
-  PatientTreatmentQueryDto,
-} from './patient-treatment.dto'
+import { CreatePatientTreatmentDto, PatientTreatmentQueryDto } from './patient-treatment.dto'
+import type { CreatePatientTreatmentType } from './patient-treatment.model'
 import { PatientTreatmentService } from './patient-treatment.service'
 
 @ApiBearerAuth()
@@ -60,13 +57,28 @@ export class PatientTreatmentController {
   @Roles(Role.Admin, Role.Doctor)
   @ApiCreatePatientTreatment()
   async createPatientTreatment(
-    @Body(new CustomZodValidationPipe(CreatePatientTreatmentDto)) data: CreatePatientTreatmentDtoType,
+    @Body(new CustomZodValidationPipe(CreatePatientTreatmentDto)) data: CreatePatientTreatmentType,
     @CurrentUser() user: any,
     @Query('autoEndExisting') autoEndExisting?: string,
   ): Promise<PatientTreatment> {
     const userId = user.userId || user.id
-    return this.patientTreatmentService.createPatientTreatment(data, Number(userId), autoEndExisting === 'true')
+    return this.patientTreatmentService.createPatientTreatment(
+      {
+        ...data,
+        protocolId: data.protocolId ?? null,
+      },
+      Number(userId),
+      autoEndExisting === 'true',
+    ) as Promise<PatientTreatment>
   }
+
+  // ===============================
+  // STATIC ROUTES FIRST
+  // ===============================
+
+  // ===============================
+  // DYNAMIC ROUTES AFTER STATIC
+  // ===============================
 
   @Get()
   @Roles(Role.Admin, Role.Doctor, Role.Staff)
@@ -149,12 +161,10 @@ export class PatientTreatmentController {
   @ApiSearchPatientTreatments()
   async searchPatientTreatments(
     @Query('search') search?: string,
-    @Query('q') q?: string,
-    @Query('query') query?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ): Promise<PaginatedResponse<PatientTreatment>> {
-    const searchQuery = search || q || query || ''
+    const searchQuery = search || ''
     const pageNum = page ? Number(page) : 1
     const limitNum = limit ? Number(limit) : 10
     return this.patientTreatmentService.searchPatientTreatments(searchQuery, pageNum, limitNum)
@@ -166,7 +176,7 @@ export class PatientTreatmentController {
   async getPatientTreatmentsByDateRange(
     @Query('startDate') startDateStr?: string,
     @Query('endDate') endDateStr?: string,
-  ): Promise<PatientTreatment[]> {
+  ): Promise<PaginatedResponse<PatientTreatment>> {
     const startDate = startDateStr ? new Date(startDateStr) : new Date()
     const endDate = endDateStr ? new Date(endDateStr) : new Date()
     return this.patientTreatmentService.getPatientTreatmentsByDateRange(startDate, endDate)
@@ -199,9 +209,7 @@ export class PatientTreatmentController {
   @Roles(Role.Admin, Role.Doctor, Role.Staff, Role.Patient)
   @ApiGetActivePatientTreatmentsByPatient()
   getActivePatientTreatmentsByPatient(@Param('patientId', ParseIntPipe) patientId: number) {
-    const result = this.patientTreatmentService.getActivePatientTreatmentsByPatient(patientId)
-    if (!result || typeof result !== 'object') throw new InternalServerErrorException('Unexpected result')
-    return result
+    return this.patientTreatmentService.getActivePatientTreatmentsByPatient(patientId)
   }
 
   @Get('custom-medications')
@@ -298,46 +306,38 @@ export class PatientTreatmentController {
   @ApiEndActivePatientTreatments()
   @ApiOperation({ summary: 'End all active treatments for a patient' })
   endActivePatientTreatments(@Param('patientId', ParseIntPipe) patientId: number) {
-    const result = this.patientTreatmentService.endActivePatientTreatments(patientId)
-    if (!result || typeof result !== 'object') throw new InternalServerErrorException('Unexpected result')
-    return {
-      success: Boolean(result.success),
-      message: result.message ?? '',
-      deactivatedCount: result.deactivatedCount ?? 0,
-      endDate: result.endDate ?? new Date(),
-      activeTreatments: Array.isArray(result.activeTreatments) ? result.activeTreatments : [],
-    }
+    return this.patientTreatmentService.endActivePatientTreatments(patientId)
   }
 
   @Get('validate/single-protocol/:patientId')
   @Roles(Role.Admin, Role.Doctor, Role.Staff)
   @ApiOperation({ summary: 'Validate single protocol rule for a patient' })
   validateSingleProtocolRule(@Param('patientId', ParseIntPipe) patientId: number) {
-    const result = this.patientTreatmentService.validateSingleProtocolRule(patientId)
-    if (!result || typeof result !== 'object') throw new InternalServerErrorException('Unexpected result')
-    return {
-      isValid: Boolean(result.isValid),
-      errors: Array.isArray(result.errors) ? result.errors : [],
-      currentTreatments: Array.isArray(result.currentTreatments) ? result.currentTreatments : [],
-    }
+    return this.patientTreatmentService.validateSingleProtocolRule(patientId)
   }
 
   @Post('calculate-cost')
   @Roles(Role.Admin, Role.Doctor, Role.Staff)
+  @ApiGetTreatmentCostAnalysis()
   @ApiOperation({
     summary: 'Calculate treatment cost preview',
     description: 'Calculate estimated cost for a treatment before creating it. Useful for cost preview in frontend.',
   })
-  calculateTreatmentCost(
+  async calculateTreatmentCost(
     @Body()
     costData: {
       protocolId: number
-      customMedications?: { cost: number }[]
+      customMedications?: { price?: number; durationUnit?: string; durationValue?: number }[]
       startDate: string
       endDate?: string
     },
-  ) {
-    const result = this.patientTreatmentService.calculateTreatmentCost(
+  ): Promise<{
+    isValid: boolean
+    calculatedTotal: number
+    breakdown: Record<string, any>
+    warnings: string[]
+  }> {
+    const result = await this.patientTreatmentService.calculateTreatmentCost(
       costData.protocolId,
       costData.customMedications,
       new Date(costData.startDate),
@@ -346,9 +346,9 @@ export class PatientTreatmentController {
     if (!result || typeof result !== 'object') throw new InternalServerErrorException('Unexpected result')
     return {
       isValid: Boolean(result.isValid),
-      calculatedTotal: result.calculatedTotal ?? 0,
-      breakdown: result.breakdown ?? {},
-      warnings: Array.isArray(result.warnings) ? result.warnings : [],
+      calculatedTotal: Number(result.calculatedTotal ?? 0),
+      breakdown: typeof result.breakdown === 'object' && result.breakdown !== null ? result.breakdown : {},
+      warnings: Array.isArray(result.warnings) ? result.warnings.map(String) : [],
     }
   }
 
@@ -359,6 +359,7 @@ export class PatientTreatmentController {
     description: 'Comprehensive overview statistics for all treatments including trends and top protocols.',
   })
   async getGeneralTreatmentStats() {
+    // Ensure this delegates to the modular stats service via the main service
     return this.patientTreatmentService.getGeneralTreatmentStats()
   }
 

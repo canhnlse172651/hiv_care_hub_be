@@ -28,10 +28,10 @@ export class TestService {
   ) {}
 
   async createTest(data: CreateTestDtoType): Promise<TestModel> {
-    // Check if test with same name already exists
+    // Kiểm tra xem tên xét nghiệm đã tồn tại chưa
     const existingTest = await this.testRepository.findTestByName(data.name)
     if (existingTest) {
-      throw new BadRequestException('Test with this name already exists')
+      throw new BadRequestException('Tên xét nghiệm này đã tồn tại') // Thay đổi thông báo lỗi sang tiếng Việt
     }
 
     return await this.testRepository.createTest(data)
@@ -40,7 +40,7 @@ export class TestService {
   async getTestById(id: number): Promise<TestModel> {
     const test = await this.testRepository.findTestById(id)
     if (!test) {
-      throw new NotFoundException('Test not found')
+      throw new NotFoundException('Không tìm thấy xét nghiệm') // Thay đổi thông báo lỗi sang tiếng Việt
     }
     return test
   }
@@ -59,14 +59,14 @@ export class TestService {
   async updateTest(id: number, data: UpdateTestDtoType): Promise<TestModel> {
     const existingTest = await this.testRepository.findTestById(id)
     if (!existingTest) {
-      throw new NotFoundException('Test not found')
+      throw new NotFoundException('Không tìm thấy xét nghiệm') // Thay đổi thông báo lỗi sang tiếng Việt
     }
 
-    // Check if trying to update name to an existing name
+    // Kiểm tra nếu tên xét nghiệm đã tồn tại
     if (data.name && data.name !== existingTest.name) {
       const testWithSameName = await this.testRepository.findTestByName(data.name)
       if (testWithSameName) {
-        throw new BadRequestException('Test with this name already exists')
+        throw new BadRequestException('Tên xét nghiệm này đã tồn tại') // Thay đổi thông báo lỗi sang tiếng Việt
       }
     }
 
@@ -76,7 +76,7 @@ export class TestService {
   async deleteTest(id: number): Promise<TestModel> {
     const existingTest = await this.testRepository.findTestById(id)
     if (!existingTest) {
-      throw new NotFoundException('Test not found')
+      throw new NotFoundException('Không tìm thấy xét nghiệm') // Thay đổi thông báo lỗi sang tiếng Việt
     }
 
     return await this.testRepository.deleteTest(id)

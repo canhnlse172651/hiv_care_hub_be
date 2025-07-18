@@ -1,15 +1,19 @@
 import { BadRequestException, Injectable } from '@nestjs/common'
-import { AppoinmentRepository } from '../../repositories/appoinment.repository'
-import { AppointmentResponseType, CreateAppointmentDtoType, UpdateAppointmentDtoType } from './appoinment.dto'
-import { PaginatedResponse, PaginationOptions } from 'src/shared/schemas/pagination.schema'
 import { AppointmentStatus } from '@prisma/client'
-import { AuthRepository } from 'src/repositories/user.repository'
+import { DoctorRepository } from 'src/repositories/doctor.repository'
 import { ServiceRepository } from 'src/repositories/service.repository'
+import { AuthRepository } from 'src/repositories/user.repository'
+import { PaginatedResponse } from 'src/shared/schemas/pagination.schema'
+import { EmailService } from 'src/shared/services/email.service'
 import { PaginationService } from 'src/shared/services/pagination.service'
 import { formatTimeHHMM, isTimeBetween } from 'src/shared/utils/date.utils'
-import { DoctorRepository } from 'src/repositories/doctor.repository'
+import { AppoinmentRepository } from '../../repositories/appoinment.repository'
 import { MeetingService } from '../meeting/meeting.service'
-import { EmailService } from 'src/shared/services/email.service'
+import { PatientTreatmentService } from '../patient-treatment/patient-treatment.service'
+import { ReminderService } from '../reminder/reminder.service'
+import { AppointmentResponseType, CreateAppointmentDtoType, UpdateAppointmentDtoType } from './appoinment.dto'
+import { AppointmentHistoryService } from './appointment-history.service'
+import { custom } from 'zod'
 
 const slots = [
   { start: '07:00', end: '07:30' },
@@ -38,6 +42,9 @@ export class AppoinmentService {
     private readonly doctorRepository: DoctorRepository,
     private readonly meetingService: MeetingService,
     private readonly emailService: EmailService,
+    private readonly patientTreatmentService: PatientTreatmentService,
+    private readonly appointmentHistoryService: AppointmentHistoryService,
+    private readonly reminderService: ReminderService,
   ) {}
 
   async createAppointment(data: CreateAppointmentDtoType): Promise<AppointmentResponseType> {
@@ -182,7 +189,17 @@ export class AppoinmentService {
         meetingUrl: data.doctorMeetingUrl || '',
       })
     }
-    return await this.appoinmentRepository.createAppointment(data)
+    const appointment = await this.appoinmentRepository.createAppointment(data)
+
+    // Always create a reminder for the appointment
+    await this.reminderService.createAppointmentReminder({
+      userId: data.userId,
+      appointmentId: appointment.id,
+      appointmentTime: appointment.appointmentTime,
+      // Optionally, you can add message or remindBeforeMinutes here
+    })
+
+    return appointment
   }
 
   async updateAppointment(id: number, data: UpdateAppointmentDtoType): Promise<AppointmentResponseType> {
@@ -306,13 +323,65 @@ export class AppoinmentService {
     //
 
     // Gán lại doctorId vào data update
-    return this.appoinmentRepository.updateAppointment(id, { ...data, doctorId: finalDoctorId })
+    const updatedAppointment = await this.appoinmentRepository.updateAppointment(id, {
+      ...data,
+      doctorId: finalDoctorId,
+    })
+
+    // (Reminder update logic removed; reminders are created on appointment creation only)
+
+    return updatedAppointment
   }
 
-  async updateAppointmentStatus(id: number, status: AppointmentStatus): Promise<AppointmentResponseType> {
+  async updateAppointmentStatus(
+    id: number,
+    status: AppointmentStatus,
+    autoEndExisting?: boolean,
+  ): Promise<AppointmentResponseType> {
     const existed = await this.appoinmentRepository.findAppointmentById(id)
     if (!existed) throw new BadRequestException('Appointment not found')
-    return this.appoinmentRepository.updateAppointmentStatus(id, status)
+    // Ghi log lịch sử thay đổi trạng thái
+    try {
+      await this.appointmentHistoryService.logStatusChange({
+        appointmentId: existed.id,
+        oldStatus: existed.status,
+        newStatus: status,
+        // changedBy: có thể lấy từ context nếu cần
+      })
+    } catch (e) {
+      console.error('Log appointment status history failed:', e)
+    }
+
+    const updated = await this.appoinmentRepository.updateAppointmentStatus(id, status)
+    const refreshed = await this.appoinmentRepository.findAppointmentById(id)
+
+    // Nếu trạng thái là CHECKIN hoặc COMPLETED thì tạo/cập nhật hồ sơ điều trị
+    if (
+      refreshed &&
+      (refreshed.status === 'CHECKIN' || refreshed.status === 'COMPLETED') &&
+      existed.user.id &&
+      existed.doctor.id &&
+      existed.service.id
+    ) {
+      try {
+        const treatmentPayload: any = {
+          patientId: existed.user.id,
+          doctorId: existed.doctor.id,
+          protocolId: undefined,
+          notes: existed.notes || '',
+          status: true,
+          startDate: existed.appointmentTime || new Date(),
+          endDate: undefined,
+          createdById: existed.user.id,
+          total: 0,
+          autoEndExisting,
+        }
+        await this.patientTreatmentService.createPatientTreatment(treatmentPayload, existed.user.id)
+      } catch (e) {
+        console.error('Auto create PatientTreatment failed:', e)
+      }
+    }
+    return updated
   }
 
   async deleteAppointment(id: number): Promise<AppointmentResponseType> {

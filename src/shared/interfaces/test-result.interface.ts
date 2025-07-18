@@ -4,21 +4,24 @@ export interface TestResultCreateData {
   testId: number
   userId: number
   patientTreatmentId: number
-  rawResultValue: Prisma.Decimal
+  rawResultValue: Prisma.Decimal | null
   interpretation: TestInterpretation
   cutOffValueUsed: Prisma.Decimal | null
-  labTechId: number
-  resultDate: Date
+  labTechId: number | null
+  resultDate: Date | null
   notes?: string | null
-  doctorId?: number | null
+  status: string
+  createdByDoctorId?: number | null
 }
 
 export interface TestResultUpdateData {
   rawResultValue?: Prisma.Decimal
   interpretation?: TestInterpretation
   cutOffValueUsed?: Prisma.Decimal | null
+  labTechId?: number
   notes?: string
   resultDate?: Date
+  status?: string
   doctorId?: number | null
 }
 

@@ -11,13 +11,12 @@ import { CateBlogModule } from './routes/category-blog/cate-blog.module'
 import { DoctorModule } from './routes/doctor/doctor.module'
 import { MediaModule } from './routes/media/media.module'
 import { MedicineModule } from './routes/medicine/medicine.module'
-import { TestPatientTreatmentModule } from './routes/patient-treatment/modules/test/patient-treatment-test.module'
 import { PatientTreatmentModule } from './routes/patient-treatment/patient-treatment.module'
 import { PermissionModule } from './routes/permission/permission.module'
 import { RoleModule } from './routes/role/role.module'
 import { ServiceModule } from './routes/service/service.module'
-import { TestModule } from './routes/test/test.module'
 import { TestResultModule } from './routes/test-result/test-result.module'
+import { TestModule } from './routes/test/test.module'
 import { TreatmentProtocolModule } from './routes/treatment-protocol/treatment-protocol.module'
 import { UserModule } from './routes/user/user.module'
 import { CatchEverythingFilter } from './shared/fillters/catch-everything.fillter'
@@ -35,7 +34,6 @@ import { SharedModule } from './shared/shared.module'
     MedicineModule,
     TreatmentProtocolModule,
     PatientTreatmentModule,
-    TestPatientTreatmentModule, // Add test module
     TestModule, // Add test module
     TestResultModule, // Add test result module
     CateBlogModule,

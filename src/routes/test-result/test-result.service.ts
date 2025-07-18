@@ -45,42 +45,31 @@ export class TestResultService {
   }
 
   /**
-   * Tạo mới TestResult với tính toán interpretation tự động
+   * Tạo mới TestResult với status "Processing"
    */
-  async createTestResult(data: CreateTestResultDto, labTechId: number): Promise<TestResult> {
+  async createTestResult(data: CreateTestResultDto, doctorId: number): Promise<TestResult> {
     // Kiểm tra Test có tồn tại không
     const test = await this.testRepository.findTestById(data.testId)
     if (!test) {
-      throw new NotFoundException(`Test with ID ${data.testId} not found`)
+      throw new NotFoundException(`Không tìm thấy bài kiểm tra với ID ${data.testId}`)
     }
 
-    // Cast test to proper type for calculation
-    const testInfo: TestWithQuantitativeInfo = {
-      id: test.id,
-      name: test.name,
-      isQuantitative: test.isQuantitative ?? false,
-      cutOffValue: test.cutOffValue ?? null,
-      unit: test.unit ?? null,
-      category: test.category ?? null,
-      description: test.description ?? null,
-    }
-
-    // Tính toán interpretation tự động
-    const interpretation = this.calculateInterpretation(testInfo, data.rawResultValue)
-
-    // Tạo TestResult với interpretation đã tính toán
+    // Tạo TestResult với status "Processing"
     const testResultData: TestResultCreateData = {
       testId: data.testId,
       userId: data.userId,
       patientTreatmentId: data.patientTreatmentId,
-      rawResultValue: new Prisma.Decimal(data.rawResultValue),
-      interpretation,
-      cutOffValueUsed: test.cutOffValue ?? null,
-      labTechId,
-      resultDate: data.resultDate ? new Date(data.resultDate) : new Date(),
+      rawResultValue: null,
+      interpretation: TestInterpretation.NOT_DETECTED, // Mặc định là NOT_DETECTED
+      cutOffValueUsed: null,
+      labTechId: null,
+      resultDate: null, // Explicitly set to null on creation
       notes: data.notes || null,
+      status: 'Processing',
+      createdByDoctorId: doctorId || null, // Set doctorId if provided
     }
 
+    console.log('testResultData', testResultData)
     return await this.testResultRepository.createTestResult(testResultData)
   }
 
@@ -97,26 +86,29 @@ export class TestResultService {
   async findTestResultById(id: number): Promise<TestResult> {
     const testResult = await this.testResultRepository.findById(id)
     if (!testResult) {
-      throw new NotFoundException(`TestResult with ID ${id} not found`)
+      throw new NotFoundException(`Không tìm thấy kết quả xét nghiệm với ID ${id}`)
     }
     return testResult
   }
 
   /**
-   * Cập nhật TestResult
+   * Cập nhật TestResult với kết quả xét nghiệm
    */
-  async updateTestResult(id: number, data: UpdateTestResultDto): Promise<TestResult> {
+  async updateTestResult(id: number, data: UpdateTestResultDto, userId: number): Promise<TestResult> {
     const existingTestResult = await this.testResultRepository.findById(id)
     if (!existingTestResult) {
-      throw new NotFoundException(`TestResult with ID ${id} not found`)
+      throw new NotFoundException(`Không tìm thấy kết quả xét nghiệm với ID ${id}`)
     }
 
-    // Nếu cập nhật rawResultValue, tính toán lại interpretation
+    // Tạo object cập nhật
     const updateData: TestResultUpdateData = {
       notes: data.notes,
       resultDate: data.resultDate ? new Date(data.resultDate) : undefined,
+      status: data.status,
+      labTechId: userId,
     }
 
+    // Nếu có rawResultValue, tính toán interpretation tự động
     if (data.rawResultValue !== undefined) {
       const test = await this.testRepository.findTestById(existingTestResult.testId)
       if (test) {
@@ -134,6 +126,8 @@ export class TestResultService {
         updateData.interpretation = this.calculateInterpretation(testInfo, data.rawResultValue)
         updateData.cutOffValueUsed = test.cutOffValue ?? null
         updateData.rawResultValue = new Prisma.Decimal(data.rawResultValue)
+        updateData.resultDate = new Date() // Always set resultDate when entering result
+        updateData.status = 'Completed' // Automatically change status to Completed
       }
     }
 
@@ -146,7 +140,7 @@ export class TestResultService {
   async deleteTestResult(id: number): Promise<void> {
     const testResult = await this.testResultRepository.findById(id)
     if (!testResult) {
-      throw new NotFoundException(`TestResult with ID ${id} not found`)
+      throw new NotFoundException(`Không tìm thấy kết quả xét nghiệm với ID ${id}`)
     }
 
     await this.testResultRepository.delete(id)
@@ -171,5 +165,30 @@ export class TestResultService {
    */
   async findTestResultsByLabTechId(labTechId: number): Promise<TestResult[]> {
     return await this.testResultRepository.findByLabTechId(labTechId)
+  }
+
+  /**
+   * Lấy TestResult với null Lab Tech ID
+   */
+  async findTestResultsByNullLabTechId(query: TestResultQuery): Promise<{ data: TestResult[]; total: number }> {
+    const result = await this.testResultRepository.findByNullLabTechId(query)
+    return {
+      data: result.data,
+      total: result.meta.total,
+    }
+  }
+
+  /**
+   * Lấy TestResult theo Status
+   */
+  async findTestResultsByStatus(
+    status: string,
+    query: TestResultQuery,
+  ): Promise<{ data: TestResult[]; total: number }> {
+    const result = await this.testResultRepository.findByStatus(status, query)
+    return {
+      data: result.data,
+      total: result.meta.total,
+    }
   }
 }

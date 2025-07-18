@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { TestResult, Prisma } from '@prisma/client'
+import { TestResult, Prisma, TestInterpretation } from '@prisma/client'
 import { PrismaService } from '../shared/services/prisma.service'
 import { PaginationService } from '../shared/services/pagination.service'
 import { CreateTestResultDto, UpdateTestResultDto } from '../routes/test-result/test-result.dto'
@@ -21,26 +21,38 @@ export class TestResultRepository {
   }
 
   async createTestResult(data: TestResultCreateData): Promise<TestResult> {
+    const createData = {
+      ...data,
+      interpretation: data.interpretation || TestInterpretation.NOT_DETECTED,
+      // resultDate will be null on creation, set only during update
+    }
     return await this.prisma.testResult.create({
-      data,
+      data: createData,
       include: {
         test: true,
-        user: true,
+        user: {
+          select: { id: true, name: true, email: true, phoneNumber: true },
+        },
         patientTreatment: true,
-        labTech: true,
+        labTech: { select: { id: true, name: true } },
       },
     })
   }
 
   async create(data: TestResultCreateData): Promise<TestResult> {
+    const createData = {
+      ...data,
+      interpretation: data.interpretation || TestInterpretation.NOT_DETECTED,
+      // Don't set resultDate on create - it will be set during update
+    }
+
     return await this.prisma.testResult.create({
-      data: {
-        ...data,
-        resultDate: data.resultDate || new Date(),
-      },
+      data: createData,
       include: {
         test: true,
-        user: true,
+        user: {
+          select: { id: true, name: true, email: true, phoneNumber: true },
+        },
         patientTreatment: true,
         labTech: true,
       },
@@ -98,9 +110,10 @@ export class TestResultRepository {
       where,
       {
         test: true,
-        user: true,
-        appointment: true,
-        labTech: true,
+        user: {
+          select: { id: true, name: true, email: true, phoneNumber: true },
+        },
+        labTech: { select: { id: true, name: true } },
       },
     )
 
@@ -155,22 +168,30 @@ export class TestResultRepository {
 
     return this.paginationService.paginate(this.prisma.testResult, validatedOptions, where, {
       test: true,
-      user: true,
+      user: {
+        select: { id: true, name: true, email: true, phoneNumber: true },
+      },
       appointment: true,
       labTech: true,
     })
   }
 
   async findById(id: number): Promise<TestResult | null> {
-    return await this.prisma.testResult.findUnique({
+    const result = await this.prisma.testResult.findUnique({
       where: { id },
       include: {
         test: true,
-        user: true,
+        user: {
+          select: { id: true, name: true, email: true, phoneNumber: true },
+        },
         patientTreatment: true,
-        labTech: true,
+        labTech: { select: { id: true, name: true } },
       },
     })
+    if (!result) {
+      throw new Error(`Không tìm thấy kết quả xét nghiệm với ID ${id}`)
+    }
+    return result
   }
 
   async update(id: number, data: TestResultUpdateData): Promise<TestResult> {
@@ -185,14 +206,20 @@ export class TestResultRepository {
       data: updateData,
       include: {
         test: true,
-        user: true,
+        user: {
+          select: { id: true, name: true, email: true, phoneNumber: true },
+        },
         patientTreatment: true,
-        labTech: true,
+        labTech: { select: { id: true, name: true } },
       },
     })
   }
 
   async delete(id: number): Promise<TestResult> {
+    const result = await this.prisma.testResult.findUnique({ where: { id } })
+    if (!result) {
+      throw new Error(`Không tìm thấy kết quả xét nghiệm với ID ${id}`)
+    }
     return await this.prisma.testResult.delete({
       where: { id },
     })
@@ -203,9 +230,11 @@ export class TestResultRepository {
       where: { userId },
       include: {
         test: true,
-        user: true,
+        user: {
+          select: { id: true, name: true, email: true, phoneNumber: true },
+        },
         patientTreatment: true,
-        labTech: true,
+        labTech: { select: { id: true, name: true } },
       },
       orderBy: { resultDate: 'desc' },
     })
@@ -216,9 +245,11 @@ export class TestResultRepository {
       where: { patientTreatmentId },
       include: {
         test: true,
-        user: true,
+        user: {
+          select: { id: true, name: true, email: true, phoneNumber: true },
+        },
         patientTreatment: true,
-        labTech: true,
+        labTech: { select: { id: true, name: true } },
       },
       orderBy: { resultDate: 'desc' },
     })
@@ -229,11 +260,37 @@ export class TestResultRepository {
       where: { labTechId },
       include: {
         test: true,
-        user: true,
+        user: {
+          select: { id: true, name: true, email: true, phoneNumber: true },
+        },
         patientTreatment: true,
-        labTech: true,
+        labTech: { select: { id: true, name: true } },
       },
       orderBy: { resultDate: 'desc' },
+    })
+  }
+
+  async findByNullLabTechId(options: PaginationOptions<any>): Promise<PaginatedResponse<TestResult>> {
+    const where: Prisma.TestResultWhereInput = { labTechId: null }
+    return this.paginationService.paginate(this.prisma.testResult, options, where, {
+      test: true,
+      user: {
+        select: { id: true, name: true, email: true, phoneNumber: true },
+      },
+      patientTreatment: true,
+      labTech: { select: { id: true, name: true } },
+    })
+  }
+
+  async findByStatus(status: string, options: PaginationOptions<any>): Promise<PaginatedResponse<TestResult>> {
+    const where: Prisma.TestResultWhereInput = { status }
+    return this.paginationService.paginate(this.prisma.testResult, options, where, {
+      test: true,
+      user: {
+        select: { id: true, name: true, email: true, phoneNumber: true },
+      },
+      patientTreatment: true,
+      labTech: { select: { id: true, name: true } },
     })
   }
 
@@ -248,9 +305,11 @@ export class TestResultRepository {
       },
       include: {
         test: true,
-        user: true,
+        user: {
+          select: { id: true, name: true, email: true, phoneNumber: true },
+        },
         patientTreatment: true,
-        labTech: true,
+        labTech: { select: { id: true, name: true } },
       },
       orderBy: { resultDate: 'desc' },
     })

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { MedicationSchedule, Prisma, ProtocolMedicine, TreatmentProtocol } from '@prisma/client'
+
 import { z } from 'zod'
 import { PaginatedResponse } from '../shared/schemas/pagination.schema'
 import { PaginationService } from '../shared/services/pagination.service'
@@ -8,7 +9,8 @@ import { PrismaService } from '../shared/services/prisma.service'
 export const ProtocolMedicineSchema = z.object({
   medicineId: z.number().positive('Medicine ID must be positive'),
   dosage: z.string().min(1, 'Dosage is required'),
-  duration: z.nativeEnum(MedicationSchedule),
+  durationValue: z.number().int().min(1, 'Thời lượng phải lớn hơn 0'),
+  durationUnit: z.enum(['DAY', 'WEEK', 'MONTH', 'YEAR']),
   notes: z.string().optional(),
 })
 
@@ -66,7 +68,8 @@ export class TreatmentProtocolRepository {
     medicines: {
       medicineId: number
       dosage: string
-      duration: MedicationSchedule
+      durationValue: number
+      durationUnit: 'DAY' | 'WEEK' | 'MONTH' | 'YEAR'
       notes?: string
     }[]
   }): Promise<TreatmentProtocol> {
@@ -85,7 +88,8 @@ export class TreatmentProtocolRepository {
             create: validatedData.medicines.map((medicine) => ({
               medicineId: medicine.medicineId,
               dosage: medicine.dosage,
-              duration: medicine.duration,
+              durationValue: medicine.durationValue,
+              durationUnit: medicine.durationUnit,
               notes: medicine.notes,
             })),
           },
@@ -180,7 +184,8 @@ export class TreatmentProtocolRepository {
         id?: number
         medicineId: number
         dosage: string
-        duration: MedicationSchedule
+        durationValue: number
+        durationUnit: 'DAY' | 'WEEK' | 'MONTH' | 'YEAR'
         notes?: string
       }[]
     },
@@ -202,7 +207,8 @@ export class TreatmentProtocolRepository {
         create: data.medicines.map((medicine) => ({
           medicineId: medicine.medicineId,
           dosage: medicine.dosage,
-          duration: medicine.duration,
+          durationValue: medicine.durationValue,
+          durationUnit: medicine.durationUnit,
           notes: medicine.notes,
         })),
       }
@@ -467,7 +473,8 @@ export class TreatmentProtocolRepository {
             create: originalProtocol.medicines.map((medicine) => ({
               medicineId: medicine.medicineId,
               dosage: medicine.dosage,
-              duration: medicine.duration,
+              durationValue: medicine.durationValue,
+              durationUnit: medicine.durationUnit,
               notes: medicine.notes,
             })),
           },
@@ -548,24 +555,42 @@ export class TreatmentProtocolRepository {
       }
 
       // Extract medicines from both protocol and custom medications
-      const protocolMedicines = treatment.protocol.medicines.map((pm) => ({
-        medicineId: pm.medicineId,
-        dosage: pm.dosage,
-        duration: pm.duration,
-        notes: pm.notes,
-      }))
+      const protocolMedicines =
+        treatment.protocol && Array.isArray(treatment.protocol.medicines)
+          ? treatment.protocol.medicines.map((pm) => ({
+              medicineId: pm.medicineId,
+              dosage: pm.dosage,
+              durationValue: pm.durationValue,
+              durationUnit: pm.durationUnit,
+              notes: pm.notes,
+            }))
+          : []
 
       // Parse custom medications if they exist
       let customMedicines: any[] = []
       if (treatment.customMedications) {
         try {
-          const customMeds = treatment.customMedications as any[]
-          customMedicines = customMeds.map((cm) => ({
-            medicineId: cm.medicineId,
-            dosage: cm.dosage,
-            duration: 'DAILY' as any, // Default duration for custom medicines
-            notes: cm.notes || `Custom: ${cm.frequency}, Duration: ${cm.duration?.value} ${cm.duration?.unit}`,
-          }))
+          let customMeds: any[] = []
+          if (typeof treatment.customMedications === 'string') {
+            // If customMedications is a JSON string, parse it
+            customMeds = JSON.parse(treatment.customMedications)
+          } else if (Array.isArray(treatment.customMedications)) {
+            customMeds = treatment.customMedications
+          } else {
+            // If it's an object, wrap in array
+            customMeds = [treatment.customMedications]
+          }
+          customMedicines = customMeds
+            .filter((cm) => cm && cm.medicineId)
+            .map((cm) => ({
+              medicineId: cm.medicineId,
+              dosage: cm.dosage,
+              durationValue: cm.duration?.value || 1,
+              durationUnit: cm.duration?.unit || 'DAY',
+              notes:
+                cm.notes ||
+                `Custom: ${cm.frequency ?? ''}, Duration: ${cm.duration?.value ?? ''} ${cm.duration?.unit ?? ''}`,
+            }))
         } catch (error) {
           console.warn('Error parsing custom medications:', error)
         }
@@ -580,7 +605,7 @@ export class TreatmentProtocolRepository {
           name: validatedProtocolData.name,
           description:
             validatedProtocolData.description ||
-            `Custom protocol created from successful treatment. Original protocol: ${treatment.protocol.name}`,
+            `Custom protocol created from successful treatment. Original protocol: ${treatment.protocol?.name ?? 'N/A'}`,
           targetDisease: validatedProtocolData.targetDisease,
           createdById: validatedCreatedById,
           updatedById: validatedCreatedById,
@@ -942,7 +967,8 @@ export class TreatmentProtocolRepository {
     medicines: Array<{
       medicineId: number
       dosage: string
-      duration: MedicationSchedule
+      durationValue: number
+      durationUnit: 'DAY' | 'WEEK' | 'MONTH' | 'YEAR'
       notes?: string
     }>
   }): Promise<{
@@ -1027,7 +1053,8 @@ export class TreatmentProtocolRepository {
       medicineName: string
       unitPrice: number
       dosage: string
-      duration: MedicationSchedule
+      durationValue: number
+      durationUnit: 'DAY' | 'WEEK' | 'MONTH' | 'YEAR'
       estimatedCost: number
     }>
   }> {
@@ -1047,8 +1074,22 @@ export class TreatmentProtocolRepository {
     }
 
     const medicinesCost = protocol.medicines.map((pm) => {
-      // Simple cost estimation based on duration
-      const multiplier = pm.duration === 'MORNING' ? 30 : pm.duration === 'AFTERNOON' ? 30 : 30 // Daily for 30 days
+      // Cost estimation based on durationValue and durationUnit
+      let multiplier = 1
+      switch (pm.durationUnit) {
+        case 'DAY':
+          multiplier = pm.durationValue
+          break
+        case 'WEEK':
+          multiplier = pm.durationValue * 7
+          break
+        case 'MONTH':
+          multiplier = pm.durationValue * 30
+          break
+        case 'YEAR':
+          multiplier = pm.durationValue * 365
+          break
+      }
       const estimatedCost = Number(pm.medicine.price) * multiplier
 
       return {
@@ -1056,7 +1097,8 @@ export class TreatmentProtocolRepository {
         medicineName: pm.medicine.name,
         unitPrice: Number(pm.medicine.price),
         dosage: pm.dosage,
-        duration: pm.duration,
+        durationValue: pm.durationValue,
+        durationUnit: pm.durationUnit,
         estimatedCost,
       }
     })
