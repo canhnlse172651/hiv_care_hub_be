@@ -1,18 +1,26 @@
 import { z } from 'zod'
 import { serviceResSchema } from '../appoinment/appoinment.model'
 
-const appointmentResSchema = z.object({
-  id: z.number(),
-  service: serviceResSchema,
-  type: z.enum(['ONLINE', 'OFFLINE']),
-  notes: z.string().nullable(),
-})
-
 const userResSchema = z.object({
   id: z.number(),
   name: z.string(),
   email: z.string(),
   avatar: z.string(),
+})
+
+const doctorResSchema = z.object({
+  id: z.number(),
+  user: userResSchema,
+  specialization: z.string(),
+})
+
+const appointmentResSchema = z.object({
+  id: z.number(),
+  service: serviceResSchema,
+  user: userResSchema,
+  doctor: doctorResSchema,
+  type: z.enum(['ONLINE', 'OFFLINE']),
+  notes: z.string().nullable(),
 })
 
 export const MeetingRecordSchema = z.object({
@@ -31,14 +39,8 @@ export const CreateMeetingRecordSchema = z.object({
   appointmentId: z.number().min(1, 'Appointment ID is required'),
   title: z.string().min(1, 'Title is required').max(500, 'Title must be less than 500 characters'),
   content: z.string().min(1, 'Content is required'),
-  startTime: z.preprocess(
-    (val) => (typeof val === 'string' || val instanceof Date ? new Date(val) : val),
-    z.date(),
-  ),
-  endTime: z.preprocess(
-    (val) => (typeof val === 'string' || val instanceof Date ? new Date(val) : val),
-    z.date(),
-  ),
+  startTime: z.preprocess((val) => (typeof val === 'string' || val instanceof Date ? new Date(val) : val), z.date()),
+  endTime: z.preprocess((val) => (typeof val === 'string' || val instanceof Date ? new Date(val) : val), z.date()),
   recordedById: z.number().min(1, 'Record by User ID is required'),
 })
 
@@ -46,14 +48,12 @@ export const UpdateMeetingRecordSchema = z.object({
   appointmentId: z.number().min(1, 'Appointment ID is required').optional(),
   title: z.string().min(1, 'Title is required').max(500, 'Title must be less than 500 characters').optional(),
   content: z.string().min(1, 'Content is required').optional(),
-  startTime: z.preprocess(
-    (val) => (typeof val === 'string' || val instanceof Date ? new Date(val) : val),
-    z.date(),
-  ).optional(),
-  endTime: z.preprocess(
-    (val) => (typeof val === 'string' || val instanceof Date ? new Date(val) : val),
-    z.date(),
-  ).optional(),
+  startTime: z
+    .preprocess((val) => (typeof val === 'string' || val instanceof Date ? new Date(val) : val), z.date())
+    .optional(),
+  endTime: z
+    .preprocess((val) => (typeof val === 'string' || val instanceof Date ? new Date(val) : val), z.date())
+    .optional(),
   recordedById: z.number().min(1, 'Record by User ID is required').optional(),
 })
 

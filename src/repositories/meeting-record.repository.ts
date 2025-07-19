@@ -38,6 +38,27 @@ export class MeetingRecordRepository {
             content: true,
           },
         },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatar: true,
+          },
+        },
+        doctor: {
+          select: {
+            specialization: true,
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                avatar: true,
+              },
+            },
+          },
+        },
         type: true,
         notes: true,
       },

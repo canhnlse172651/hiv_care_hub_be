@@ -47,7 +47,7 @@ export class MeetingRecordController {
 
   @ApiGetMeetingRecordByAppointmentId()
   @Get('appointment/:id')
-  async getMeetingRecordByAppointmentId(@Param('id', ParseIntPipe) id: number): Promise<MeetingRecordResponseType> {
+  async getMeetingRecordByAppointmentId(@Param('id', ParseIntPipe) id: number): Promise<MeetingRecordResponseType | null> {
     return this.meetingRecordService.getMeetingRecordByAppointmentId(id)
   }
 

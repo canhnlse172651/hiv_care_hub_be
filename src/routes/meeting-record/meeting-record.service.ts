@@ -38,10 +38,10 @@ export class MeetingRecordService {
     return meetingRecord
   }
 
-  async getMeetingRecordByAppointmentId(id: number): Promise<MeetingRecordResponseType> {
+  async getMeetingRecordByAppointmentId(id: number): Promise<MeetingRecordResponseType | null> {
     const meetingRecord = await this.meetingRecordRepository.findMeetingRecordByAppointmentId(id)
-    if (!meetingRecord) throw new NotFoundException('Meeting record not found')
-    return meetingRecord
+    // if (!meetingRecord) throw new NotFoundException('Meeting record not found')
+    return meetingRecord || null
   }
 
   async updateMeetingRecord(id: number, data: UpdateMeetingRecordDto): Promise<MeetingRecordResponseType> {
