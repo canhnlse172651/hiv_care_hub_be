@@ -1,11 +1,11 @@
 import { z } from 'zod'
+import { serviceResSchema } from '../appoinment/appoinment.model'
 
 const appointmentResSchema = z.object({
   id: z.number(),
+  service: serviceResSchema,
   type: z.enum(['ONLINE', 'OFFLINE']),
-  title: z.string(),
-  description: z.string(),
-  createdAt: z.date(),
+  notes: z.string().nullable(),
 })
 
 const userResSchema = z.object({

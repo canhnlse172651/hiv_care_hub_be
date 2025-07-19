@@ -14,12 +14,42 @@ export class MeetingRecordRepository {
     private readonly paginationService: PaginationService,
   ) {}
 
+  private readonly includeRelations = {
+    recordedBy: {
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        avatar: true,
+      },
+    },
+    appointment: {
+      select: {
+        id: true,
+        service: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            type: true,
+            price: true,
+            startTime: true,
+            endTime: true,
+            content: true,
+          },
+        },
+        type: true,
+        notes: true,
+      },
+    },
+  }  
+
   getModel() {
     return this.prisma.meetingRecord
   }
 
   async createMeetingRecord(data: CreateMeetingRecordDtoType): Promise<MeetingRecordResponseType> {
-    const meetingRecord = await this.prisma.meetingRecord.create({ data })
+    const meetingRecord = await this.prisma.meetingRecord.create({ data, include: this.includeRelations })
 
     return meetingRecord as MeetingRecordResponseType
   }
@@ -61,12 +91,13 @@ export class MeetingRecordRepository {
       orderBy.createdAt = 'desc'
     }
 
-    return this.paginationService.paginate(this.prisma.meetingRecord, validatedOptions, where)
+    return this.paginationService.paginate(this.prisma.meetingRecord, validatedOptions, where, this.includeRelations)
   }
 
   async findMeetingRecordById(id: number): Promise<MeetingRecordResponseType | null> {
     const meetingRecord = await this.prisma.meetingRecord.findUnique({
       where: { id },
+      include: this.includeRelations,
     })
 
     return meetingRecord as MeetingRecordResponseType
@@ -75,6 +106,7 @@ export class MeetingRecordRepository {
   async findMeetingRecordByAppointmentId(id: number): Promise<MeetingRecordResponseType | null> {
     const meetingRecord = await this.prisma.meetingRecord.findUnique({
       where: { appointmentId: id },
+      include: this.includeRelations,
     })
     return meetingRecord as MeetingRecordResponseType
   }
@@ -82,14 +114,14 @@ export class MeetingRecordRepository {
   async updateMeetingRecord(id: number, data: UpdateMeetingRecordDtoType): Promise<MeetingRecordResponseType> {
     const existingMeetingRecord = await this.findMeetingRecordById(id)
     if (!existingMeetingRecord) throw new NotFoundException('Meeting record not found')
-    const meetingRecord = await this.prisma.meetingRecord.update({ where: { id }, data })
+    const meetingRecord = await this.prisma.meetingRecord.update({ where: { id }, data, include: this.includeRelations })
     return meetingRecord as MeetingRecordResponseType
   }
 
   async deleteMeetingRecord(id: number): Promise<MeetingRecordResponseType> {
     const existingMeetingRecord = await this.findMeetingRecordById(id)
     if (!existingMeetingRecord) throw new NotFoundException('Meeting record not found')
-    const meetingRecord = await this.prisma.meetingRecord.delete({ where: { id } })
+    const meetingRecord = await this.prisma.meetingRecord.delete({ where: { id }, include: this.includeRelations })
     return meetingRecord as MeetingRecordResponseType
   }
 }
