@@ -31,6 +31,7 @@ export class PatientTreatmentCreateService {
   async createPatientTreatment(
     data: CreatePatientTreatmentInput,
     userId: number,
+    autoEndExisting = false,
     validate = true,
   ): Promise<PatientTreatment> {
     try {
@@ -40,8 +41,21 @@ export class PatientTreatmentCreateService {
         validate,
       )
 
-      // 2. Only one active treatment per patient
-      await this.ensureNoExistingActiveTreatment(patientId)
+      // 2. Business rule: Only one active treatment per patient
+      if (autoEndExisting) {
+        // Tự động kết thúc các điều trị active
+        const activeTreatments = await this.patientTreatmentRepository.getActivePatientTreatments({ patientId })
+        if (activeTreatments?.length) {
+          const now = new Date()
+          for (const treatment of activeTreatments) {
+            await this.patientTreatmentRepository.updatePatientTreatment(treatment.id, {
+              endDate: now,
+            })
+          }
+        }
+      } else {
+        await this.ensureNoExistingActiveTreatment(patientId)
+      }
 
       // 3. Normalize custom medications
       const customMedications = PatientTreatmentCreateService.normalizeCustomMedicationsSchedule(rawCustomMeds)

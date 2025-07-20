@@ -171,9 +171,10 @@ export const ApiCreatePatientTreatment = () =>
     ApiQuery({
       name: 'autoEndExisting',
       required: false,
-      description: 'Automatically end existing active treatments for the patient before creating new one',
+      description:
+        'Automatically end all existing active treatments for the patient before creating a new one. If true, the system will set endDate for all active treatments before creating the new treatment. Business rule: Only 1 active protocol per patient is allowed.',
       type: Boolean,
-      example: false,
+      example: true,
     }),
     ApiBody({
       description: 'Patient treatment data',

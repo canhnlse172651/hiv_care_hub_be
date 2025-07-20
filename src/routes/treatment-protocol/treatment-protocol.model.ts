@@ -36,6 +36,10 @@ export const CreateTreatmentProtocolSchema = z.object({
   name: z.string().min(1, 'Protocol name is required').max(500),
   description: z.string().optional(),
   targetDisease: z.string().min(1, 'Target disease is required').max(500),
+  durationValue: z.number().int().min(1, 'Thời lượng phải lớn hơn 0').optional(),
+  durationUnit: z.nativeEnum($Enums.DurationUnit).optional(),
+  startDate: z.string().datetime().optional(),
+  endDate: z.string().datetime().optional(),
   medicines: z
     .array(
       z.object({
@@ -54,6 +58,10 @@ export const UpdateTreatmentProtocolSchema = z.object({
   name: z.string().min(1, 'Protocol name is required').max(500).optional(),
   description: z.string().optional(),
   targetDisease: z.string().min(1, 'Target disease is required').max(500).optional(),
+  durationValue: z.number().int().min(1, 'Thời lượng phải lớn hơn 0').optional(),
+  durationUnit: z.nativeEnum($Enums.DurationUnit).optional(),
+  startDate: z.string().datetime().optional(),
+  endDate: z.string().datetime().optional(),
   medicines: z
     .array(
       z.object({

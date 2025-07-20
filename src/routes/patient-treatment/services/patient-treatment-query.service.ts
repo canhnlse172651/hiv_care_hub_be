@@ -32,10 +32,30 @@ export class PatientTreatmentQueryService {
         sortBy: 'createdAt',
         sortOrder: 'desc',
       }
+      // Lấy startDate và endDate từ params nếu có
+      const where: any = {}
+      if (typeof page === 'object' && page !== null) {
+        const params = page as any
+        const startDateStr = typeof params.startDate === 'string' ? params.startDate : undefined
+        const endDateStr = typeof params.endDate === 'string' ? params.endDate : undefined
+        const parsedStartDate = startDateStr ? new Date(String(startDateStr)) : undefined
+        const parsedEndDate = endDateStr ? new Date(String(endDateStr)) : undefined
+        const isValidStartDate = parsedStartDate && !isNaN(parsedStartDate.getTime())
+        const isValidEndDate = parsedEndDate && !isNaN(parsedEndDate.getTime())
+        if (isValidStartDate && isValidEndDate) {
+          // Lọc các điều trị có thời gian giao với khoảng truy vấn
+          where.startDate = { lte: parsedEndDate }
+          where.endDate = { gte: parsedStartDate }
+        } else if (isValidStartDate) {
+          where.startDate = { gte: parsedStartDate }
+        } else if (isValidEndDate) {
+          where.endDate = { lte: parsedEndDate }
+        }
+      }
       const result = await this.paginationService.paginate<PatientTreatment>(
         this.patientTreatmentRepository.getPatientTreatmentModel(),
         options,
-        {},
+        where,
         this.getDefaultIncludes(),
       )
       // Normalize customMedications for all results

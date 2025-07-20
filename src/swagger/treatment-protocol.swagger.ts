@@ -162,6 +162,29 @@ export const ApiCreateTreatmentProtocol = () =>
             description: 'Target disease',
             example: 'HIV',
           },
+          durationValue: {
+            type: 'number',
+            description: 'Protocol duration value',
+            example: 30,
+          },
+          durationUnit: {
+            type: 'string',
+            enum: ['DAY', 'WEEK', 'MONTH', 'YEAR'],
+            description: 'Protocol duration unit',
+            example: 'DAY',
+          },
+          startDate: {
+            type: 'string',
+            format: 'date-time',
+            description: 'Protocol start date',
+            example: '2025-07-20T00:00:00.000Z',
+          },
+          endDate: {
+            type: 'string',
+            format: 'date-time',
+            description: 'Protocol end date',
+            example: '2025-08-20T00:00:00.000Z',
+          },
           medicines: {
             type: 'array',
             description: 'List of medicines in the protocol',
@@ -178,11 +201,16 @@ export const ApiCreateTreatmentProtocol = () =>
                   description: 'Medicine dosage',
                   example: '600mg once daily',
                 },
-                duration: {
+                durationValue: {
+                  type: 'number',
+                  description: 'Medicine duration value',
+                  example: 7,
+                },
+                durationUnit: {
                   type: 'string',
-                  enum: ['MORNING', 'AFTERNOON', 'NIGHT'],
-                  description: 'When to take the medicine',
-                  example: 'MORNING',
+                  enum: ['DAY', 'WEEK', 'MONTH', 'YEAR'],
+                  description: 'Medicine duration unit',
+                  example: 'DAY',
                 },
                 notes: {
                   type: 'string',
@@ -190,7 +218,7 @@ export const ApiCreateTreatmentProtocol = () =>
                   example: 'Take with food',
                 },
               },
-              required: ['medicineId', 'dosage', 'duration'],
+              required: ['medicineId', 'dosage', 'durationValue', 'durationUnit'],
             },
           },
         },
@@ -275,6 +303,29 @@ export const ApiUpdateTreatmentProtocol = () =>
             description: 'Target disease',
             example: 'HIV',
           },
+          durationValue: {
+            type: 'number',
+            description: 'Protocol duration value',
+            example: 30,
+          },
+          durationUnit: {
+            type: 'string',
+            enum: ['DAY', 'WEEK', 'MONTH', 'YEAR'],
+            description: 'Protocol duration unit',
+            example: 'DAY',
+          },
+          startDate: {
+            type: 'string',
+            format: 'date-time',
+            description: 'Protocol start date',
+            example: '2025-07-20T00:00:00.000Z',
+          },
+          endDate: {
+            type: 'string',
+            format: 'date-time',
+            description: 'Protocol end date',
+            example: '2025-08-20T00:00:00.000Z',
+          },
           medicines: {
             type: 'array',
             description: 'List of medicines in the protocol',
@@ -296,11 +347,16 @@ export const ApiUpdateTreatmentProtocol = () =>
                   description: 'Medicine dosage',
                   example: '600mg once daily',
                 },
-                duration: {
+                durationValue: {
+                  type: 'number',
+                  description: 'Medicine duration value',
+                  example: 7,
+                },
+                durationUnit: {
                   type: 'string',
-                  enum: ['MORNING', 'AFTERNOON', 'NIGHT'],
-                  description: 'When to take the medicine',
-                  example: 'MORNING',
+                  enum: ['DAY', 'WEEK', 'MONTH', 'YEAR'],
+                  description: 'Medicine duration unit',
+                  example: 'DAY',
                 },
                 notes: {
                   type: 'string',
@@ -308,7 +364,7 @@ export const ApiUpdateTreatmentProtocol = () =>
                   example: 'Take with food',
                 },
               },
-              required: ['medicineId', 'dosage', 'duration'],
+              required: ['medicineId', 'dosage', 'durationValue', 'durationUnit'],
             },
           },
         },
