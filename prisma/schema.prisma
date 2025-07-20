@@ -143,19 +143,20 @@ model User {
 
   // Other relations
   refreshTokens      RefreshToken[]
-  permissions        Permission[]   @relation("UserPermissions")
-  createdPermissions Permission[]   @relation("PermissionCreatedBy")
-  updatedPermissions Permission[]   @relation("PermissionUpdatedBy")
-  createdRoles       Role[]         @relation("RoleCreatedBy")
-  updatedRoles       Role[]         @relation("RoleUpdatedBy")
-  sentMessages       Message[]      @relation("FromUser")
-  receivedMessages   Message[]      @relation("ToUser")
+  permissions        Permission[]    @relation("UserPermissions")
+  createdPermissions Permission[]    @relation("PermissionCreatedBy")
+  updatedPermissions Permission[]    @relation("PermissionUpdatedBy")
+  createdRoles       Role[]          @relation("RoleCreatedBy")
+  updatedRoles       Role[]          @relation("RoleUpdatedBy")
+  sentMessages       Message[]       @relation("FromUser")
+  receivedMessages   Message[]       @relation("ToUser")
   doctor             Doctor?
   appointments       Appointment[]
+  recordedMeetings   MeetingRecord[] @relation("UserRecordedMeetings")
   // Nếu User là Patient (người sở hữu kết quả):
-  patientTestResults TestResult[]   @relation("PatientTestResults") // Kết quả của bệnh nhân
+  patientTestResults TestResult[]    @relation("PatientTestResults") // Kết quả của bệnh nhân
   // Nếu User là LabTech (người nhập kết quả):
-  enteredTestResults TestResult[]   @relation("LabTechTestResults") // Kết quả do LabTech nhập
+  enteredTestResults TestResult[]    @relation("LabTechTestResults") // Kết quả do LabTech nhập
 
   patientTreatments PatientTreatment[]
   reminders         Reminder[]
@@ -303,6 +304,7 @@ model Appointment {
   createdAt          DateTime             @default(now())
   updatedAt          DateTime             @updatedAt
   AppointmentHistory AppointmentHistory[]
+  meetingRecord      MeetingRecord?
 }
 
 model TreatmentProtocol {
@@ -513,6 +515,23 @@ model Service {
 
   // Relations
   appointments Appointment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model MeetingRecord {
+  id            Int         @id @default(autoincrement())
+  appointmentId Int         @unique
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  title     String    @db.VarChar(500) // Tiêu đề buổi tư vấn
+  content   String?   @db.Text // Nội dung ghi chú
+  startTime DateTime? // Giờ bắt đầu cuộc họp
+  endTime   DateTime? // Giờ kết thúc cuộc họp
+
+  recordedById Int?
+  recordedBy   User? @relation("UserRecordedMeetings", fields: [recordedById], references: [id]) // Ai ghi chú cuộc họp
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -21,6 +21,7 @@ import { TreatmentProtocolModule } from './routes/treatment-protocol/treatment-p
 import { UserModule } from './routes/user/user.module'
 import { CatchEverythingFilter } from './shared/fillters/catch-everything.fillter'
 import { SharedModule } from './shared/shared.module'
+import { MeetingRecordModule } from './routes/meeting-record/meeting-record.module'
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { SharedModule } from './shared/shared.module'
     BlogModule,
     ServiceModule,
     AppoinmentModule,
+    MeetingRecordModule,
   ],
   controllers: [AppController],
   providers: [
