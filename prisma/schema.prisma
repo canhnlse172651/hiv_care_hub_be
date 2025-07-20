@@ -315,9 +315,9 @@ model TreatmentProtocol {
 
   // Thời hạn thực hiện protocol
   durationValue Int?
-  durationUnit DurationUnit?
-  startDate DateTime?
-  endDate DateTime?
+  durationUnit  DurationUnit?
+  startDate     DateTime?
+  endDate       DateTime?
 
   // Relations
   medicines         ProtocolMedicine[]
