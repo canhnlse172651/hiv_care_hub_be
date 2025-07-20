@@ -313,6 +313,12 @@ model TreatmentProtocol {
   description   String? @db.Text
   targetDisease String  @db.VarChar(500)
 
+  // Thời hạn thực hiện protocol
+  durationValue Int?
+  durationUnit  DurationUnit?
+  startDate     DateTime?
+  endDate       DateTime?
+
   // Relations
   medicines         ProtocolMedicine[]
   createdById       Int

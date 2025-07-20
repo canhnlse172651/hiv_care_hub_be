@@ -8,9 +8,16 @@ import { Roles } from '../../shared/decorators/roles.decorator'
 import { Role } from 'src/shared/constants/role.constant'
 import { Auth } from 'src/shared/decorators/auth.decorator'
 import { AuthType } from 'src/shared/constants/auth.constant'
-import { ApiCreateTestResult, ApiUpdateTestResult, ApiGetTestResultsByStatus } from 'src/swagger/test-result.swagger'
+import {
+  ApiCreateTestResult,
+  ApiUpdateTestResult,
+  ApiGetTestResultsByStatus,
+  ApiGetTestResults,
+  ApiGetTestResultById,
+} from 'src/swagger/test-result.swagger'
 import { ActiveUser } from 'src/shared/decorators/active-user.decorator'
 import { TokenPayload } from 'src/shared/types/jwt.type'
+import { PaginationQuery } from 'src/shared/interfaces/query.interface'
 
 @ApiBearerAuth()
 @ApiTags('Test-results')
@@ -50,24 +57,15 @@ Flow hoạt động:
 
   @Get()
   @Roles(Role.Admin, Role.Doctor, Role.Staff)
-  @ApiOperation({
-    summary: 'Lấy danh sách kết quả xét nghiệm',
-    description: 'Lấy danh sách kết quả xét nghiệm có phân trang và filter',
-  })
-  @ApiResponse({ status: 200, description: 'Thành công' })
-  async getTestResults(@Query() query: TestResultQueryDto) {
+  @ApiGetTestResults()
+  async getTestResults(@Query() query: PaginationQuery) {
     return this.testResultService.findTestResults(query)
   }
 
   @Get('user/:userId')
   @Roles(Role.Admin, Role.Doctor, Role.Staff)
-  @ApiOperation({
-    summary: 'Lấy kết quả xét nghiệm theo User ID',
-    description: 'Lấy tất cả kết quả xét nghiệm của một bệnh nhân',
-  })
-  @ApiResponse({ status: 200, description: 'Thành công' })
-  async getTestResultsByUserId(@Param('userId', ParseIntPipe) userId: number) {
-    return this.testResultService.findTestResultsByUserId(userId)
+  async getTestResultsByUserId(@Param('userId', ParseIntPipe) userId: number, @Query() query: PaginationQuery) {
+    return this.testResultService.findTestResultsByUserId(userId, query)
   }
 
   @Get('patient-treatment/:patientTreatmentId')
@@ -76,47 +74,23 @@ Flow hoạt động:
     summary: 'Lấy kết quả xét nghiệm theo PatientTreatment ID',
     description: 'Lấy tất cả kết quả xét nghiệm của một đợt điều trị bệnh nhân',
   })
-  @ApiResponse({ status: 200, description: 'Thành công' })
-  async getTestResultsByPatientTreatmentId(@Param('patientTreatmentId', ParseIntPipe) patientTreatmentId: number) {
-    return this.testResultService.findTestResultsByPatientTreatmentId(patientTreatmentId)
+  async getTestResultsByPatientTreatmentId(
+    @Param('patientTreatmentId', ParseIntPipe) patientTreatmentId: number,
+    @Query() query: PaginationQuery,
+  ) {
+    return this.testResultService.findTestResultsByPatientTreatmentId(patientTreatmentId, query)
   }
 
   @Get(':id')
   @Roles(Role.Admin, Role.Doctor, Role.Staff)
-  @ApiOperation({
-    summary: 'Lấy kết quả xét nghiệm theo ID',
-    description: 'Lấy chi tiết một kết quả xét nghiệm',
-  })
-  @ApiResponse({ status: 200, description: 'Thành công' })
-  @ApiResponse({ status: 404, description: 'Không tìm thấy' })
+  @ApiGetTestResultById()
   async getTestResultById(@Param('id', ParseIntPipe) id: number) {
     return this.testResultService.findTestResultById(id)
   }
 
   @Put(':id')
   @Roles(Role.Staff, Role.Doctor)
-  @ApiOperation({
-    summary: 'Cập nhật kết quả xét nghiệm',
-    description: `Nhân viên (STAFF) hoặc bác sĩ (DOCTOR) có thể cập nhật kết quả xét nghiệm.
-    
-Flow hoạt động:
-1. Staff/Bác sĩ nhập kết quả xét nghiệm:
-   - rawResultValue: Giá trị kết quả thực tế
-   - labTechId: ID của kỹ thuật viên thực hiện
-   - notes: Ghi chú (tùy chọn)
-   
-2. Hệ thống tự động:
-   - Tính toán interpretation dựa trên rawResultValue và cutOffValue
-   - Cập nhật cutOffValueUsed từ thông tin Test
-   - Set resultDate = thời gian hiện tại
-   - Chuyển status thành "Completed"
-   
-3. Nếu chỉ cập nhật notes/status mà không có rawResultValue:
-   - Chỉ cập nhật những trường được gửi lên`,
-  })
   @ApiUpdateTestResult()
-  @ApiResponse({ status: 200, description: 'Cập nhật thành công' })
-  @ApiResponse({ status: 404, description: 'Không tìm thấy' })
   async updateTestResult(
     @Param('id', ParseIntPipe) id: number,
     @ActiveUser() user: TokenPayload,
@@ -128,12 +102,12 @@ Flow hoạt động:
   @Get('status/:status')
   @Roles(Role.Admin, Role.Doctor, Role.Staff)
   @ApiGetTestResultsByStatus()
-  async getTestResultsByStatus(@Param('status') status: string, @Query() query: TestResultQueryDto) {
+  async getTestResultsByStatus(@Param('status') status: string, @Query() query: PaginationQuery) {
     return this.testResultService.findTestResultsByStatus(status, query)
   }
 
   @Delete(':id')
-  @Roles(Role.Admin, Role.Staff)
+  @Roles(Role.Admin, Role.Staff, Role.Doctor)
   @ApiOperation({
     summary: 'Xóa kết quả xét nghiệm',
     description: 'Chỉ admin và nhân viên có thể xóa kết quả xét nghiệm',

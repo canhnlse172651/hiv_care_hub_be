@@ -53,6 +53,8 @@ export const TestResultQuerySchema = z.object({
   dateTo: z.string().optional(),
   doctorId: z.number().optional(),
   labTechId: z.number().optional(),
+  search: z.string().optional(),
+  filters: z.record(z.string(), z.any()).optional(),
 })
 
 export const TestResultWithRelationsSchema = TestResultSchema.extend({

@@ -7,6 +7,7 @@ export interface TestResultCreateData {
   rawResultValue: Prisma.Decimal | null
   interpretation: TestInterpretation
   cutOffValueUsed: Prisma.Decimal | null
+  unit?: string | null
   labTechId: number | null
   resultDate: Date | null
   notes?: string | null

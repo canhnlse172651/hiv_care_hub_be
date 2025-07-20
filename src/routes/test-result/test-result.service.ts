@@ -9,6 +9,8 @@ import {
   TestResultCreateData,
   TestResultUpdateData,
 } from '../../shared/interfaces/test-result.interface'
+import { PaginatedResponse } from 'src/shared/schemas/pagination.schema'
+import { PaginationQuery } from 'src/shared/interfaces/query.interface'
 
 @Injectable()
 export class TestResultService {
@@ -51,7 +53,7 @@ export class TestResultService {
     // Kiểm tra Test có tồn tại không
     const test = await this.testRepository.findTestById(data.testId)
     if (!test) {
-      throw new NotFoundException(`Không tìm thấy bài kiểm tra với ID ${data.testId}`)
+      throw new NotFoundException(`Không tìm thấy xét nghiệm với ID ${data.testId}`)
     }
 
     // Tạo TestResult với status "Processing"
@@ -62,6 +64,7 @@ export class TestResultService {
       rawResultValue: null,
       interpretation: TestInterpretation.NOT_DETECTED, // Mặc định là NOT_DETECTED
       cutOffValueUsed: null,
+      unit: test.unit || null, // Sử dụng unit từ Test
       labTechId: null,
       resultDate: null, // Explicitly set to null on creation
       notes: data.notes || null,
@@ -69,15 +72,22 @@ export class TestResultService {
       createdByDoctorId: doctorId || null, // Set doctorId if provided
     }
 
-    console.log('testResultData', testResultData)
+    console.log('Creating new test result with data service:', testResultData)
     return await this.testResultRepository.createTestResult(testResultData)
   }
 
   /**
    * Lấy danh sách TestResult với phân trang
    */
-  async findTestResults(query: TestResultQuery): Promise<{ data: TestResult[]; total: number }> {
-    return await this.testResultRepository.findMany(query)
+  async findTestResults(query: PaginationQuery): Promise<PaginatedResponse<TestResult>> {
+    const paginationOptions = {
+      page: query.page || 1,
+      limit: query.limit || 10,
+      sortBy: query.sortBy || 'resultDate',
+      sortOrder: query.sortOrder || 'desc',
+    }
+
+    return await this.testResultRepository.findTestResultsPaginated(paginationOptions)
   }
 
   /**
@@ -142,53 +152,64 @@ export class TestResultService {
     if (!testResult) {
       throw new NotFoundException(`Không tìm thấy kết quả xét nghiệm với ID ${id}`)
     }
-
+    if (testResult.status !== 'Processing') {
+      throw new Error('Chỉ có thể xóa kết quả xét nghiệm đang trong trạng thái "Processing"')
+    }
     await this.testResultRepository.delete(id)
   }
 
   /**
    * Lấy TestResult theo User ID
    */
-  async findTestResultsByUserId(userId: number): Promise<TestResult[]> {
-    return await this.testResultRepository.findByUserId(userId)
+  async findTestResultsByUserId(userId: number, query: PaginationQuery): Promise<PaginatedResponse<TestResult>> {
+    const paginationOptions = {
+      page: query.page || 1,
+      limit: query.limit || 10,
+      sortBy: query.sortBy || 'resultDate',
+      sortOrder: query.sortOrder || 'desc',
+    }
+    return await this.testResultRepository.findByUserId(userId, paginationOptions)
   }
 
   /**
    * Lấy TestResult theo PatientTreatment ID
    */
-  async findTestResultsByPatientTreatmentId(patientTreatmentId: number): Promise<TestResult[]> {
-    return await this.testResultRepository.findByPatientTreatmentId(patientTreatmentId)
+  async findTestResultsByPatientTreatmentId(
+    patientTreatmentId: number,
+    query: PaginationQuery,
+  ): Promise<PaginatedResponse<TestResult>> {
+    const paginationOptions = {
+      page: query.page || 1,
+      limit: query.limit || 10,
+      sortBy: query.sortBy || 'resultDate',
+      sortOrder: query.sortOrder || 'desc',
+    }
+    return await this.testResultRepository.findByPatientTreatmentId(patientTreatmentId, paginationOptions)
   }
 
   /**
    * Lấy TestResult theo Lab Tech ID (do lab tech nhập)
    */
-  async findTestResultsByLabTechId(labTechId: number): Promise<TestResult[]> {
-    return await this.testResultRepository.findByLabTechId(labTechId)
-  }
-
-  /**
-   * Lấy TestResult với null Lab Tech ID
-   */
-  async findTestResultsByNullLabTechId(query: TestResultQuery): Promise<{ data: TestResult[]; total: number }> {
-    const result = await this.testResultRepository.findByNullLabTechId(query)
-    return {
-      data: result.data,
-      total: result.meta.total,
+  async findTestResultsByLabTechId(labTechId: number, query: PaginationQuery): Promise<PaginatedResponse<TestResult>> {
+    const paginationOptions = {
+      page: query.page || 1,
+      limit: query.limit || 10,
+      sortBy: query.sortBy || 'resultDate',
+      sortOrder: query.sortOrder || 'desc',
     }
+    return await this.testResultRepository.findByLabTechId(labTechId, paginationOptions)
   }
 
   /**
    * Lấy TestResult theo Status
    */
-  async findTestResultsByStatus(
-    status: string,
-    query: TestResultQuery,
-  ): Promise<{ data: TestResult[]; total: number }> {
-    const result = await this.testResultRepository.findByStatus(status, query)
-    return {
-      data: result.data,
-      total: result.meta.total,
+  async findTestResultsByStatus(status: string, query: PaginationQuery): Promise<PaginatedResponse<TestResult>> {
+    const paginationOptions = {
+      page: query.page || 1,
+      limit: query.limit || 10,
+      sortBy: query.sortBy || 'resultDate',
+      sortOrder: query.sortOrder || 'desc',
     }
+    return await this.testResultRepository.findByStatus(status, paginationOptions)
   }
 }
