@@ -18,6 +18,7 @@ interface CreatePatientTreatmentInput {
   endDate?: string | number | Date | null
   notes?: string
   customMedications?: string | CustomMedicationType | CustomMedicationType[]
+  status?: boolean
 }
 
 @Injectable()
@@ -81,6 +82,7 @@ export class PatientTreatmentCreateService {
         customMedications,
         total,
         createdById: userId,
+        status: data.status ?? false,
       })
 
       // 7. Normalize in response
@@ -137,6 +139,7 @@ export class PatientTreatmentCreateService {
         notes,
         customMedications: undefined,
         total: 0,
+        status: data.status ?? false,
       })
     }
 

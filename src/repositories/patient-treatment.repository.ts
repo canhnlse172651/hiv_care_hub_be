@@ -63,6 +63,7 @@ export class PatientTreatmentRepository {
     endDate?: Date
     createdById: number
     total: number
+    status?: boolean
   }): Promise<PatientTreatment> {
     const validatedData = CreatePatientTreatmentDataSchema.parse(data)
     const customMedicationsJson = this.serializeCustomMedications(validatedData.customMedications)
@@ -76,6 +77,7 @@ export class PatientTreatmentRepository {
       createdById: validatedData.createdById,
       total: data.total,
       protocolId: validatedData.protocolId ?? null,
+      status: validatedData.status ?? false,
     }
     try {
       return await this.prismaService.patientTreatment.create({
