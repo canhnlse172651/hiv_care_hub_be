@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, UnauthorizedException, UnprocessableEntityException } from '@nestjs/common'
+import { Injectable, ConflictException, UnauthorizedException, UnprocessableEntityException, NotFoundException } from '@nestjs/common'
 import { RolesService } from '../role/role.service'
 import { TokenService } from 'src/shared/services/token.service'
 import { HashingService } from 'src/shared/services/hashing.service'
@@ -92,18 +92,13 @@ export class AuthService {
     const user = await this.authRepository.findUserByEmail(body.email)
 
     if (!user) {
-      throw new UnauthorizedException('Account does not exist')
+      throw new NotFoundException('Account does not exist')
     }
 
     const isPasswordValid = await this.hashingService.compare(body.password, user.password)
 
     if (!isPasswordValid) {
-      throw new UnprocessableEntityException([
-        {
-          field: 'password',
-          error: 'Password is incorrect',
-        },
-      ])
+      throw new UnauthorizedException('Password is incorrect')
     }
 
     // 2. Nếu user đã bật mã 2FA thì kiểm tra mã 2FA TOTP Code hoặc OTP Code (email)Add commentMore actions
@@ -429,24 +424,24 @@ export class AuthService {
   }
 
   async updateUserProfile(userId: number, data: UpdateProfileType) {
-    const user = await this.authRepository.findUserByIdWithDoctorId(userId);
+    const user = await this.authRepository.findUserByIdWithDoctorId(userId)
     if (!user) {
-      throw new UnprocessableEntityException('User not found');
+      throw new UnprocessableEntityException('User not found')
     }
-  
-    const { specialization, certifications, ...userData } = data;
-  
+
+    const { specialization, certifications, ...userData } = data
+
     // Cập nhật thông tin user
-    const updatedUser = await this.authRepository.updateUser(userId, userData);
-  
+    const updatedUser = await this.authRepository.updateUser(userId, userData)
+
     // Nếu user có doctorId thì cập nhật doctor
     if (user.doctorId && (specialization || certifications)) {
       await this.authRepository.updateDoctor(userId, {
         ...(specialization && { specialization }),
         ...(certifications && { certifications }),
-      });
+      })
     }
-  
-    return updatedUser;
-  }  
+
+    return updatedUser
+  }
 }
