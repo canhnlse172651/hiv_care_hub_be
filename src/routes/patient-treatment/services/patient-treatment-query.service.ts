@@ -73,15 +73,7 @@ export class PatientTreatmentQueryService {
       protocol: { include: { medicines: { include: { medicine: true } } } },
       createdBy: { select: { id: true, name: true, email: true } },
       testResults: {
-        select: {
-          id: true,
-          rawResultValue: true,
-          interpretation: true,
-          cutOffValueUsed: true,
-          notes: true,
-          resultDate: true,
-          status: true,
-        },
+        include: {test:true}
       },
     }
   }
