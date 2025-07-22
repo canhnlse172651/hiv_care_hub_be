@@ -101,7 +101,7 @@ export class AppoinmentController {
   }
 
   @ApiFindAppointmentsPaginatedByStaff()
-  @Roles(Role.Staff)
+  @Roles(Role.Staff, Role.Patient)
   @Get('staff')
   findAppointmentsPaginatedByStaff(@Query() query: unknown): Promise<PaginatedResponse<AppointmentResponseType>> {
     return this.appoinmentService.findAppointmentsPaginatedByStaff(query)
