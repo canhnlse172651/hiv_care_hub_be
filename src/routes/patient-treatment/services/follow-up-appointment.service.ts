@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { PatientTreatment } from '@prisma/client'
+import { AppointmentStatus, PatientTreatment } from '@prisma/client'
 import { AppoinmentRepository } from '../../../repositories/appoinment.repository'
 import { DoctorRepository } from '../../../repositories/doctor.repository'
 import { PatientTreatmentRepository } from '../../../repositories/patient-treatment.repository'
@@ -228,7 +228,7 @@ export class FollowUpAppointmentService {
       if (updates.status) {
         await this.appointmentRepository.updateAppointmentStatus(
           appointmentId,
-          updates.status as 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED',
+          updates.status as AppointmentStatus,
         )
       }
 

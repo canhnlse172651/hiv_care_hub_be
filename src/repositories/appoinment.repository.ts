@@ -90,7 +90,7 @@ export class AppoinmentRepository {
   async updateAppointment(id: number, data: UpdateAppointmentDtoType): Promise<AppointmentResponseType> {
     const appointment = await this.prisma.appointment.update({
       where: { id },
-      data,
+      data: data as any,
       include: this.includeRelations,
     })
 
@@ -375,7 +375,7 @@ export class AppoinmentRepository {
       where: {
         doctorId,
         appointmentTime: { gte: slotStart, lt: slotEnd },
-        status: { in: [AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED] },
+        status: { in: [AppointmentStatus.PENDING, AppointmentStatus.PAID] },
       },
     })
   }

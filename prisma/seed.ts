@@ -658,31 +658,7 @@ async function main() {
     }),
   ])
 
-  await prisma.appointmentHistory.createMany({
-    data: [
-      {
-        appointmentId: appointment1.id,
-        oldStatus: AppointmentStatus.PENDING,
-        newStatus: AppointmentStatus.CONFIRMED,
-        changedBy: adminUser.id,
-        note: 'Xác nhận tự động',
-      },
-      {
-        appointmentId: appointment2.id,
-        oldStatus: AppointmentStatus.PENDING,
-        newStatus: AppointmentStatus.CANCELLED,
-        changedBy: staffUsers[0].id,
-        note: 'Bệnh nhân hủy',
-      },
-      {
-        appointmentId: appointment3.id,
-        oldStatus: AppointmentStatus.PENDING,
-        newStatus: AppointmentStatus.CHECKIN,
-        changedBy: doctors[2].userId,
-        note: 'Bệnh nhân đã đến',
-      },
-    ],
-  })
+ 
 
   // // 11. TestResults
   // await prisma.testResult.createMany({
