@@ -14,7 +14,6 @@ import { PatientTreatmentService } from './patient-treatment.service'
 import {
   DoctorProtocolAuthorizationService,
   EmergencyProtocolService,
-  FollowUpAppointmentService,
   OrganFunctionService,
   PatientTreatmentBulkService,
   PatientTreatmentBusinessService,
@@ -42,7 +41,6 @@ import {
     PrismaService,
     PaginationService,
     SharedErrorHandlingService,
-    FollowUpAppointmentService,
     TestResultRepository,
     PatientTreatmentStatsService,
     PatientTreatmentBulkService,

@@ -155,10 +155,11 @@ model User {
   // Nếu User là LabTech (người nhập kết quả):
   enteredTestResults TestResult[]    @relation("LabTechTestResults") // Kết quả do LabTech nhập
 
-  patientTreatments PatientTreatment[]
-  reminders         Reminder[]
-  blogPosts         BlogPost[]
-  verificationCodes VerificationCode[]
+  patientTreatments   PatientTreatment[]
+  reminders           Reminder[]
+  blogPosts           BlogPost[]
+  verificationCodes   VerificationCode[]
+  paymentTransactions PaymentTransaction[]
 
   // Added missing relations
   createdProtocols  TreatmentProtocol[] @relation("ProtocolCreatedBy")
@@ -284,24 +285,25 @@ model DoctorSchedule {
 }
 
 model Appointment {
-  id                 Int                  @id @default(autoincrement())
-  userId             Int
-  user               User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  doctorId           Int
-  doctor             Doctor               @relation(fields: [doctorId], references: [id], onDelete: Cascade)
-  serviceId          Int
-  service            Service              @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-  appointmentTime    DateTime
-  isAnonymous        Boolean              @default(false)
-  type               AppointmentType
-  status             AppointmentStatus
-  notes              String?              @db.Text
-  patientMeetingUrl  String?              @db.Text
-  doctorMeetingUrl   String?              @db.Text
-  createdAt          DateTime             @default(now())
-  updatedAt          DateTime             @updatedAt
-  AppointmentHistory AppointmentHistory[]
-  meetingRecord      MeetingRecord?
+  id                  Int                  @id @default(autoincrement())
+  userId              Int
+  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  doctorId            Int
+  doctor              Doctor               @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  serviceId           Int
+  service             Service              @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  appointmentTime     DateTime
+  isAnonymous         Boolean              @default(false)
+  type                AppointmentType
+  status              AppointmentStatus
+  notes               String?              @db.Text
+  patientMeetingUrl   String?              @db.Text
+  doctorMeetingUrl    String?              @db.Text
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  AppointmentHistory  AppointmentHistory[]
+  meetingRecord       MeetingRecord?
+  paymentTransactions PaymentTransaction[]
 }
 
 model TreatmentProtocol {
@@ -383,9 +385,10 @@ model PatientTreatment {
   createdBy         User               @relation("TreatmentCreatedBy", fields: [createdById], references: [id])
   total             Float
 
-  status      Boolean      @default(false) // Trạng thái điều trị (e.g., "Active", "Inactive")
+  status              Boolean              @default(false) // Trạng thái điều trị (e.g., "Active", "Inactive")
   // Relations
-  testResults TestResult[]
+  testResults         TestResult[]
+  paymentTransactions PaymentTransaction[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -532,4 +535,69 @@ model MeetingRecord {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// --- PAYMENT ENUMS ---
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  CANCELLED
+  EXPIRED
+}
+
+enum PaymentMethod {
+  CASH
+  SEPAY
+}
+
+enum PaymentItemType {
+  APPOINTMENT_FEE
+  MEDICINE
+  TEST
+  CONSULTATION
+  TREATMENT
+}
+
+// --- PAYMENT MODELS ---
+model PaymentTransaction {
+  id                   Int               @id @default(autoincrement())
+  userId               Int
+  user                 User              @relation(fields: [userId], references: [id])
+  appointmentId        Int?
+  appointment          Appointment?      @relation(fields: [appointmentId], references: [id])
+  patientTreatmentId   Int?
+  patientTreatment     PatientTreatment? @relation(fields: [patientTreatmentId], references: [id])
+  amount               Decimal           @db.Decimal(10, 2)
+  method               PaymentMethod
+  status               PaymentStatus     @default(PENDING)
+  transactionCode      String?           @unique @db.VarChar(100)
+  gatewayTransactionId String?           @db.VarChar(100)
+  gatewayResponse      Json?
+  paidAt               DateTime?
+  expiredAt            DateTime?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  items PaymentItem[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([expiredAt])
+}
+
+model PaymentItem {
+  id                   Int                @id @default(autoincrement())
+  paymentTransactionId Int
+  paymentTransaction   PaymentTransaction @relation(fields: [paymentTransactionId], references: [id], onDelete: Cascade)
+  type                 PaymentItemType
+  referenceId          Int?
+  name                 String             @db.VarChar(500)
+  quantity             Int                @default(1)
+  unitPrice            Decimal            @db.Decimal(10, 2)
+  totalPrice           Decimal            @db.Decimal(10, 2)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  @@index([paymentTransactionId])
 }
