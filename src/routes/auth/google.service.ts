@@ -1,6 +1,6 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { google } from 'googleapis'
-import envConfig from "src/shared/config";
+// import envConfig from "src/shared/config";
 import { randomBytes } from 'crypto';
 import { AuthRepository } from "../../repositories/user.repository";
 import { RolesService } from "../role/role.service";
@@ -22,9 +22,9 @@ export class GoogleService {
     private readonly emailService: EmailService,
   ){
     this.oauth2Client = new google.auth.OAuth2( 
-       envConfig.GOOGLE_CLIENT_ID,
-       envConfig.GOOGLE_CLIENT_SECRET,
-       envConfig.GOOGLE_REDIRECT_URI
+       process.env.GOOGLE_CLIENT_ID,
+       process.env.GOOGLE_CLIENT_SECRET,
+       process.env.GOOGLE_REDIRECT_URI
     )
   }
 
@@ -124,7 +124,7 @@ export class GoogleService {
     try {
       const ticket = await this.oauth2Client.verifyIdToken({
         idToken,
-        audience: envConfig.GOOGLE_CLIENT_ID,
+        audience: process.env.GOOGLE_CLIENT_ID,
       });
       
       const payload = ticket.getPayload();

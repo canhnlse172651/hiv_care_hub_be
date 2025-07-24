@@ -6,6 +6,7 @@ import { NestExpressApplication } from '@nestjs/platform-express'
 import { UPLOAD_DIR } from './shared/constants/other.constant'
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule)
+  const port = process.env.PORT || 3000 // Dòng này quan trọng này!
 
   // Enable CORS
   app.enableCors()
@@ -29,6 +30,6 @@ async function bootstrap() {
       // defaultModelsExpandDepth: -1, // Tùy chọn: Không hiển thị models/schemas mặc định
     },
   })
-  await app.listen(3000)
+  await app.listen(port)
 }
 void bootstrap()
