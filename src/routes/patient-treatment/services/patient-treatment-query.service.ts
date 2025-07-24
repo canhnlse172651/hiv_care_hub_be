@@ -73,7 +73,7 @@ export class PatientTreatmentQueryService {
       protocol: { include: { medicines: { include: { medicine: true } } } },
       createdBy: { select: { id: true, name: true, email: true } },
       testResults: {
-        include: {test:true}
+        include: { test: true },
       },
     }
   }
@@ -140,22 +140,7 @@ export class PatientTreatmentQueryService {
         this.patientTreatmentRepository.getPatientTreatmentModel(),
         options,
         where,
-        {
-          patient: { select: { id: true, name: true, email: true } },
-          protocol: true,
-          createdBy: { select: { id: true, name: true } },
-          testResults: {
-            select: {
-              id: true,
-              rawResultValue: true,
-              interpretation: true,
-              cutOffValueUsed: true,
-              notes: true,
-              resultDate: true,
-              status: true,
-            },
-          },
-        },
+        this.getDefaultIncludes(),
       )
       result.data = result.data.map((item) => {
         item.customMedications = normalizeCustomMedicationsSchedule(item.customMedications)
