@@ -6,6 +6,7 @@ import {
   InternalServerErrorException,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   Query,
 } from '@nestjs/common'
@@ -36,10 +37,11 @@ import {
   ApiGetTreatmentCostAnalysis,
   ApiGetTreatmentsWithCustomMedications,
   ApiSearchPatientTreatments,
+  ApiUpdatePatientTreatment,
 } from '../../swagger/patient-treatment.swagger'
 import { TreatmentComplianceStatsDto, TreatmentCostAnalysisDto } from './patient-treatment.analytics.dto'
-import { CreatePatientTreatmentDto, PatientTreatmentQueryDto } from './patient-treatment.dto'
-import type { CreatePatientTreatmentType } from './patient-treatment.model'
+import { CreatePatientTreatmentDto, PatientTreatmentQueryDto, UpdatePatientTreatmentDto } from './patient-treatment.dto'
+import type { CreatePatientTreatmentType, UpdatePatientTreatment } from './patient-treatment.model'
 import { PatientTreatmentService } from './patient-treatment.service'
 
 @ApiBearerAuth()
@@ -70,6 +72,18 @@ export class PatientTreatmentController {
       Number(userId),
       autoEndExisting === 'true',
     ) as Promise<PatientTreatment>
+  }
+
+  @Patch(':id')
+  @Roles(Role.Admin, Role.Doctor)
+  @ApiUpdatePatientTreatment()
+  async updatePatientTreatment(
+    @Param('id', ParseIntPipe) id: number,
+    @Body(new CustomZodValidationPipe(UpdatePatientTreatmentDto)) data: UpdatePatientTreatment,
+    @CurrentUser() user: any,
+  ): Promise<PatientTreatment> {
+    // Có thể kiểm tra quyền user ở đây nếu cần
+    return this.patientTreatmentService.updatePatientTreatment(id, data)
   }
 
   // ===============================

@@ -356,13 +356,7 @@ export class AppoinmentService {
     const refreshed = await this.appoinmentRepository.findAppointmentById(id)
 
     // Nếu trạng thái là CHECKIN hoặc COMPLETED thì tạo/cập nhật hồ sơ điều trị
-    if (
-      refreshed &&
-      (refreshed.status === 'CHECKIN' || refreshed.status === 'COMPLETED') &&
-      existed.user.id &&
-      existed.doctor.id &&
-      existed.service.id
-    ) {
+    if (refreshed && refreshed.status === 'PAID' && existed.user.id && existed.doctor.id && existed.service.id) {
       try {
         const treatmentPayload: any = {
           patientId: existed.user.id,
@@ -377,6 +371,9 @@ export class AppoinmentService {
           autoEndExisting,
         }
         await this.patientTreatmentService.createPatientTreatment(treatmentPayload, existed.user.id)
+
+        // 
+        
       } catch (e) {
         console.error('Auto create PatientTreatment failed:', e)
       }

@@ -1,14 +1,13 @@
 import {
-  PrismaClient,
-  HTTPMethod,
-  ServiceType,
-  MedicationSchedule,
-  ReminderType,
-  AppointmentType,
   AppointmentStatus,
+  AppointmentType,
   DurationUnit,
-  VerificationType,
-  TestType,
+  HTTPMethod,
+  MedicationSchedule,
+  PrismaClient,
+  ReminderType,
+  ServiceType,
+  VerificationType
 } from '@prisma/client'
 import * as bcrypt from 'bcrypt'
 import { v4 as uuidv4 } from 'uuid'
@@ -663,7 +662,7 @@ async function main() {
       {
         appointmentId: appointment1.id,
         oldStatus: AppointmentStatus.PENDING,
-        newStatus: AppointmentStatus.CONFIRMED,
+        newStatus: AppointmentStatus.COMPLETED,
         changedBy: adminUser.id,
         note: 'Xác nhận tự động',
       },
@@ -677,7 +676,7 @@ async function main() {
       {
         appointmentId: appointment3.id,
         oldStatus: AppointmentStatus.PENDING,
-        newStatus: AppointmentStatus.CHECKIN,
+        newStatus: AppointmentStatus.PAID,
         changedBy: doctors[2].userId,
         note: 'Bệnh nhân đã đến',
       },

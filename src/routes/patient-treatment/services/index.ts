@@ -1,4 +1,3 @@
-export * from './follow-up-appointment.service'
 export * from './patient-treatment-bulk.service'
 export * from './patient-treatment-business.service'
 export * from './patient-treatment-create.service'

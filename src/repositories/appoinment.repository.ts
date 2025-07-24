@@ -88,22 +88,29 @@ export class AppoinmentRepository {
   }
 
   async updateAppointment(id: number, data: UpdateAppointmentDtoType): Promise<AppointmentResponseType> {
+    // Omit id fields from update data
+    const { userId, doctorId, serviceId, ...updateData } = data as any
     const appointment = await this.prisma.appointment.update({
       where: { id },
-      data,
+      data: updateData,
       include: this.includeRelations,
     })
 
-    // Flatten doctor.user into doctor
-    const doctorUser = appointment.doctor?.user
-    const doctor = doctorUser
-      ? {
-          id: appointment.doctor.id,
-          name: doctorUser.name,
-          email: doctorUser.email,
-          avatar: doctorUser.avatar,
-        }
-      : null
+    // Flatten doctor.user into doctor if present
+    let doctor: { id: number; name: string; email: string; avatar: string | null } = {
+      id: 0,
+      name: '',
+      email: '',
+      avatar: null,
+    }
+    if (appointment.doctor && appointment.doctor.user) {
+      doctor = {
+        id: appointment.doctor.id,
+        name: appointment.doctor.user.name,
+        email: appointment.doctor.user.email,
+        avatar: appointment.doctor.user.avatar,
+      }
+    }
 
     return {
       ...appointment,
@@ -375,7 +382,7 @@ export class AppoinmentRepository {
       where: {
         doctorId,
         appointmentTime: { gte: slotStart, lt: slotEnd },
-        status: { in: [AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED] },
+        status: { in: [AppointmentStatus.PENDING, AppointmentStatus.PAID] },
       },
     })
   }
