@@ -10,6 +10,7 @@ const DAYS_IN_MS = 1000 * 60 * 60 * 24
 export const CreatePatientTreatmentDataSchema = CreatePatientTreatmentSchema.extend({
   createdById: z.number().positive('Created by ID must be positive'),
   total: z.number().min(0).optional(),
+  isAnonymous: z.boolean().optional(),
 })
 
 export const UpdatePatientTreatmentDataSchema = CreatePatientTreatmentDataSchema.partial().omit({
@@ -64,6 +65,7 @@ export class PatientTreatmentRepository {
     createdById: number
     total: number
     status?: boolean
+    isAnonymous?: boolean
   }): Promise<PatientTreatment> {
     const validatedData = CreatePatientTreatmentDataSchema.parse(data)
     const customMedicationsJson = this.serializeCustomMedications(validatedData.customMedications)
@@ -78,6 +80,7 @@ export class PatientTreatmentRepository {
       total: data.total,
       protocolId: validatedData.protocolId ?? null,
       status: validatedData.status ?? false,
+      isAnonymous: validatedData.isAnonymous ?? false,
     }
     try {
       return await this.prismaService.patientTreatment.create({

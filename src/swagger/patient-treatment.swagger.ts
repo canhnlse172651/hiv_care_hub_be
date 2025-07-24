@@ -186,6 +186,11 @@ export const ApiCreatePatientTreatment = () =>
             description: 'Patient ID',
             example: 1,
           },
+          isAnonymous: {
+            type: 'boolean',
+            description: 'Is anonymous patient',
+            example: false,
+          },
           protocolId: {
             type: 'number',
             description: 'Treatment Protocol ID',
@@ -238,6 +243,7 @@ export const ApiCreatePatientTreatment = () =>
           summary: 'Create Patient Treatment',
           value: {
             patientId: 1,
+            isAnonymous: false,
             protocolId: 1,
             doctorId: 1,
             customMedications: {
@@ -296,22 +302,48 @@ export const ApiUpdatePatientTreatment = () =>
             description: 'Treatment Protocol ID',
             example: 1,
           },
+          isAnonymous: {
+            type: 'boolean',
+            description: 'Is anonymous patient',
+            example: false,
+          },
           doctorId: {
             type: 'number',
             description: 'Doctor ID',
             example: 1,
           },
           customMedications: {
-            type: 'object',
-            description: 'Custom medications (JSON)',
-            example: {
-              additionalMeds: [
-                {
-                  name: 'Vitamin D',
-                  dosage: '1000 IU daily',
-                },
-              ],
+            type: 'array',
+            description: 'Custom medications',
+            items: {
+              type: 'object',
+              properties: {
+                medicineId: { type: 'number', example: 1 },
+                medicineName: { type: 'string', example: 'Vitamin D' },
+                dosage: { type: 'string', example: '1000 IU daily' },
+                unit: { type: 'string', example: 'IU' },
+                frequency: { type: 'string', example: 'daily' },
+                durationValue: { type: 'number', example: 30 },
+                durationUnit: { type: 'string', example: 'DAY', enum: ['DAY', 'WEEK', 'MONTH', 'YEAR'] },
+                schedule: { type: 'string', example: 'MORNING', enum: ['MORNING', 'AFTERNOON', 'NIGHT'] },
+                notes: { type: 'string', example: 'Take after breakfast' },
+                price: { type: 'number', example: 10000 },
+              },
             },
+            example: [
+              {
+                medicineId: 1,
+                medicineName: 'Vitamin D',
+                dosage: '1000 IU daily',
+                unit: 'IU',
+                frequency: 'daily',
+                durationValue: 30,
+                durationUnit: 'DAY',
+                schedule: 'MORNING',
+                notes: 'Take after breakfast',
+                price: 10000,
+              },
+            ],
           },
           notes: {
             type: 'string',
@@ -342,15 +374,22 @@ export const ApiUpdatePatientTreatment = () =>
           summary: 'Update Patient Treatment',
           value: {
             protocolId: 1,
+            isAnonymous: false,
             doctorId: 1,
-            customMedications: {
-              additionalMeds: [
-                {
-                  name: 'Vitamin D',
-                  dosage: '1000 IU daily',
-                },
-              ],
-            },
+            customMedications: [
+              {
+                medicineId: 1,
+                medicineName: 'Vitamin D',
+                dosage: '1000 IU daily',
+                unit: 'IU',
+                frequency: 'daily',
+                durationValue: 30,
+                durationUnit: 'DAY',
+                schedule: 'MORNING',
+                notes: 'Take after breakfast',
+                price: 10000,
+              },
+            ],
             notes: 'Patient responds well to treatment - updated',
             startDate: '2024-01-01T00:00:00Z',
             endDate: '2024-12-31T23:59:59Z',

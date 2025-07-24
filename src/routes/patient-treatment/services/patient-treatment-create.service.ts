@@ -19,6 +19,7 @@ interface CreatePatientTreatmentInput {
   notes?: string
   customMedications?: string | CustomMedicationType | CustomMedicationType[]
   status?: boolean
+  isAnonymous?: boolean
 }
 
 @Injectable()
@@ -83,6 +84,7 @@ export class PatientTreatmentCreateService {
         total,
         createdById: userId,
         status: data.status ?? false,
+        isAnonymous: data.isAnonymous ?? false,
       })
 
       // 7. Normalize in response
