@@ -18,7 +18,7 @@ import { ApiTags } from '@nestjs/swagger'
 import { ApiUploadImage, ApiUploadImages } from '../../swagger/media.swagger'
 import { Response } from 'express'
 import path from 'path'
-import envConfig from '../../shared/config'
+// import envConfig from '../../shared/config'
 import { UPLOAD_DIR } from '../../shared/constants/other.constant'
 
 @ApiTags('Media')
@@ -57,7 +57,7 @@ export class MediaController {
     }
     console.log('Single file upload:', file)
     return {
-      url: `${envConfig.PREFIX_STATIC_ENDPOINT}/${file.filename}`,
+      url: `${process.env.PREFIX_STATIC_ENDPOINT}/${file.filename}`,
     }
   }
 
@@ -87,7 +87,7 @@ export class MediaController {
     }
     console.log('Multi file upload:', files)
     return files.map((file) => ({
-      url: `${envConfig.PREFIX_STATIC_ENDPOINT}/${file.filename}`,
+      url: `${process.env.PREFIX_STATIC_ENDPOINT}/${file.filename}`,
     }))
   }
 

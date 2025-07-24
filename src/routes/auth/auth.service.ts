@@ -14,7 +14,7 @@ import {
 } from './auth.model'
 import { generateOtp } from 'src/shared/utils/otp.utils'
 import { addMilliseconds } from 'date-fns'
-import envConfig from 'src/shared/config'
+// import envConfig from 'src/shared/config'
 import ms, { StringValue } from 'ms'
 import { EmailService } from 'src/shared/services/email.service'
 import { TwoFactorService } from 'src/shared/services/2fa.service'
@@ -259,7 +259,7 @@ export class AuthService {
       const otp = generateOtp()
 
       // Validate environment variable
-      const expirationTime = envConfig.OTP_EXPIRES_IN || '5m'
+      const expirationTime = process.env.OTP_EXPIRES_IN || '5m'
 
       await this.authRepository.createVerificationCode({
         email: body.email,
