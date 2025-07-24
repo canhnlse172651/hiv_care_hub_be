@@ -7,7 +7,7 @@ import {
   PrismaClient,
   ReminderType,
   ServiceType,
-  VerificationType
+  VerificationType,
 } from '@prisma/client'
 import * as bcrypt from 'bcrypt'
 import { v4 as uuidv4 } from 'uuid'
@@ -582,8 +582,12 @@ async function main() {
       protocolId: protocol1.id,
       notes: 'Theo dõi nhiệt độ hàng ngày',
       startDate: new Date(),
+      endDate: null,
       total: 3,
       createdById: staffUsers[0].id,
+      status: true,
+      isAnonymous: false,
+      customMedications: [],
     },
   })
   const patientTreatment2 = await prisma.patientTreatment.create({
@@ -594,8 +598,11 @@ async function main() {
       customMedications: [{ id: med2.id, dosage: '2 capsules', note: 'Uống trước ăn' } as any],
       notes: 'Kiểm tra lại sau 1 tuần',
       startDate: new Date(),
+      endDate: null,
       total: 7,
       createdById: staffUsers[1].id,
+      status: false,
+      isAnonymous: true,
     },
   })
 
