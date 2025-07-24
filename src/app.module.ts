@@ -23,8 +23,13 @@ import { CatchEverythingFilter } from './shared/fillters/catch-everything.fillte
 import { SharedModule } from './shared/shared.module'
 import { MeetingRecordModule } from './routes/meeting-record/meeting-record.module'
 
+import { ConfigModule } from '@nestjs/config' // Đảm bảo bạn đã import ConfigModule
+
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
     SharedModule,
     AuthModule,
     RoleModule,

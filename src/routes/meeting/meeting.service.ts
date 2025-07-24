@@ -11,8 +11,9 @@ export class MeetingService {
   private readonly baseUrl: string
 
   constructor() {
-    this.apiKey = process.env.VIDEOSDK_API_KEY || ''
-    this.secretKey = process.env.VIDEOSDK_SECRET_KEY || ''
+    this.apiKey = process.env.VIDEOSDK_API_KEY || 'da7be3f8-3ad0-44e8-ae5a-28f7584a7e19'
+    this.secretKey =
+      process.env.VIDEOSDK_SECRET_KEY || 'f2cd0e83d5875d28895bb252bd365a849074105318fe256d0ef847d94c4aec1b'
     this.apiEndpoint = process.env.VIDEOSDK_API_ENDPOINT || 'https://api.videosdk.live/v2'
     this.baseUrl = process.env.FRONTEND_BASE_URL || 'http://localhost:5173/meeting'
 

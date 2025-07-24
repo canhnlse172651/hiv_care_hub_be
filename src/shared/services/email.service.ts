@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import * as nodemailer from 'nodemailer'
-import envConfig from 'src/shared/config'
+// import envConfig from 'src/shared/config'
 
 @Injectable()
 export class EmailService {
@@ -9,12 +9,12 @@ export class EmailService {
   constructor() {
     console.log('EmailService: Initializing with SMTP config')
     this.transporter = nodemailer.createTransport({
-      host: envConfig.EMAIL_HOST || 'smtp.gmail.com',
-      port: parseInt(envConfig.EMAIL_PORT || '587'),
-      secure: envConfig.EMAIL_SECURE === 'true', // true for 465, false for other ports
+      host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+      port: parseInt(process.env.EMAIL_PORT || '587'),
+      secure: process.env.EMAIL_SECURE === 'true', // true for 465, false for other ports
       auth: {
-        user: envConfig.EMAIL_USER,
-        pass: envConfig.EMAIL_PASSWORD,
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD,
       },
     })
   }
@@ -33,7 +33,7 @@ export class EmailService {
           <h1 style="color: #007bff; font-size: 32px; margin: 0; letter-spacing: 5px;">${payload.code}</h1>
         </div>
         <p style="color: #666; font-size: 14px;">
-          Mã này sẽ hết hạn trong ${envConfig.OTP_EXPIRES_IN}.
+          Mã này sẽ hết hạn trong ${process.env.OTP_EXPIRES_IN}.
         </p>
         <p style="color: #666; font-size: 14px;">
           Nếu bạn không chủ động thực hiện hành động này, xin hãy bỏ qua email.
@@ -42,7 +42,7 @@ export class EmailService {
     `
 
     const mailOptions = {
-      from: envConfig.EMAIL_FROM || envConfig.EMAIL_USER,
+      from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
       to: payload.email,
       subject,
       html,
@@ -84,7 +84,7 @@ export class EmailService {
     `
 
     const mailOptions = {
-      from: envConfig.EMAIL_FROM || envConfig.EMAIL_USER,
+      from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
       to: payload.email,
       subject,
       html,
@@ -132,7 +132,7 @@ export class EmailService {
     `
 
     const mailOptions = {
-      from: envConfig.EMAIL_FROM || envConfig.EMAIL_USER,
+      from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
       to: payload.email,
       subject,
       html,
