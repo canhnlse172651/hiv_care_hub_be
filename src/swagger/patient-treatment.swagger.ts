@@ -186,11 +186,6 @@ export const ApiCreatePatientTreatment = () =>
             description: 'Patient ID',
             example: 1,
           },
-          isAnonymous: {
-            type: 'boolean',
-            description: 'Is anonymous patient',
-            example: false,
-          },
           protocolId: {
             type: 'number',
             description: 'Treatment Protocol ID',
@@ -243,7 +238,6 @@ export const ApiCreatePatientTreatment = () =>
           summary: 'Create Patient Treatment',
           value: {
             patientId: 1,
-            isAnonymous: false,
             protocolId: 1,
             doctorId: 1,
             customMedications: {
@@ -301,11 +295,6 @@ export const ApiUpdatePatientTreatment = () =>
             type: 'number',
             description: 'Treatment Protocol ID',
             example: 1,
-          },
-          isAnonymous: {
-            type: 'boolean',
-            description: 'Is anonymous patient',
-            example: false,
           },
           doctorId: {
             type: 'number',
@@ -374,7 +363,6 @@ export const ApiUpdatePatientTreatment = () =>
           summary: 'Update Patient Treatment',
           value: {
             protocolId: 1,
-            isAnonymous: false,
             doctorId: 1,
             customMedications: [
               {
