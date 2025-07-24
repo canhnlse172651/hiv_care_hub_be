@@ -131,6 +131,7 @@ export const CreatePatientTreatmentSchema = z.object({
     .pipe(z.date())
     .optional(),
   status: booleanValue.default(false),
+  isAnonymous: booleanValue.default(false),
 })
 
 // Update Patient Treatment Schema

@@ -386,6 +386,7 @@ model PatientTreatment {
   total             Float
 
   status              Boolean              @default(false) // Trạng thái điều trị (e.g., "Active", "Inactive")
+  isAnonymous         Boolean              @default(false) // Điều trị cho bệnh nhân ẩn danh
   // Relations
   testResults         TestResult[]
   paymentTransactions PaymentTransaction[]
