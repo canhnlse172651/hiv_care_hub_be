@@ -586,7 +586,6 @@ async function main() {
       total: 3,
       createdById: staffUsers[0].id,
       status: true,
-      isAnonymous: false,
       customMedications: [],
     },
   })
@@ -602,7 +601,6 @@ async function main() {
       total: 7,
       createdById: staffUsers[1].id,
       status: false,
-      isAnonymous: true,
     },
   })
 
@@ -643,7 +641,6 @@ async function main() {
         doctorId: doctors[1].id,
         serviceId: service2.id,
         appointmentTime: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
-        isAnonymous: true,
         type: AppointmentType.ONLINE,
         status: AppointmentStatus.PENDING,
         notes: 'Khám nhi qua Zoom',
