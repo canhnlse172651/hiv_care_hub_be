@@ -44,10 +44,12 @@ export class MeetingRecordRepository {
             name: true,
             email: true,
             avatar: true,
+            phoneNumber: true,
           },
         },
         doctor: {
           select: {
+            id: true,
             specialization: true,
             user: {
               select: {
@@ -55,6 +57,7 @@ export class MeetingRecordRepository {
                 name: true,
                 email: true,
                 avatar: true,
+                phoneNumber: true,
               },
             },
           },
@@ -63,7 +66,7 @@ export class MeetingRecordRepository {
         notes: true,
       },
     },
-  }  
+  }
 
   getModel() {
     return this.prisma.meetingRecord
@@ -132,10 +135,54 @@ export class MeetingRecordRepository {
     return meetingRecord as MeetingRecordResponseType
   }
 
+  async findMeetingRecordByPatientId(
+    patientId: number,
+    options: PaginationOptions<unknown>,
+  ): Promise<PaginatedResponse<MeetingRecordResponseType>> {
+    const paginationSchema = createPaginationSchema(MeetingRecordFilterSchema)
+    const validatedOptions = paginationSchema.parse({
+      page: options.page?.toString() || '1',
+      limit: options.limit?.toString() || '10',
+      sortBy: options.sortBy,
+      sortOrder: options.sortOrder,
+      search: options.search,
+      searchFields: ['title', 'content'],
+      filters: options.filters ? JSON.stringify(options.filters) : undefined,
+    })
+
+    // Lọc theo patientId qua appointment
+    const where: any = {
+      appointment: {
+        userId: patientId,
+      },
+    }
+
+    // Search
+    if (validatedOptions.search) {
+      where.OR = (validatedOptions.searchFields || ['title', 'content']).map((field) => ({
+        [field]: { contains: validatedOptions.search, mode: 'insensitive' },
+      }))
+    }
+
+    // Sorting
+    const orderBy: any = {}
+    if (validatedOptions.sortBy) {
+      orderBy[validatedOptions.sortBy] = validatedOptions.sortOrder || 'asc'
+    } else {
+      orderBy.createdAt = 'desc'
+    }
+
+    return this.paginationService.paginate(this.prisma.meetingRecord, validatedOptions, where, this.includeRelations)
+  }
+
   async updateMeetingRecord(id: number, data: UpdateMeetingRecordDtoType): Promise<MeetingRecordResponseType> {
     const existingMeetingRecord = await this.findMeetingRecordById(id)
     if (!existingMeetingRecord) throw new NotFoundException('Meeting record not found')
-    const meetingRecord = await this.prisma.meetingRecord.update({ where: { id }, data, include: this.includeRelations })
+    const meetingRecord = await this.prisma.meetingRecord.update({
+      where: { id },
+      data,
+      include: this.includeRelations,
+    })
     return meetingRecord as MeetingRecordResponseType
   }
 
