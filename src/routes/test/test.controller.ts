@@ -1,56 +1,21 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, Query, UseGuards, ParseIntPipe } from '@nestjs/common'
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger'
-import { TestService } from './test.service'
-import { CreateTestDto, UpdateTestDto } from './test.dto'
-import { RolesGuard } from '../../shared/guards/roles.guard'
-import { Roles } from '../../shared/decorators/roles.decorator'
-import { PermissionsGuard } from '../../shared/guards/permissions.guard'
-import { ApiCreateTest, ApiGetTests, ApiGetTestById, ApiUpdateTest, ApiDeleteTest } from '../../swagger/test.swagger'
-import { Role } from 'src/shared/constants/role.constant'
-import { Auth } from 'src/shared/decorators/auth.decorator'
-import { AuthType } from 'src/shared/constants/auth.constant'
-import { TestQuery } from '../../shared/interfaces/query.interface'
+import { Controller, Get, Post, Body } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { TestSwaggerDto } from 'src/swagger/test.swagger';
 
-@ApiBearerAuth()
-@ApiTags('Tests')
-@Controller('tests')
-@UseGuards(RolesGuard, PermissionsGuard)
-@Auth([AuthType.Bearer])
+@ApiTags('Test')
+@Controller('test')
 export class TestController {
-  constructor(private readonly testService: TestService) {}
+  @Get()
+  @ApiOperation({ summary: 'Test endpoint', description: 'Simple test endpoint' })
+  @ApiResponse({ status: 200, description: 'Test successful' })
+  test() {
+    return { message: 'Test endpoint working!' };
+  }
 
   @Post()
-  @Roles(Role.Admin, Role.Doctor)
-  @ApiCreateTest()
-  async createTest(@Body() createTestDto: CreateTestDto) {
-    return await this.testService.createTest(createTestDto)
-  }
-
-  @Get()
-  @Roles(Role.Admin, Role.Doctor, Role.Staff)
-  @ApiGetTests()
-  async getTests(@Query() query: TestQuery) {
-    return await this.testService.findTestsPaginated(query)
-  }
-
-  @Get(':id')
-  @Roles(Role.Admin, Role.Doctor, Role.Staff)
-  @ApiGetTestById()
-  async getTestById(@Param('id', ParseIntPipe) id: number) {
-    return await this.testService.getTestById(id)
-  }
-
-  @Put(':id')
-  @Roles(Role.Admin, Role.Doctor)
-  @ApiUpdateTest()
-  async updateTest(@Param('id', ParseIntPipe) id: number, @Body() updateTestDto: UpdateTestDto) {
-    return await this.testService.updateTest(id, updateTestDto)
-  }
-
-  @Delete(':id')
-  @Roles(Role.Admin)
-  @ApiDeleteTest()
-  async deleteTest(@Param('id', ParseIntPipe) id: number) {
-    return await this.testService.deleteTest(id)
+  @ApiOperation({ summary: 'Test POST', description: 'Test POST endpoint' })
+  @ApiResponse({ status: 201, description: 'Test POST successful', type: TestSwaggerDto })
+  testPost(@Body() data: TestSwaggerDto) {
+    return { message: 'Test POST working!', data };
   }
 }

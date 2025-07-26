@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common'
 import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core'
 import { ZodSerializerInterceptor } from 'nestjs-zod'
+import { ConfigModule } from '@nestjs/config'
 import { AppController } from './app.controller'
 import { AppService } from './app.service'
 import CustomZodValidationPipe from './common/custom-zod-validate'
@@ -22,14 +23,25 @@ import { UserModule } from './routes/user/user.module'
 import { CatchEverythingFilter } from './shared/fillters/catch-everything.fillter'
 import { SharedModule } from './shared/shared.module'
 import { MeetingRecordModule } from './routes/meeting-record/meeting-record.module'
+import { PaymentModule } from './routes/payment/payment.module'
+import { OrderModule } from './routes/order/order.module'
+import { BullModule } from '@nestjs/bull'
 
-import { ConfigModule } from '@nestjs/config' // Đảm bảo bạn đã import ConfigModule
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    BullModule.forRoot({
+      redis: {
+        host: 'redis-12288.crce185.ap-seast-1-1.ec2.redns.redis-cloud.com',
+        port: 12288,
+        username: 'default',
+        password: 'qYXkaEIsyQu48Dqoqzn6tGeGksZngLj8'
+      },
+    }),
+  
     SharedModule,
     AuthModule,
     RoleModule,
@@ -47,6 +59,8 @@ import { ConfigModule } from '@nestjs/config' // Đảm bảo bạn đã import 
     ServiceModule,
     AppoinmentModule,
     MeetingRecordModule,
+    PaymentModule, // Add payment module
+    OrderModule, // Add order module
   ],
   controllers: [AppController],
   providers: [
