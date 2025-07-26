@@ -49,6 +49,7 @@ export class MeetingRecordRepository {
         },
         doctor: {
           select: {
+            id: true,
             specialization: true,
             user: {
               select: {

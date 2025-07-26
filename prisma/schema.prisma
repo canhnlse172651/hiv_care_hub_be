@@ -11,9 +11,8 @@ model AppointmentHistory {
 }
 
 generator client {
-  provider = "prisma-client-js"
-  binaryTargets   = ["native", "debian-openssl-1.1.x"] // Thêm dòng này
-
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-1.1.x"] // Thêm dòng này
 }
 
 datasource db {
@@ -59,8 +58,6 @@ enum AppointmentStatus {
   PAID
   CANCELLED
   COMPLETED
- 
-  
 }
 
 enum ReminderType {
@@ -164,7 +161,6 @@ model User {
   blogPosts         BlogPost[]
   verificationCodes VerificationCode[]
   orders            Order[]
-  
 
   // Added missing relations
   createdProtocols  TreatmentProtocol[] @relation("ProtocolCreatedBy")
@@ -309,7 +305,6 @@ model Appointment {
   AppointmentHistory AppointmentHistory[]
   meetingRecord      MeetingRecord?
   orders             Order[]
-  
 }
 
 model TreatmentProtocol {
@@ -391,11 +386,10 @@ model PatientTreatment {
   createdBy         User               @relation("TreatmentCreatedBy", fields: [createdById], references: [id])
   total             Float
 
-  status              Boolean              @default(false) // Trạng thái điều trị (e.g., "Active", "Inactive")
+  status      Boolean      @default(false) // Trạng thái điều trị (e.g., "Active", "Inactive")
   // Relations
   testResults TestResult[]
   orders      Order[]
-  
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -553,48 +547,42 @@ enum PaymentStatus {
 }
 
 enum OrderItemType {
-   APPOINTMENT_FEE
+  APPOINTMENT_FEE
   MEDICINE
   TEST
   CONSULTATION
   TREATMENT
 }
 
-
-
-
-
 enum OrderStatus {
   PENDING
   PAID
 }
 
-
-
 // --- ORDER MODELS ---
 model Order {
-  id                Int                @id @default(autoincrement())
-  userId            Int
-  user              User               @relation(fields: [userId], references: [id])
-  appointmentId     Int?
-  appointment       Appointment?       @relation(fields: [appointmentId], references: [id])
+  id                 Int               @id @default(autoincrement())
+  userId             Int
+  user               User              @relation(fields: [userId], references: [id])
+  appointmentId      Int?
+  appointment        Appointment?      @relation(fields: [appointmentId], references: [id])
   patientTreatmentId Int?
-  patientTreatment  PatientTreatment?  @relation(fields: [patientTreatmentId], references: [id])
-  
+  patientTreatment   PatientTreatment? @relation(fields: [patientTreatmentId], references: [id])
+
   // Order info
-  orderCode         String             @unique @db.VarChar(100)
-  totalAmount       Decimal            @db.Decimal(10, 2)
-  notes             String?            @db.Text
-  orderStatus       OrderStatus        @default(PENDING)
-  
+  orderCode   String      @unique @db.VarChar(100)
+  totalAmount Decimal     @db.Decimal(10, 2)
+  notes       String?     @db.Text
+  orderStatus OrderStatus @default(PENDING)
+
   // Timestamps
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-  expiredAt         DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  expiredAt DateTime?
 
   // Relations
-  orderDetails      OrderDetail[]
-  payments          Payment[]
+  orderDetails OrderDetail[]
+  payments     Payment[]
 
   @@index([userId])
   @@index([expiredAt])
@@ -602,27 +590,26 @@ model Order {
 }
 
 model OrderDetail {
-  id                Int                @id @default(autoincrement())
-  orderId           Int
-  order             Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  
+  id      Int   @id @default(autoincrement())
+  orderId Int
+  order   Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
   // Item info
-  type              OrderItemType
-  referenceId       Int?               // ID của item (medicine, test, etc.)
-  name              String             @db.VarChar(500)
-  quantity          Int                @default(1)
-  unitPrice         Decimal            @db.Decimal(10, 2)
-  totalPrice        Decimal            @db.Decimal(10, 2)
-  
+  type        OrderItemType
+  referenceId Int? // ID của item (medicine, test, etc.)
+  name        String        @db.VarChar(500)
+  quantity    Int           @default(1)
+  unitPrice   Decimal       @db.Decimal(10, 2)
+  totalPrice  Decimal       @db.Decimal(10, 2)
+
   // Timestamps
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([orderId])
 }
 
 // --- PAYMENT ENUMS ---
-
 
 enum PaymentMethod {
   CASH
@@ -631,48 +618,42 @@ enum PaymentMethod {
 
 // --- PAYMENT MODELS ---
 model Payment {
-  id                   Int                @id @default(autoincrement())
-  orderId              Int
-  order                Order              @relation(fields: [orderId], references: [id])
-  
+  id      Int   @id @default(autoincrement())
+  orderId Int
+  order   Order @relation(fields: [orderId], references: [id])
+
   // Payment info
-  amount               Decimal            @db.Decimal(10, 2)
+  amount               Decimal       @db.Decimal(10, 2)
   method               PaymentMethod
-  status               PaymentStatus      @default(PENDING)
-  transactionCode      String?            @unique @db.VarChar(100)
-  gatewayTransactionId String?            @db.VarChar(100)
+  status               PaymentStatus @default(PENDING)
+  transactionCode      String?       @unique @db.VarChar(100)
+  gatewayTransactionId String?       @db.VarChar(100)
   gatewayResponse      Json?
   // Timestamps
   paidAt               DateTime?
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @updatedAt
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
 
   @@index([orderId])
   @@index([status])
   @@index([transactionCode])
 }
 
-
-
 model PaymentTransaction {
-  id Int @id @default(autoincrement())
-  gateway String @db.VarChar(100)
-  transactionDate DateTime @db.Date
-  accountNumber String? @db.VarChar(100)
-  subAccount String? @db.VarChar(100)
-  amountIn Decimal @db.Decimal(10, 2)
-  amountOut Decimal @db.Decimal(10, 2)
-  accumulated Decimal @db.Decimal(10, 2)
-  code String? @db.VarChar(100)
-  transactionContent String? @db.VarChar(100)
-  referenceNumber String? @db.VarChar(100)
-  body String? @db.Text
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
+  id                 Int      @id @default(autoincrement())
+  gateway            String   @db.VarChar(100)
+  transactionDate    DateTime @db.Date
+  accountNumber      String?  @db.VarChar(100)
+  subAccount         String?  @db.VarChar(100)
+  amountIn           Decimal  @db.Decimal(10, 2)
+  amountOut          Decimal  @db.Decimal(10, 2)
+  accumulated        Decimal  @db.Decimal(10, 2)
+  code               String?  @db.VarChar(100)
+  transactionContent String?  @db.VarChar(100)
+  referenceNumber    String?  @db.VarChar(100)
+  body               String?  @db.Text
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
-  
+
 // --- PAYMENT MODELS ---
-
-
-
