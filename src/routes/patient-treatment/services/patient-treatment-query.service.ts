@@ -39,7 +39,15 @@ export class PatientTreatmentQueryService {
         const startDateStr = typeof params.startDate === 'string' ? params.startDate : undefined
         const endDateStr = typeof params.endDate === 'string' ? params.endDate : undefined
         const parsedStartDate = startDateStr ? new Date(String(startDateStr)) : undefined
-        const parsedEndDate = endDateStr ? new Date(String(endDateStr)) : undefined
+        const parsedEndDate = (() => {
+          if (!endDateStr) return undefined
+          const d = new Date(String(endDateStr))
+          if (!isNaN(d.getTime())) {
+            d.setHours(23, 59, 59, 999)
+            return d
+          }
+          return undefined
+        })()
         const isValidStartDate = parsedStartDate && !isNaN(parsedStartDate.getTime())
         const isValidEndDate = parsedEndDate && !isNaN(parsedEndDate.getTime())
         if (isValidStartDate && isValidEndDate) {
