@@ -1070,6 +1070,7 @@ async function main() {
     }),
   ])
 
+ 
   await prisma.appointmentHistory.createMany({
     data: [
       {
