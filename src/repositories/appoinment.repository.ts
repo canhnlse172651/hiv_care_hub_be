@@ -92,6 +92,7 @@ export class AppoinmentRepository {
     const { userId, doctorId, serviceId, ...updateData } = data as any
     const appointment = await this.prisma.appointment.update({
       where: { id },
+
       data: updateData,
       include: this.includeRelations,
     })
