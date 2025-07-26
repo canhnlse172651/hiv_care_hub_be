@@ -32,6 +32,15 @@ const configSchema = z.object({
   GOOGLE_CLIENT_REDIRECT_URI: z.string().optional(),
   APP_NAME: z.string().optional(),
   PREFIX_STATIC_ENDPOINT: z.string().optional(),
+  // Payment related API keys
+  SEPAY_API_KEY: z.string().optional(),
+  SEPAY_SECRET_KEY: z.string().optional(),
+  SEPAY_BASE_URL: z.string().optional(),
+  PAYMENT_API_KEY: z.string().optional(),
+  ADMIN_API_KEY: z.string().optional(),
+  INTERNAL_API_KEY: z.string().optional(),
+  // Frontend URLs
+  FRONTEND_URL: z.string().optional(),
 })
 
 const configServer = configSchema.safeParse(process.env)
@@ -40,8 +49,6 @@ if (!configServer.success) {
   console.log('configServer', configServer.error)
   process.exit(1)
 }
-
-
 
 const envConfig = configServer.data
 

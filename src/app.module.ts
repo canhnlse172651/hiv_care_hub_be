@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common'
 import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core'
 import { ZodSerializerInterceptor } from 'nestjs-zod'
 import { ConfigModule } from '@nestjs/config'
-// import { BullModule } from '@nestjs/bull'
 import { AppController } from './app.controller'
 import { AppService } from './app.service'
 import CustomZodValidationPipe from './common/custom-zod-validate'
@@ -24,7 +23,8 @@ import { UserModule } from './routes/user/user.module'
 import { CatchEverythingFilter } from './shared/fillters/catch-everything.fillter'
 import { SharedModule } from './shared/shared.module'
 import { MeetingRecordModule } from './routes/meeting-record/meeting-record.module'
-import { PaymentModule } from './payment/payment.module'
+import { PaymentModule } from './routes/payment/payment.module'
+import { OrderModule } from './routes/order/order.module'
 import { BullModule } from '@nestjs/bull'
 
 @Module({
@@ -59,6 +59,7 @@ import { BullModule } from '@nestjs/bull'
     AppoinmentModule,
     MeetingRecordModule,
     PaymentModule, // Add payment module
+    OrderModule, // Add order module
   ],
   controllers: [AppController],
   providers: [

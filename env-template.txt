@@ -1,0 +1,59 @@
+DATABASE_URL="postgres://admin:rldBsyfHJ0uJTEOkLWzCnjP9gIpssugn@dpg-d1r7raumcj7s73ak8pq0-a.singapore-postgres.render.com/hivcarehub_ltee"
+
+# JWT Configuration
+ACCESS_TOKEN_SECRET="your-access-token-secret-key-here"
+ACCESS_TOKEN_EXPIRES_IN="15m"
+REFRESH_TOKEN_SECRET="your-refresh-token-secret-key-here"
+REFRESH_TOKEN_EXPIRES_IN="7d"
+
+# API Security
+SECRET_API_KEY="your-api-key-here"
+
+# Email Configuration
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_SECURE=false
+EMAIL_USER=canhnlse172651@gmail.com
+EMAIL_PASSWORD=clhi zaaz wxwv kkvx
+EMAIL_FROM=canhnlse172651@gmail.com
+
+# OTP Configuration
+OTP_EXPIRES_IN=5m
+
+# Resend Configuration
+RESEND_API_KEY="re_3k3F9bUd_JRHiB6bLn4wb4s5AtUvUJUaJ"
+
+# Google OAuth Configuration
+GOOGLE_CLIENT_ID=1068154433719-sfci8raqgqkeaht84shgakel7ba5hs8r.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=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
+GOOGLE_REDIRECT_URI=http://localhost:5173/auth/google/callback
+GOOGLE_CLIENT_REDIRECT_URI=http://localhost:5173/oauth-google-callback
+
+# App Configuration
+APP_NAME="WDP_Be"
+PREFIX_STATIC_ENDPOINT=http://localhost:3000/media/static
+
+# Video SDK Configuration
+VIDEOSDK_API_KEY=da7be3f8-3ad0-44e8-ae5a-28f7584a7e19
+VIDEOSDK_SECRET_KEY=f2cd0e83d5875d28895bb252bd365a849074105318fe256d0ef847d94c4aec1b
+FRONTEND_BASE_URL=http://localhost:5173
+VIDEOSDK_API_ENDPOINT=https://api.videosdk.live/v2
+
+# Redis Configuration (for Queue and Caching)
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
+REDIS_DB=0
+
+# Payment Gateway Configuration (Sepay)
+SEPAY_API_KEY="hivcarehub_api_key"
+SEPAY_SECRET_KEY="hivcarehub_secrect_key"
+SEPAY_BASE_URL="https://api.sepay.vn"
+
+# Payment System API Keys
+PAYMENT_API_KEY="hivcarehub_api_key"
+ADMIN_API_KEY="admin_api_key_here"
+INTERNAL_API_KEY="internal_api_key_here"
+
+# Frontend URL for Payment Callbacks
+FRONTEND_URL="http://localhost:5173" 
