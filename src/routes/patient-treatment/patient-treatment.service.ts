@@ -14,10 +14,10 @@ import {
 import {
   DoctorProtocolAuthorizationService,
   EmergencyProtocolService,
-  FollowUpAppointmentService,
   OrganFunctionService,
   PatientTreatmentBulkService,
   PatientTreatmentBusinessService,
+  PatientTreatmentCreateService,
   PatientTreatmentQueryService,
   PatientTreatmentStatsService,
   PregnancySafetyService,
@@ -25,7 +25,6 @@ import {
   TreatmentAdherenceService,
   TreatmentContinuityService,
   ViralLoadMonitoringService,
-  PatientTreatmentCreateService,
 } from './services'
 
 @Injectable()
@@ -34,7 +33,6 @@ export class PatientTreatmentService {
     private readonly patientTreatmentRepository: PatientTreatmentRepository,
     private readonly paginationService: PaginationService,
     private readonly errorHandlingService: SharedErrorHandlingService,
-    private readonly followUpAppointmentService: FollowUpAppointmentService,
     private readonly patientTreatmentStatsService: PatientTreatmentStatsService,
     private readonly patientTreatmentQueryService: PatientTreatmentQueryService,
     private readonly patientTreatmentBusinessService: PatientTreatmentBusinessService,
@@ -794,290 +792,6 @@ export class PatientTreatmentService {
     console.log(`PERFORMANCE [PatientTreatment]: ${operation} completed in ${duration}ms`, metric)
     if (duration > 1000) {
       console.warn(`SLOW_OPERATION [PatientTreatment]: ${operation} took ${duration}ms`, metric)
-    }
-  }
-
-  // ===============================
-  // FOLLOW-UP APPOINTMENT INTEGRATION
-  // ===============================
-
-  /**
-   * Tạo treatment với tự động hẹn lịch tái khám
-   */
-  async createPatientTreatmentWithFollowUp(
-    data: any,
-    userId: number,
-    followUpConfig?: {
-      autoCreateFollowUp: boolean
-      dayOffset?: number
-      serviceId?: number
-      notes?: string
-    },
-  ): Promise<{
-    treatment: PatientTreatment
-    followUpAppointment?: any
-    message: string
-  }> {
-    try {
-      // 1. Tạo treatment trước
-      const treatment = await this.createPatientTreatment(data, userId, false)
-
-      let followUpAppointment: any = null
-      let message = 'Treatment created successfully'
-
-      // 2. Tạo follow-up appointment nếu được yêu cầu
-      if (followUpConfig?.autoCreateFollowUp && this.followUpAppointmentService) {
-        try {
-          const followUpResult = await this.followUpAppointmentService.createFollowUpAppointment(Number(treatment.id), {
-            dayOffset: followUpConfig.dayOffset || 30,
-            serviceId: followUpConfig.serviceId,
-            notes: followUpConfig.notes || 'Auto-generated follow-up appointment',
-          })
-
-          if (followUpResult.success && followUpResult.appointment) {
-            followUpAppointment = followUpResult.appointment
-            message = 'Treatment created with follow-up appointment scheduled'
-          }
-        } catch (followUpError) {
-          console.warn('Failed to create follow-up appointment:', followUpError)
-          message = 'Treatment created, but follow-up appointment creation failed'
-        }
-      }
-
-      return {
-        treatment,
-        followUpAppointment,
-        message,
-      }
-    } catch (error) {
-      return this.handleServiceError(error, 'createPatientTreatmentWithFollowUp', { data, userId })
-    }
-  }
-
-  /**
-   * Lấy treatments với thông tin follow-up appointments
-   */
-  async getPatientTreatmentsWithFollowUp(patientId: number): Promise<{
-    treatments: PatientTreatment[]
-    followUpAppointments: any[]
-    summary: {
-      totalTreatments: number
-      treatmentsWithFollowUp: number
-      upcomingAppointments: number
-    }
-  }> {
-    try {
-      const pid = typeof patientId === 'string' ? Number(patientId) : patientId
-      const treatments = await this.patientTreatmentRepository.findPatientTreatmentsByPatientId(pid, {
-        page: 0,
-        limit: 100,
-      })
-
-      let followUpAppointments: any[] = []
-      if (this.followUpAppointmentService) {
-        followUpAppointments = await this.followUpAppointmentService.getFollowUpAppointmentsByPatient(patientId)
-      }
-
-      // Tính toán summary
-      const treatmentsWithFollowUp = treatments.filter((t) =>
-        followUpAppointments.some((apt) => apt.notes?.includes(`treatment ${t.id}`)),
-      ).length
-
-      const upcomingAppointments = followUpAppointments.filter((apt) => {
-        try {
-          return apt.appointmentTime && new Date(String(apt.appointmentTime)) > new Date() && apt.status === 'PENDING'
-        } catch {
-          return false
-        }
-      }).length
-
-      return {
-        treatments,
-        followUpAppointments,
-        summary: {
-          totalTreatments: treatments.length,
-          treatmentsWithFollowUp,
-          upcomingAppointments,
-        },
-      }
-    } catch (error) {
-      return this.handleServiceError(error, 'getPatientTreatmentsWithFollowUp', { patientId })
-    }
-  }
-
-  /**
-   * Recommend follow-up schedule dựa trên treatment type và patient characteristics
-   */
-  async getRecommendedFollowUpSchedule(treatment: PatientTreatment): Promise<{
-    recommendedIntervals: number[]
-    totalAppointments: number
-    startFromDay: number
-    notes: string
-    urgencyLevel: 'low' | 'medium' | 'high'
-    specialInstructions: string[]
-  }> {
-    // Lấy thông tin chi tiết về treatment và patient
-    const fullTreatment = (await this.patientTreatmentRepository.findPatientTreatmentById(treatment.id)) as any
-
-    if (!fullTreatment?.patient || !fullTreatment?.protocol) {
-      // Fallback schedule nếu không có đủ thông tin
-      return {
-        recommendedIntervals: [30, 90, 180],
-        totalAppointments: 3,
-        startFromDay: 30,
-        notes: 'Standard HIV treatment follow-up schedule',
-        urgencyLevel: 'medium',
-        specialInstructions: ['Monitor for side effects', 'Check adherence'],
-      }
-    }
-
-    const patient = fullTreatment.patient
-
-    const protocol = fullTreatment.protocol // Tính tuổi patient (giả sử có dateOfBirth hoặc age field)
-    const currentDate = new Date()
-    let patientAge = 35 // default age
-
-    if (patient.dateOfBirth) {
-      const birthDate = new Date(String(patient.dateOfBirth))
-      patientAge = Math.floor((currentDate.getTime() - birthDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000))
-    } else if (patient.age) {
-      patientAge = Number(patient.age)
-    }
-
-    // Xác định risk level dựa trên các yếu tố
-    let riskLevel: 'low' | 'medium' | 'high' = 'low'
-    const specialInstructions: string[] = []
-    let intervals: number[] = []
-    let notes = ''
-
-    // Risk assessment logic
-    if (patientAge < 18 || patientAge > 65) {
-      riskLevel = 'high'
-      specialInstructions.push('Elderly/pediatric patient - closer monitoring required')
-    }
-
-    // Check for complex medication regimen
-    if (protocol.medicines && protocol.medicines.length > 3) {
-      if (riskLevel === 'low') riskLevel = 'medium'
-      specialInstructions.push('Complex medication regimen - monitor for drug interactions')
-    }
-
-    // Check if this is a new treatment (first 6 months)
-    const treatmentStartDate = new Date(treatment.startDate)
-    const monthsSinceStart = Math.floor(
-      (currentDate.getTime() - treatmentStartDate.getTime()) / (30 * 24 * 60 * 60 * 1000),
-    )
-
-    // Xác định lịch tái khám dựa trên risk level và thời gian điều trị
-    if (monthsSinceStart < 6) {
-      switch (riskLevel) {
-        case 'high':
-          intervals = [14, 30, 60, 90, 120, 180] // Week 2, Month 1,2,3,4,6
-          notes = 'New high-risk patient - intensive monitoring schedule'
-          specialInstructions.push('Weekly phone check for first month', 'Monitor for treatment failure signs')
-          break
-        case 'medium':
-          intervals = [30, 60, 90, 180] // Month 1,2,3,6
-          notes = 'New patient - standard monitoring schedule'
-          specialInstructions.push('Assess adherence carefully', 'Monitor for side effects')
-          break
-        case 'low':
-          intervals = [30, 90, 180] // Month 1,3,6
-          notes = 'New low-risk patient - standard schedule'
-          specialInstructions.push('Regular adherence assessment')
-          break
-      }
-    } else {
-      switch (riskLevel) {
-        case 'high':
-          intervals = [90, 180, 270, 360] // Every 3 months
-          notes = 'Established high-risk patient - quarterly monitoring'
-          specialInstructions.push('Quarterly comprehensive assessment', 'Monitor comorbidities')
-          break
-        case 'medium':
-          intervals = [180, 360] // Every 6 months
-          notes = 'Established patient - bi-annual monitoring'
-          specialInstructions.push('Bi-annual comprehensive check-up')
-          break
-        case 'low':
-          intervals = [360] // Annually
-          notes = 'Stable patient - annual monitoring'
-          specialInstructions.push('Annual routine check-up')
-          break
-      }
-    }
-
-    // Add general instructions based on protocol type
-    if (protocol.name?.toLowerCase().includes('first-line')) {
-      specialInstructions.push('Monitor for first-line treatment effectiveness')
-    } else if (protocol.name?.toLowerCase().includes('second-line')) {
-      specialInstructions.push('Enhanced monitoring for second-line treatment')
-      riskLevel = 'high' // Second-line treatments need closer monitoring
-    }
-
-    // Custom medications increase complexity
-    if (treatment.customMedications && Object.keys(treatment.customMedications).length > 0) {
-      specialInstructions.push('Monitor custom medication interactions')
-      if (riskLevel === 'low') riskLevel = 'medium'
-    }
-
-    // Sau khi riskLevel có thể bị thay đổi, cập nhật lại intervals và notes cho phù hợp
-    if (monthsSinceStart < 6) {
-      switch (riskLevel) {
-        case 'high':
-          intervals = [14, 30, 60, 90, 120, 180]
-          notes = 'New high-risk patient - intensive monitoring schedule'
-          if (!specialInstructions.includes('Weekly phone check for first month'))
-            specialInstructions.push('Weekly phone check for first month')
-          if (!specialInstructions.includes('Monitor for treatment failure signs'))
-            specialInstructions.push('Monitor for treatment failure signs')
-          break
-        case 'medium':
-          intervals = [30, 60, 90, 180]
-          notes = 'New patient - standard monitoring schedule'
-          if (!specialInstructions.includes('Assess adherence carefully'))
-            specialInstructions.push('Assess adherence carefully')
-          if (!specialInstructions.includes('Monitor for side effects'))
-            specialInstructions.push('Monitor for side effects')
-          break
-        case 'low':
-          intervals = [30, 90, 180]
-          notes = 'New low-risk patient - standard schedule'
-          if (!specialInstructions.includes('Regular adherence assessment'))
-            specialInstructions.push('Regular adherence assessment')
-          break
-      }
-    } else {
-      switch (riskLevel) {
-        case 'high':
-          intervals = [90, 180, 270, 360]
-          notes = 'Established high-risk patient - quarterly monitoring'
-          if (!specialInstructions.includes('Quarterly comprehensive assessment'))
-            specialInstructions.push('Quarterly comprehensive assessment')
-          if (!specialInstructions.includes('Monitor comorbidities')) specialInstructions.push('Monitor comorbidities')
-          break
-        case 'medium':
-          intervals = [180, 360]
-          notes = 'Established patient - bi-annual monitoring'
-          if (!specialInstructions.includes('Bi-annual comprehensive check-up'))
-            specialInstructions.push('Bi-annual comprehensive check-up')
-          break
-        case 'low':
-          intervals = [360]
-          notes = 'Stable patient - annual monitoring'
-          if (!specialInstructions.includes('Annual routine check-up'))
-            specialInstructions.push('Annual routine check-up')
-          break
-      }
-    }
-
-    return {
-      recommendedIntervals: intervals,
-      totalAppointments: intervals.length,
-      startFromDay: intervals[0] || 30,
-      notes,
-      urgencyLevel: riskLevel,
-      specialInstructions,
     }
   }
 

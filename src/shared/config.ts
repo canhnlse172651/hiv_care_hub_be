@@ -43,6 +43,7 @@ const configSchema = z.object({
   FRONTEND_URL: z.string().optional(),
 })
 
+
 const configServer = configSchema.safeParse(process.env)
 
 if (!configServer.success) {
@@ -53,3 +54,4 @@ if (!configServer.success) {
 const envConfig = configServer.data
 
 export default envConfig
+

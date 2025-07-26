@@ -50,6 +50,8 @@ export class AppoinmentService {
   async createAppointment(data: CreateAppointmentDtoType): Promise<AppointmentResponseType> {
     const user = await this.userRepository.findUserById(data.userId)
     if (!user) throw new BadRequestException('User not found')
+    console.log('data.appointmentTime', data.appointmentTime)
+
 
     if (data.appointmentTime < new Date()) throw new BadRequestException('Appointment time cannot be in the past')
 
@@ -69,6 +71,7 @@ export class AppoinmentService {
     if (service.type === 'CONSULT' && data.type === 'ONLINE') {
       if (data.doctorId) throw new BadRequestException('It is not possible to choose your own doctor for this service.')
       // Tìm slot
+      console.log('data.appointmentTime', data.appointmentTime)
       const appointmentTimeFormatted = formatTimeHHMM(data.appointmentTime)
       const slot = slots.find((s) => s.start === appointmentTimeFormatted)
       if (!slot) throw new BadRequestException('This slot is not available for appointment')
@@ -127,9 +130,15 @@ export class AppoinmentService {
       if (!doctor) throw new BadRequestException('Doctor not found')
     }
 
+    console.log('data.appointmentTime', data.appointmentTime)
+
     // Format the appointment time to HH:MM format for comparison with service hours
     const appointmentTimeFormatted = formatTimeHHMM(data.appointmentTime)
+    console.log("appointmentTimeFormatted: ", appointmentTimeFormatted)
+    console.log("slots: ", slots)
     const slot = slots.find((s) => s.start === appointmentTimeFormatted)
+    console.log('slot', slot)
+
     if (!slot) {
       throw new BadRequestException('This slot is not available for appointment')
     }
@@ -356,13 +365,7 @@ export class AppoinmentService {
     const refreshed = await this.appoinmentRepository.findAppointmentById(id)
 
     // Nếu trạng thái là CHECKIN hoặc COMPLETED thì tạo/cập nhật hồ sơ điều trị
-    if (
-      refreshed &&
-      (refreshed.status === 'CHECKIN' || refreshed.status === 'COMPLETED') &&
-      existed.user.id &&
-      existed.doctor.id &&
-      existed.service.id
-    ) {
+    if (refreshed && refreshed.status === 'PAID' && existed.user.id && existed.doctor.id && existed.service.id) {
       try {
         const treatmentPayload: any = {
           patientId: existed.user.id,
@@ -377,6 +380,8 @@ export class AppoinmentService {
           autoEndExisting,
         }
         await this.patientTreatmentService.createPatientTreatment(treatmentPayload, existed.user.id)
+
+        //
       } catch (e) {
         console.error('Auto create PatientTreatment failed:', e)
       }

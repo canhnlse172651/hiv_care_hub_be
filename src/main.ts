@@ -11,14 +11,10 @@ async function bootstrap() {
 
   // Enable CORS with production-ready settings
   app.enableCors({
-    origin: process.env.NODE_ENV === 'production' 
-      ? [
-          'https://fa08a851e4dc63.lhr.life',
-          'https://*.lhr.life',
-          'http://localhost:5173',
-          'http://localhost:3000'
-        ] 
-      : true,
+    origin:
+      process.env.NODE_ENV === 'production'
+        ? ['https://fa08a851e4dc63.lhr.life', 'https://*.lhr.life', 'http://localhost:5173', 'http://localhost:3000']
+        : true,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
@@ -34,9 +30,9 @@ async function bootstrap() {
     .setVersion('1.0')
     .addBearerAuth()
     .build()
-  
+
   const document = SwaggerModule.createDocument(app, config)
-  
+
   // Production-ready Swagger setup - Completely offline
   SwaggerModule.setup('api', app, document, {
     swaggerOptions: {
@@ -60,10 +56,10 @@ async function bootstrap() {
     customSiteTitle: 'HIV Care Hub API Documentation',
     customfavIcon: '/favicon.ico',
   })
-  
-  const port = process.env.PORT || 3001  // Đổi từ 3000 sang 3001
+
+  const port = process.env.PORT || 3001 // Đổi từ 3000 sang 3001
   await app.listen(port, '0.0.0.0') // Listen on all interfaces for production
-  
+
   console.log('🚀 Application is running on port:', port)
   console.log('📚 API Documentation: http://localhost:' + port + '/api')
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`)

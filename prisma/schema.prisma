@@ -12,6 +12,8 @@ model AppointmentHistory {
 
 generator client {
   provider = "prisma-client-js"
+  binaryTargets   = ["native", "debian-openssl-1.1.x"] // Thêm dòng này
+
 }
 
 datasource db {
@@ -162,6 +164,7 @@ model User {
   blogPosts         BlogPost[]
   verificationCodes VerificationCode[]
   orders            Order[]
+  
 
   // Added missing relations
   createdProtocols  TreatmentProtocol[] @relation("ProtocolCreatedBy")
@@ -306,6 +309,7 @@ model Appointment {
   AppointmentHistory AppointmentHistory[]
   meetingRecord      MeetingRecord?
   orders             Order[]
+  
 }
 
 model TreatmentProtocol {
@@ -387,10 +391,11 @@ model PatientTreatment {
   createdBy         User               @relation("TreatmentCreatedBy", fields: [createdById], references: [id])
   total             Float
 
-  status      Boolean      @default(false) // Trạng thái điều trị (e.g., "Active", "Inactive")
+  status              Boolean              @default(false) // Trạng thái điều trị (e.g., "Active", "Inactive")
   // Relations
   testResults TestResult[]
   orders      Order[]
+  
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -540,6 +545,7 @@ model MeetingRecord {
 }
 
 // --- ORDER ENUMS ---
+// --- PAYMENT ENUMS ---
 enum PaymentStatus {
   PENDING
   SUCCESS
@@ -547,12 +553,16 @@ enum PaymentStatus {
 }
 
 enum OrderItemType {
-  APPOINTMENT_FEE
+   APPOINTMENT_FEE
   MEDICINE
   TEST
   CONSULTATION
   TREATMENT
 }
+
+
+
+
 
 enum OrderStatus {
   PENDING
@@ -659,5 +669,10 @@ model PaymentTransaction {
   body String? @db.Text
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
 }
+  
+// --- PAYMENT MODELS ---
+
+
+

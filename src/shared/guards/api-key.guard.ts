@@ -1,5 +1,6 @@
 import { Injectable, CanActivate, ExecutionContext, UnauthorizedException, Logger } from '@nestjs/common'
 import envConfig from 'src/shared/config'
+// import envConfig from 'src/shared/config'
 
 @Injectable()
 export class PaymentAPIKeyGuard implements CanActivate {
@@ -21,6 +22,7 @@ export class PaymentAPIKeyGuard implements CanActivate {
       this.logger.error(`❌ [API_KEY_GUARD] Expected: ${expectedAuthHeader}`);
       this.logger.error(`❌ [API_KEY_GUARD] Received: ${authHeader}`);
       throw new UnauthorizedException('Invalid API key')
+
     }
     
     this.logger.log(`✅ [API_KEY_GUARD] API key verified successfully`);
