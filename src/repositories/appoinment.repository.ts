@@ -24,17 +24,20 @@ export class AppoinmentRepository {
         name: true,
         email: true,
         avatar: true,
+        phoneNumber: true,
       },
     },
     doctor: {
       select: {
         id: true,
+        specialization: true,
         user: {
           select: {
             id: true,
             name: true,
             email: true,
             avatar: true,
+            phoneNumber: true,
           },
         },
       },

@@ -102,6 +102,19 @@ export const ApiGetMeetingRecordByAppointmentId = () => {
   )
 }
 
+export const ApiGetMeetingRecordByPatientId = () => {
+  return applyDecorators(
+    ApiOperation({summary: 'Get a meeting record by patient ID'}),
+    ApiParam({ name: 'id', type: Number, example: 1 }),
+    ApiQuery({ name: 'page', type: Number, required: false, example: 1 }),
+    ApiQuery({ name: 'limit', type: Number, required: false, example: 10 }),
+    ApiQuery({ name: 'search', type: String, required: false, example: 'NestJS' }),
+    ApiQuery({ name: 'sortBy', type: String, required: false, example: 'createdAt' }),
+    ApiQuery({ name: 'sortOrder', type: String, required: false, example: 'desc' }),
+    ApiResponse({ status: 200, description: 'Meeting record fetched successfully', schema: MeetingRecordResponseSchema }),
+  )
+}
+
 export const ApiUpdateMeetingRecord = () => {
   return applyDecorators(
     ApiOperation({ summary: 'Update a meeting record by ID' }),
