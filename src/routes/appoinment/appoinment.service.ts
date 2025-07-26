@@ -13,7 +13,6 @@ import { PatientTreatmentService } from '../patient-treatment/patient-treatment.
 import { ReminderService } from '../reminder/reminder.service'
 import { AppointmentResponseType, CreateAppointmentDtoType, UpdateAppointmentDtoType } from './appoinment.dto'
 import { AppointmentHistoryService } from './appointment-history.service'
-import { custom } from 'zod'
 
 const slots = [
   { start: '07:00', end: '07:30' },
@@ -51,7 +50,6 @@ export class AppoinmentService {
     const user = await this.userRepository.findUserById(data.userId)
     if (!user) throw new BadRequestException('User not found')
     console.log('data.appointmentTime', data.appointmentTime)
-
 
     if (data.appointmentTime < new Date()) throw new BadRequestException('Appointment time cannot be in the past')
 
@@ -134,8 +132,8 @@ export class AppoinmentService {
 
     // Format the appointment time to HH:MM format for comparison with service hours
     const appointmentTimeFormatted = formatTimeHHMM(data.appointmentTime)
-    console.log("appointmentTimeFormatted: ", appointmentTimeFormatted)
-    console.log("slots: ", slots)
+    console.log('appointmentTimeFormatted: ', appointmentTimeFormatted)
+    console.log('slots: ', slots)
     const slot = slots.find((s) => s.start === appointmentTimeFormatted)
     console.log('slot', slot)
 
@@ -362,30 +360,28 @@ export class AppoinmentService {
     }
 
     const updated = await this.appoinmentRepository.updateAppointmentStatus(id, status)
-    const refreshed = await this.appoinmentRepository.findAppointmentById(id)
+    // const refreshed = await this.appoinmentRepository.findAppointmentById(id)
 
-    // Nếu trạng thái là CHECKIN hoặc COMPLETED thì tạo/cập nhật hồ sơ điều trị
-    if (refreshed && refreshed.status === 'PAID' && existed.user.id && existed.doctor.id && existed.service.id) {
-      try {
-        const treatmentPayload: any = {
-          patientId: existed.user.id,
-          doctorId: existed.doctor.id,
-          protocolId: undefined,
-          notes: existed.notes || '',
-          status: true,
-          startDate: existed.appointmentTime || new Date(),
-          endDate: undefined,
-          createdById: existed.user.id,
-          total: 0,
-          autoEndExisting,
-        }
-        await this.patientTreatmentService.createPatientTreatment(treatmentPayload, existed.user.id)
-
-        //
-      } catch (e) {
-        console.error('Auto create PatientTreatment failed:', e)
-      }
-    }
+    // Không còn tự động tạo hồ sơ điều trị khi trạng thái là PAID
+    // if (refreshed && refreshed.status === 'PAID' && existed.user.id && existed.doctor.id && existed.service.id) {
+    //   try {
+    //     const treatmentPayload: any = {
+    //       patientId: existed.user.id,
+    //       doctorId: existed.doctor.id,
+    //       protocolId: undefined,
+    //       notes: existed.notes || '',
+    //       status: true,
+    //       startDate: existed.appointmentTime || new Date(),
+    //       endDate: undefined,
+    //       createdById: existed.user.id,
+    //       total: 0,
+    //       autoEndExisting,
+    //     }
+    //     await this.patientTreatmentService.createPatientTreatment(treatmentPayload, existed.user.id)
+    //   } catch (e) {
+    //     console.error('Auto create PatientTreatment failed:', e)
+    //   }
+    // }
     return updated
   }
 

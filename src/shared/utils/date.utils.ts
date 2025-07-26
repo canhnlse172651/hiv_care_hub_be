@@ -3,7 +3,7 @@
  */
 
 // Vietnam timezone offset in minutes (UTC+7)
-const VIETNAM_TIMEZONE_OFFSET = 0
+const VIETNAM_TIMEZONE_OFFSET = 7 * 60
 
 /**
  * Get hours in Vietnam timezone

@@ -243,6 +243,9 @@ export class PatientTreatmentService {
         ;[validStartDate, validEndDate] = [validEndDate, validStartDate]
       }
 
+      validEndDate = new Date(validEndDate)
+      validEndDate.setHours(23, 59, 59, 999)
+
       const treatments = await this.patientTreatmentRepository.getPatientTreatmentsByDateRange(
         validStartDate,
         validEndDate,
@@ -335,6 +338,10 @@ export class PatientTreatmentService {
         endDate: validatedQuery.endDate ? new Date(validatedQuery.endDate) : undefined,
         page,
         limit,
+      }
+      // Ensure endDate is set to end of day if provided and valid
+      if (params.endDate && !isNaN(params.endDate.getTime())) {
+        params.endDate.setHours(23, 59, 59, 999)
       }
 
       // Use existing repository method to find treatments with custom medications
