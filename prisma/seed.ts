@@ -426,7 +426,28 @@ async function main() {
   ])
 
   // 6. Medicines
-  const [med1, med2, med3, med4, med5, med6, med7, med8, med9, med10] = await Promise.all([
+  const [
+    med1,
+    med2,
+    med3,
+    med4,
+    med5,
+    med6,
+    med7,
+    med8,
+    med9,
+    med10,
+    med14,
+    med15,
+    med16,
+    med17,
+    med18,
+    med19,
+    med20,
+    med21,
+    med22,
+    med23,
+  ] = await Promise.all([
     prisma.medicine.create({
       data: { name: 'Paracetamol', unit: 'tablet', dose: '500mg', price: 1.5, description: 'Giảm đau, hạ sốt' },
     }),
@@ -475,6 +496,85 @@ async function main() {
         description: 'Kháng sinh nhóm macrolide',
       },
     }),
+    // HIV medicines
+    prisma.medicine.create({
+      data: {
+        name: 'Zidovudine',
+        unit: 'tablet',
+        dose: '300mg',
+        price: 3.5,
+        description: 'Thuốc ức chế men sao chép ngược HIV',
+      },
+    }),
+    prisma.medicine.create({
+      data: { name: 'Efavirenz', unit: 'tablet', dose: '600mg', price: 4.8, description: 'Thuốc NNRTI điều trị HIV' },
+    }),
+    prisma.medicine.create({
+      data: { name: 'Atazanavir', unit: 'tablet', dose: '300mg', price: 6.2, description: 'Thuốc ức chế protease HIV' },
+    }),
+    prisma.medicine.create({
+      data: {
+        name: 'Ritonavir',
+        unit: 'tablet',
+        dose: '100mg',
+        price: 5.0,
+        description: 'Thuốc tăng cường ức chế protease',
+      },
+    }),
+    prisma.medicine.create({
+      data: {
+        name: 'Tenofovir',
+        unit: 'tablet',
+        dose: '300mg',
+        price: 3.8,
+        description: 'Thuốc ức chế men sao chép ngược HIV nhóm NtRTI',
+      },
+    }),
+    prisma.medicine.create({
+      data: {
+        name: 'Dolutegravir',
+        unit: 'tablet',
+        dose: '50mg',
+        price: 6.0,
+        description: 'Thuốc ức chế men tích hợp HIV',
+      },
+    }),
+    prisma.medicine.create({
+      data: {
+        name: 'Nevirapine',
+        unit: 'tablet',
+        dose: '200mg',
+        price: 4.2,
+        description: 'Thuốc NNRTI cho trẻ sơ sinh',
+      },
+    }),
+    prisma.medicine.create({
+      data: {
+        name: 'Lopinavir/ritonavir',
+        unit: 'tablet',
+        dose: '200mg/50mg',
+        price: 7.5,
+        description: 'Thuốc phối hợp cho thai kỳ',
+      },
+    }),
+    prisma.medicine.create({
+      data: {
+        name: 'Bictegravir',
+        unit: 'tablet',
+        dose: '50mg',
+        price: 7.2,
+        description: 'Thuốc ức chế men tích hợp HIV thế hệ mới',
+      },
+    }),
+    prisma.medicine.create({
+      data: {
+        name: 'Raltegravir',
+        unit: 'tablet',
+        dose: '400mg',
+        price: 6.8,
+        description: 'Thuốc ức chế men tích hợp HIV',
+      },
+    }),
   ])
 
   // 7. TreatmentProtocol & ProtocolMedicine
@@ -483,6 +583,10 @@ async function main() {
       name: 'Fever Treatment',
       description: 'Điều trị sốt thông thường',
       targetDisease: 'Fever',
+      durationValue: 3,
+      durationUnit: DurationUnit.DAY,
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
       createdById: adminUser.id,
       updatedById: adminUser.id,
       medicines: {
@@ -559,6 +663,10 @@ async function main() {
       targetDisease: 'Infection',
       createdById: adminUser.id,
       updatedById: adminUser.id,
+      durationValue: 7,
+      durationUnit: DurationUnit.DAY,
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       medicines: {
         create: [
           {
@@ -568,6 +676,307 @@ async function main() {
             durationUnit: DurationUnit.DAY,
             notes: 'Uống sau ăn',
             schedule: MedicationSchedule.AFTERNOON,
+          },
+        ],
+      },
+    },
+  })
+
+  // 📋 Phác đồ HIV bậc 1
+  const protocolHIV1 = await prisma.treatmentProtocol.create({
+    data: {
+      name: 'Điều trị HIV bậc 1',
+      description: 'Phác đồ phối hợp Tenofovir + Lamivudine + Dolutegravir',
+      targetDisease: 'HIV',
+      durationValue: 180,
+      durationUnit: DurationUnit.DAY,
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000),
+      createdById: adminUser.id,
+      updatedById: adminUser.id,
+      medicines: {
+        create: [
+          {
+            medicineId: med18.id,
+            dosage: '300mg',
+            durationValue: 180,
+            durationUnit: DurationUnit.DAY,
+            notes: 'Uống vào buổi sáng sau ăn',
+            schedule: MedicationSchedule.MORNING,
+          },
+          {
+            medicineId: med9.id, // Lamivudine
+            dosage: '300mg',
+            durationValue: 180,
+            durationUnit: DurationUnit.DAY,
+            notes: 'Dùng kèm Tenofovir mỗi sáng',
+            schedule: MedicationSchedule.MORNING,
+          },
+          {
+            medicineId: med19.id,
+            dosage: '50mg',
+            durationValue: 180,
+            durationUnit: DurationUnit.DAY,
+            notes: 'Uống cùng 2 thuốc trên vào sáng',
+            schedule: MedicationSchedule.MORNING,
+          },
+        ],
+      },
+    },
+  })
+
+  // 📋 Phác đồ HIV bậc 2
+  const protocolHIV2 = await prisma.treatmentProtocol.create({
+    data: {
+      name: 'Điều trị HIV bậc 2',
+      description: 'Phối hợp Zidovudine + Lamivudine + Atazanavir/r',
+      targetDisease: 'HIV',
+      durationValue: 180,
+      durationUnit: DurationUnit.DAY,
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000),
+      createdById: adminUser.id,
+      updatedById: adminUser.id,
+      medicines: {
+        create: [
+          {
+            medicineId: med14.id,
+            dosage: '300mg',
+            durationValue: 180,
+            durationUnit: DurationUnit.DAY,
+            notes: 'Uống sáng và tối',
+            schedule: MedicationSchedule.MORNING,
+          },
+          {
+            medicineId: med9.id,
+            dosage: '300mg',
+            durationValue: 180,
+            durationUnit: DurationUnit.DAY,
+            notes: 'Dùng cùng Zidovudine',
+            schedule: MedicationSchedule.MORNING,
+          },
+          {
+            medicineId: med16.id,
+            dosage: '300mg',
+            durationValue: 180,
+            durationUnit: DurationUnit.DAY,
+            notes: 'Uống sau ăn tối',
+            schedule: MedicationSchedule.NIGHT,
+          },
+          {
+            medicineId: med17.id,
+            dosage: '100mg',
+            durationValue: 180,
+            durationUnit: DurationUnit.DAY,
+            notes: 'Uống cùng Atazanavir',
+            schedule: MedicationSchedule.NIGHT,
+          },
+        ],
+      },
+    },
+  })
+
+  // 📋 Phác đồ HIV với NNRTI
+  const protocolHIVNNRTI = await prisma.treatmentProtocol.create({
+    data: {
+      name: 'Điều trị HIV với NNRTI',
+      description: 'Phác đồ sử dụng Zidovudine + Lamivudine + Efavirenz',
+      targetDisease: 'HIV',
+      durationValue: 180,
+      durationUnit: DurationUnit.DAY,
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000),
+      createdById: adminUser.id,
+      updatedById: adminUser.id,
+      medicines: {
+        create: [
+          {
+            medicineId: med14.id,
+            dosage: '300mg',
+            durationValue: 180,
+            durationUnit: DurationUnit.DAY,
+            notes: 'Uống sáng và tối',
+            schedule: MedicationSchedule.MORNING,
+          },
+          {
+            medicineId: med9.id,
+            dosage: '300mg',
+            durationValue: 180,
+            durationUnit: DurationUnit.DAY,
+            notes: 'Uống sáng và tối',
+            schedule: MedicationSchedule.MORNING,
+          },
+          {
+            medicineId: med15.id,
+            dosage: '600mg',
+            durationValue: 180,
+            durationUnit: DurationUnit.DAY,
+            notes: 'Uống buổi tối trước khi ngủ',
+            schedule: MedicationSchedule.NIGHT,
+          },
+        ],
+      },
+    },
+  })
+
+  // 📋 Phác đồ PEP (sau phơi nhiễm)
+  const protocolPEP = await prisma.treatmentProtocol.create({
+    data: {
+      name: 'Phác đồ PEP (sau phơi nhiễm)',
+      description: 'Tenofovir + Lamivudine + Dolutegravir trong 28 ngày',
+      targetDisease: 'HIV',
+      durationValue: 28,
+      durationUnit: DurationUnit.DAY,
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 28 * 24 * 60 * 60 * 1000),
+      createdById: adminUser.id,
+      updatedById: adminUser.id,
+      medicines: {
+        create: [
+          {
+            medicineId: med18.id, // Tenofovir
+            dosage: '300mg',
+            durationValue: 28,
+            durationUnit: DurationUnit.DAY,
+            notes: 'Uống sáng hàng ngày',
+            schedule: MedicationSchedule.MORNING,
+          },
+          {
+            medicineId: med9.id, // Lamivudine
+            dosage: '300mg',
+            durationValue: 28,
+            durationUnit: DurationUnit.DAY,
+            notes: 'Uống sáng hàng ngày',
+            schedule: MedicationSchedule.MORNING,
+          },
+          {
+            medicineId: med19.id, // Dolutegravir
+            dosage: '50mg',
+            durationValue: 28,
+            durationUnit: DurationUnit.DAY,
+            notes: 'Uống sáng hàng ngày',
+            schedule: MedicationSchedule.MORNING,
+          },
+        ],
+      },
+    },
+  })
+
+  // 📋 Phác đồ PrEP (trước phơi nhiễm)
+  const protocolPrEP = await prisma.treatmentProtocol.create({
+    data: {
+      name: 'Phác đồ PrEP (trước phơi nhiễm)',
+      description: 'Tenofovir + Lamivudine dùng dự phòng trước phơi nhiễm',
+      targetDisease: 'HIV',
+      durationValue: 90,
+      durationUnit: DurationUnit.DAY,
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+      createdById: adminUser.id,
+      updatedById: adminUser.id,
+      medicines: {
+        create: [
+          {
+            medicineId: med18.id, // Tenofovir
+            dosage: '300mg',
+            durationValue: 90,
+            durationUnit: DurationUnit.DAY,
+            notes: 'Uống sáng hàng ngày',
+            schedule: MedicationSchedule.MORNING,
+          },
+          {
+            medicineId: med9.id, // Lamivudine
+            dosage: '300mg',
+            durationValue: 90,
+            durationUnit: DurationUnit.DAY,
+            notes: 'Uống sáng hàng ngày',
+            schedule: MedicationSchedule.MORNING,
+          },
+        ],
+      },
+    },
+  })
+
+  // Chuẩn hóa các tham chiếu thuốc trong phác đồ đặc biệt
+  // Phác đồ trẻ sơ sinh
+  const protocolPediatric = await prisma.treatmentProtocol.create({
+    data: {
+      name: 'Phác đồ HIV cho trẻ sơ sinh',
+      description: 'Zidovudine + Lamivudine + Nevirapine cho trẻ sơ sinh phơi nhiễm',
+      targetDisease: 'HIV',
+      durationValue: 42,
+      durationUnit: DurationUnit.DAY,
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 42 * 24 * 60 * 60 * 1000),
+      createdById: adminUser.id,
+      updatedById: adminUser.id,
+      medicines: {
+        create: [
+          {
+            medicineId: med14.id,
+            dosage: '300mg',
+            durationValue: 42,
+            durationUnit: DurationUnit.DAY,
+            notes: 'Theo cân nặng, uống sáng và tối',
+            schedule: MedicationSchedule.MORNING,
+          },
+          {
+            medicineId: med9.id,
+            dosage: '300mg',
+            durationValue: 42,
+            durationUnit: DurationUnit.DAY,
+            notes: 'Theo cân nặng, uống sáng và tối',
+            schedule: MedicationSchedule.MORNING,
+          },
+          {
+            medicineId: med20.id,
+            dosage: '200mg',
+            durationValue: 42,
+            durationUnit: DurationUnit.DAY,
+            notes: 'Theo cân nặng, uống sáng và tối',
+            schedule: MedicationSchedule.MORNING,
+          },
+        ],
+      },
+    },
+  })
+  // Phác đồ phụ nữ mang thai
+  const protocolPregnancy = await prisma.treatmentProtocol.create({
+    data: {
+      name: 'Phác đồ HIV cho phụ nữ mang thai',
+      description: 'Zidovudine + Lamivudine + Lopinavir/ritonavir cho thai kỳ',
+      targetDisease: 'HIV',
+      durationValue: 180,
+      durationUnit: DurationUnit.DAY,
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000),
+      createdById: adminUser.id,
+      updatedById: adminUser.id,
+      medicines: {
+        create: [
+          {
+            medicineId: med14.id,
+            dosage: '300mg',
+            durationValue: 180,
+            durationUnit: DurationUnit.DAY,
+            notes: 'Uống sáng và tối',
+            schedule: MedicationSchedule.MORNING,
+          },
+          {
+            medicineId: med9.id,
+            dosage: '300mg',
+            durationValue: 180,
+            durationUnit: DurationUnit.DAY,
+            notes: 'Uống sáng và tối',
+            schedule: MedicationSchedule.MORNING,
+          },
+          {
+            medicineId: med21.id,
+            dosage: '200mg/50mg',
+            durationValue: 180,
+            durationUnit: DurationUnit.DAY,
+            notes: 'Uống sáng và tối',
+            schedule: MedicationSchedule.MORNING,
           },
         ],
       },
@@ -766,17 +1175,122 @@ async function main() {
   })
 
   // 15. Blog & Education Materials
-  const cate1 = await prisma.cateBlog.create({ data: { title: 'Health Tips', description: 'Mẹo sống khỏe' } })
-  await prisma.blogPost.create({
-    data: {
-      title: '5 Cách Giữ Sức Khỏe Mỗi Ngày',
-      content: 'Ăn uống lành mạnh, tập thể dục thường xuyên...',
-      authorId: adminUser.id,
-      imageUrl: 'https://example.com/health.jpg',
-      slug: '5-cach-giu-suc-khoe',
-      cateId: cate1.id,
-    },
-  })
+  // Tạo nhiều danh mục blog
+  const [cate1, cate2, cate3, cate4, cate5] = await Promise.all([
+    prisma.cateBlog.create({ data: { title: 'Health Tips', description: 'Mẹo sống khỏe' } }),
+    prisma.cateBlog.create({ data: { title: 'HIV Knowledge', description: 'Kiến thức về HIV/AIDS' } }),
+    prisma.cateBlog.create({ data: { title: 'Nutrition', description: 'Dinh dưỡng cho người bệnh' } }),
+    prisma.cateBlog.create({ data: { title: 'Mental Health', description: 'Sức khỏe tâm thần' } }),
+    prisma.cateBlog.create({ data: { title: 'Treatment Advice', description: 'Tư vấn điều trị' } }),
+  ])
+
+  // Tạo nhiều bài viết blog mẫu
+  await Promise.all([
+    prisma.blogPost.create({
+      data: {
+        title: 'HIV/AIDS: Những Sự Thật Cần Biết',
+        content: `<h2>HIV/AIDS: Những Sự Thật Cần Biết</h2>
+<p><strong>HIV</strong> là một vấn đề sức khỏe toàn cầu, đã cướp đi hơn 44 triệu sinh mạng. Hiện chưa có thuốc chữa khỏi, nhưng điều trị bằng thuốc kháng virus (<strong>ART</strong>) giúp người bệnh sống khỏe mạnh lâu dài.</p>
+<ul>
+  <li><b>HIV</b> lây truyền qua máu, quan hệ tình dục không an toàn, mẹ sang con.</li>
+  <li>ART giúp kiểm soát virus, giảm nguy cơ lây truyền.</li>
+  <li>Người bệnh cần tuân thủ điều trị hàng ngày.</li>
+</ul>
+<p><em>Nguồn: WHO. <a href='https://www.who.int/news-room/fact-sheets/detail/hiv-aids' target='_blank'>Xem chi tiết</a></em></p>`,
+        authorId: adminUser.id,
+        imageUrl: 'https://www.who.int/images/default-source/health-topics/hiv-aids/hiv-aids.jpg',
+        slug: 'hiv-aids-su-that',
+        cateId: cate2.id,
+      },
+    }),
+    prisma.blogPost.create({
+      data: {
+        title: 'Dấu Hiệu Và Triệu Chứng HIV',
+        content: `<h2>Dấu Hiệu Và Triệu Chứng HIV</h2>
+<ul>
+  <li>Sốt, đau đầu, nổi ban, đau họng, sưng hạch.</li>
+  <li>Giảm cân, tiêu chảy, ho kéo dài.</li>
+  <li>Các bệnh nhiễm trùng cơ hội như lao, viêm phổi.</li>
+</ul>
+<p>HIV có thể không gây triệu chứng ban đầu, cần xét nghiệm để phát hiện sớm.</p>
+<p><em>Nguồn: WHO. <a href='https://www.who.int/news-room/fact-sheets/detail/hiv-aids' target='_blank'>Xem chi tiết</a></em></p>`,
+        authorId: doctorUsers[0].id,
+        imageUrl: 'https://www.who.int/images/default-source/health-topics/hiv-aids/hiv-symptoms.jpg',
+        slug: 'dau-hieu-hiv',
+        cateId: cate2.id,
+      },
+    }),
+    prisma.blogPost.create({
+      data: {
+        title: 'Phòng Ngừa Lây Nhiễm HIV',
+        content: `<h2>Phòng Ngừa Lây Nhiễm HIV</h2>
+<ul>
+  <li>Sử dụng bao cao su đúng cách khi quan hệ tình dục.</li>
+  <li>Xét nghiệm HIV định kỳ.</li>
+  <li>Không dùng chung kim tiêm.</li>
+  <li>Sử dụng PrEP/PEP khi có nguy cơ cao.</li>
+</ul>
+<p><em>Nguồn: WHO, CDC. <a href='https://www.cdc.gov/hiv/basics/prevention.html' target='_blank'>Xem chi tiết</a></em></p>`,
+        authorId: doctorUsers[1].id,
+        imageUrl: 'https://www.cdc.gov/hiv/images/prevention.jpg',
+        slug: 'phong-ngua-hiv-thuc-te',
+        cateId: cate2.id,
+      },
+    }),
+    prisma.blogPost.create({
+      data: {
+        title: 'Điều Trị HIV: ART Và Những Lưu Ý',
+        content: `<h2>Điều Trị HIV: ART Và Những Lưu Ý</h2>
+<p>ART giúp kiểm soát virus, giảm nguy cơ lây truyền, và cải thiện chất lượng sống.</p>
+<ul>
+  <li>Tuân thủ điều trị hàng ngày.</li>
+  <li>Xét nghiệm định kỳ để kiểm soát tải lượng virus.</li>
+  <li>Thông báo với bác sĩ khi gặp tác dụng phụ.</li>
+</ul>
+<p><em>Nguồn: WHO, CDC. <a href='https://www.cdc.gov/hiv/basics/treatment.html' target='_blank'>Xem chi tiết</a></em></p>`,
+        authorId: adminUser.id,
+        imageUrl: 'https://www.who.int/images/default-source/health-topics/hiv-aids/hiv-treatment.jpg',
+        slug: 'dieu-tri-hiv-art',
+        cateId: cate5.id,
+      },
+    }),
+    prisma.blogPost.create({
+      data: {
+        title: 'Dinh Dưỡng Cho Người Sống Với HIV',
+        content: `<h2>Dinh Dưỡng Cho Người Sống Với HIV</h2>
+<ul>
+  <li>Ăn nhiều rau xanh, trái cây tươi.</li>
+  <li>Bổ sung protein từ thịt nạc, cá, trứng.</li>
+  <li>Hạn chế thực phẩm chế biến sẵn, nhiều đường.</li>
+  <li>Uống đủ nước mỗi ngày.</li>
+</ul>
+<p>Chế độ ăn cân bằng giúp tăng sức đề kháng, hỗ trợ điều trị HIV.</p>
+<p><em>Nguồn: CDC. <a href='https://www.cdc.gov/hiv/basics/nutrition.html' target='_blank'>Xem chi tiết</a></em></p>`,
+        authorId: doctorUsers[2].id,
+        imageUrl: 'https://www.cdc.gov/hiv/images/nutrition.jpg',
+        slug: 'dinh-duong-hiv-thuc-te',
+        cateId: cate3.id,
+      },
+    }),
+    prisma.blogPost.create({
+      data: {
+        title: 'Sức Khỏe Tâm Thần Khi Sống Với HIV',
+        content: `<h2>Sức Khỏe Tâm Thần Khi Sống Với HIV</h2>
+<ul>
+  <li>Người sống với HIV dễ gặp stress, lo âu, trầm cảm.</li>
+  <li>Cần được hỗ trợ tâm lý từ người thân, chuyên gia.</li>
+  <li>Tham gia các nhóm hỗ trợ cộng đồng.</li>
+</ul>
+<p>Duy trì tinh thần tích cực giúp quá trình điều trị hiệu quả hơn.</p>
+<p><em>Nguồn: CDC. <a href='https://www.cdc.gov/hiv/basics/mentalhealth.html' target='_blank'>Xem chi tiết</a></em></p>`,
+        authorId: adminUser.id,
+        imageUrl: 'https://www.cdc.gov/hiv/images/mentalhealth.jpg',
+        slug: 'tam-than-hiv-thuc-te',
+        cateId: cate4.id,
+      },
+    }),
+  ])
+
   await prisma.educationMaterial.create({
     data: {
       title: 'Hướng Dẫn Quản Lý Tiểu Đường',
