@@ -15,16 +15,16 @@ import {
 } from './meeting-record.dto'
 import CustomZodValidationPipe from 'src/common/custom-zod-validate'
 import { PaginatedResponse } from 'src/shared/schemas/pagination.schema'
-import { ApiCreateMeetingRecord, ApiDeleteMeetingRecord, ApiGetAllMeetingRecords, ApiGetMeetingRecordByAppointmentId, ApiGetMeetingRecordById, ApiUpdateMeetingRecord } from 'src/swagger/meeting-record.swagger'
+import { ApiCreateMeetingRecord, ApiDeleteMeetingRecord, ApiGetAllMeetingRecords, ApiGetMeetingRecordByAppointmentId, ApiGetMeetingRecordById, ApiGetMeetingRecordByPatientId, ApiUpdateMeetingRecord } from 'src/swagger/meeting-record.swagger'
 
 @ApiTags('Meeting Record')
 @ApiBearerAuth()
 @Auth([AuthType.Bearer])
-@Roles(Role.Doctor, Role.Staff)
 @Controller('meeting-record')
 export class MeetingRecordController {
   constructor(private readonly meetingRecordService: MeetingRecordService) {}
-
+  
+  @Roles(Role.Doctor, Role.Staff)
   @ApiCreateMeetingRecord()
   @Post()
   async createMeetingRecord(
@@ -33,6 +33,7 @@ export class MeetingRecordController {
     return this.meetingRecordService.createMeetingRecord(data)
   }
 
+  @Roles(Role.Doctor, Role.Staff, Role.Admin)
   @ApiGetAllMeetingRecords()
   @Get()
   async getAllMeetingRecord(@Query() query: unknown): Promise<PaginatedResponse<MeetingRecordResponseType>> {
@@ -51,6 +52,13 @@ export class MeetingRecordController {
     return this.meetingRecordService.getMeetingRecordByAppointmentId(id)
   }
 
+  @ApiGetMeetingRecordByPatientId()
+  @Get('patient/:id')
+  async getMeetingRecordByPatientId(@Param('id', ParseIntPipe) id: number, @Query() query: unknown): Promise<PaginatedResponse<MeetingRecordResponseType>> {
+    return this.meetingRecordService.getMeetingRecordByPatientId(id, query)
+  }
+
+  @Roles(Role.Doctor, Role.Staff)
   @ApiUpdateMeetingRecord()
   @Patch(':id')
   async updateMeetingRecord(
@@ -60,6 +68,7 @@ export class MeetingRecordController {
     return this.meetingRecordService.updateMeetingRecord(id, data)
   }
 
+  @Roles(Role.Doctor, Role.Staff)
   @ApiDeleteMeetingRecord()
   @Delete(':id')
   async deleteMeetingRecord(@Param('id', ParseIntPipe) id: number): Promise<MeetingRecordResponseType> {

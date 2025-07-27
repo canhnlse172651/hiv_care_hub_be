@@ -360,28 +360,35 @@ export class AppoinmentService {
     }
 
     const updated = await this.appoinmentRepository.updateAppointmentStatus(id, status)
-    // const refreshed = await this.appoinmentRepository.findAppointmentById(id)
+    const refreshed = await this.appoinmentRepository.findAppointmentById(id)
 
-    // Không còn tự động tạo hồ sơ điều trị khi trạng thái là PAID
-    // if (refreshed && refreshed.status === 'PAID' && existed.user.id && existed.doctor.id && existed.service.id) {
-    //   try {
-    //     const treatmentPayload: any = {
-    //       patientId: existed.user.id,
-    //       doctorId: existed.doctor.id,
-    //       protocolId: undefined,
-    //       notes: existed.notes || '',
-    //       status: true,
-    //       startDate: existed.appointmentTime || new Date(),
-    //       endDate: undefined,
-    //       createdById: existed.user.id,
-    //       total: 0,
-    //       autoEndExisting,
-    //     }
-    //     await this.patientTreatmentService.createPatientTreatment(treatmentPayload, existed.user.id)
-    //   } catch (e) {
-    //     console.error('Auto create PatientTreatment failed:', e)
-    //   }
-    // }
+    // Không còn tự động tạo hồ sơ điều trị khi trạng thái là PAID, chỉ tạo nếu không phải ONLINE
+    if (
+      refreshed &&
+      refreshed.status === 'PAID' &&
+      existed.user.id &&
+      existed.doctor.id &&
+      // existed.service.id &&
+      existed.type !== 'ONLINE'
+    ) {
+      try {
+        const treatmentPayload: any = {
+          patientId: existed.user.id,
+          doctorId: existed.doctor.id,
+          protocolId: undefined,
+          notes: existed.notes || '',
+          status: true,
+          startDate: existed.appointmentTime || new Date(),
+          endDate: undefined,
+          createdById: existed.user.id,
+          total: 0,
+          autoEndExisting,
+        }
+        await this.patientTreatmentService.createPatientTreatment(treatmentPayload, existed.user.id)
+      } catch (e) {
+        console.error('Auto create PatientTreatment failed:', e)
+      }
+    }
     return updated
   }
 

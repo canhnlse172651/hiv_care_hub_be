@@ -44,6 +44,12 @@ export class MeetingRecordService {
     return meetingRecord || null
   }
 
+  async getMeetingRecordByPatientId(id: number, query: unknown): Promise<PaginatedResponse<MeetingRecordResponseType>> {
+    const options = this.paginationService.getPaginationOptions(query)
+    return await this.meetingRecordRepository.findMeetingRecordByPatientId(id, options)
+
+  }
+
   async updateMeetingRecord(id: number, data: UpdateMeetingRecordDto): Promise<MeetingRecordResponseType> {
     const meetingRecord = await this.meetingRecordRepository.findMeetingRecordById(id)
     if (!meetingRecord) throw new NotFoundException('Meeting record not found')
