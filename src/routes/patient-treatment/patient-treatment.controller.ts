@@ -170,6 +170,9 @@ export class PatientTreatmentController {
   // SEARCH AND ADVANCED QUERIES
   // ===============================
 
+  /**
+   * Tìm kiếm điều trị bệnh nhân (fulltext, phân trang)
+   */
   @Get('search')
   @Roles(Role.Admin, Role.Doctor, Role.Staff)
   @ApiSearchPatientTreatments()
@@ -178,12 +181,15 @@ export class PatientTreatmentController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ): Promise<PaginatedResponse<PatientTreatment>> {
-    const searchQuery = search || ''
-    const pageNum = page ? Number(page) : 1
-    const limitNum = limit ? Number(limit) : 10
+    const searchQuery = typeof search === 'string' ? search : ''
+    const pageNum = page && !isNaN(Number(page)) ? Number(page) : 1
+    const limitNum = limit && !isNaN(Number(limit)) ? Number(limit) : 10
     return this.patientTreatmentService.searchPatientTreatments(searchQuery, pageNum, limitNum)
   }
 
+  /**
+   * Lấy điều trị theo khoảng ngày (phân trang)
+   */
   @Get('date-range')
   @Roles(Role.Admin, Role.Doctor, Role.Staff)
   @ApiGetPatientTreatmentsByDateRange()
@@ -191,8 +197,8 @@ export class PatientTreatmentController {
     @Query('startDate') startDateStr?: string,
     @Query('endDate') endDateStr?: string,
   ): Promise<PaginatedResponse<PatientTreatment>> {
-    const startDate = startDateStr ? new Date(startDateStr) : new Date()
-    const endDate = endDateStr ? new Date(endDateStr) : new Date()
+    const startDate = startDateStr && !isNaN(Date.parse(startDateStr)) ? new Date(startDateStr) : new Date()
+    const endDate = endDateStr && !isNaN(Date.parse(endDateStr)) ? new Date(endDateStr) : new Date()
     return this.patientTreatmentService.getPatientTreatmentsByDateRange(startDate, endDate)
   }
 

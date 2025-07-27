@@ -22,6 +22,9 @@ type BulkData = {
 export class PatientTreatmentBulkService {
   constructor(private readonly patientTreatmentRepository: PatientTreatmentRepository) {}
 
+  /**
+   * Tạo nhiều điều trị cho bệnh nhân (bulk create), kiểm tra business rule và validate dữ liệu
+   */
   async bulkCreatePatientTreatments(data: any, userId: number): Promise<any[]> {
     const results: any[] = []
     const errors: string[] = []
@@ -58,30 +61,7 @@ export class PatientTreatmentBulkService {
       for (const [batchIndex, treatment] of batch.entries()) {
         const itemIndex = i + batchIndex + 1
         try {
-          const processedTreatment = {
-            patientId: this.safeParseNumber(treatment.patientId, `patientId for item ${itemIndex}`),
-            doctorId: this.safeParseNumber(treatment.doctorId, `doctorId for item ${itemIndex}`),
-            protocolId: this.safeParseNumber(treatment.protocolId, `protocolId for item ${itemIndex}`),
-            startDate: treatment.startDate
-              ? typeof treatment.startDate === 'string' || typeof treatment.startDate === 'number'
-                ? new Date(treatment.startDate)
-                : treatment.startDate instanceof Date
-                  ? treatment.startDate
-                  : new Date()
-              : new Date(),
-            endDate:
-              treatment.endDate !== undefined
-                ? typeof treatment.endDate === 'string' || typeof treatment.endDate === 'number'
-                  ? new Date(treatment.endDate)
-                  : treatment.endDate instanceof Date
-                    ? treatment.endDate
-                    : undefined
-                : undefined,
-            notes: treatment.notes,
-            total: Math.max(0, this.safeParseNumber(treatment.total || 0, `total for item ${itemIndex}`, 0)),
-            customMedications: this.safeParseCustomMedications(treatment.customMedications, Number(itemIndex)),
-            createdById: userId,
-          }
+          const processedTreatment = this.parseTreatmentItem(treatment, itemIndex, userId)
 
           if (validateBeforeCreate) {
             CreatePatientTreatmentSchema.parse(processedTreatment)
@@ -128,6 +108,36 @@ export class PatientTreatmentBulkService {
       console.log('Errors:', errors)
     }
     return results
+  }
+
+  /**
+   * Helper: parse và chuẩn hóa 1 treatment item trong bulk
+   */
+  private parseTreatmentItem(treatment: TreatmentItem, itemIndex: number, userId: number) {
+    return {
+      patientId: this.safeParseNumber(treatment.patientId, `patientId for item ${itemIndex}`),
+      doctorId: this.safeParseNumber(treatment.doctorId, `doctorId for item ${itemIndex}`),
+      protocolId: this.safeParseNumber(treatment.protocolId, `protocolId for item ${itemIndex}`),
+      startDate: treatment.startDate
+        ? typeof treatment.startDate === 'string' || typeof treatment.startDate === 'number'
+          ? new Date(treatment.startDate)
+          : treatment.startDate instanceof Date
+            ? treatment.startDate
+            : new Date()
+        : new Date(),
+      endDate:
+        treatment.endDate !== undefined
+          ? typeof treatment.endDate === 'string' || typeof treatment.endDate === 'number'
+            ? new Date(treatment.endDate)
+            : treatment.endDate instanceof Date
+              ? treatment.endDate
+              : undefined
+          : undefined,
+      notes: treatment.notes,
+      total: Math.max(0, this.safeParseNumber(treatment.total || 0, `total for item ${itemIndex}`, 0)),
+      customMedications: this.safeParseCustomMedications(treatment.customMedications, Number(itemIndex)),
+      createdById: userId,
+    }
   }
 
   private safeParseNumber(value: any, fieldName: string, defaultValue?: number): number {

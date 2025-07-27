@@ -16,6 +16,9 @@ export class PatientTreatmentQueryService {
     private readonly errorHandlingService: SharedErrorHandlingService,
   ) {}
 
+  /**
+   * Lấy tất cả điều trị bệnh nhân (có phân trang, lọc theo ngày)
+   */
   async getAllPatientTreatments({
     page,
     limit,
@@ -24,7 +27,6 @@ export class PatientTreatmentQueryService {
     limit?: number
   }): Promise<PaginatedResponse<PatientTreatment>> {
     try {
-      // If neither page nor limit is provided, return all records (up to MAX_SAFE_INTEGER)
       const isReturnAll = typeof page === 'undefined' && typeof limit === 'undefined'
       const options: PaginationOptions<PatientTreatment> = {
         page: isReturnAll ? 1 : Math.max(1, Number(page) || 1),
@@ -32,26 +34,16 @@ export class PatientTreatmentQueryService {
         sortBy: 'createdAt',
         sortOrder: 'desc',
       }
-      // Lấy startDate và endDate từ params nếu có
       const where: any = {}
       if (typeof page === 'object' && page !== null) {
         const params = page as any
-        const startDateStr = typeof params.startDate === 'string' ? params.startDate : undefined
-        const endDateStr = typeof params.endDate === 'string' ? params.endDate : undefined
-        const parsedStartDate = startDateStr ? new Date(String(startDateStr)) : undefined
-        const parsedEndDate = (() => {
-          if (!endDateStr) return undefined
-          const d = new Date(String(endDateStr))
-          if (!isNaN(d.getTime())) {
-            d.setHours(23, 59, 59, 999)
-            return d
-          }
-          return undefined
-        })()
+        const { startDate, endDate } = params
+        const parsedStartDate = startDate ? new Date(String(startDate)) : undefined
+        const parsedEndDate = endDate ? new Date(String(endDate)) : undefined
+        if (parsedEndDate && !isNaN(parsedEndDate.getTime())) parsedEndDate.setHours(23, 59, 59, 999)
         const isValidStartDate = parsedStartDate && !isNaN(parsedStartDate.getTime())
         const isValidEndDate = parsedEndDate && !isNaN(parsedEndDate.getTime())
         if (isValidStartDate && isValidEndDate) {
-          // Lọc các điều trị có thời gian giao với khoảng truy vấn
           where.startDate = { lte: parsedEndDate }
           where.endDate = { gte: parsedStartDate }
         } else if (isValidStartDate) {
@@ -66,26 +58,29 @@ export class PatientTreatmentQueryService {
         where,
         this.getDefaultIncludes(),
       )
-      // Normalize customMedications for all results
-      result.data = Array.isArray(result.data) ? result.data.map((item) => this.normalizePatientTreatment(item)) : []
+      result.data = Array.isArray(result.data) ? result.data.map(this.normalizePatientTreatment) : []
       return result
     } catch (error: any) {
       throw this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.PATIENT_TREATMENT)
     }
   }
 
+  /**
+   * Lấy các include mặc định cho truy vấn điều trị
+   */
   private getDefaultIncludes() {
     return {
       patient: { select: { id: true, name: true, email: true } },
       doctor: { include: { user: { select: { id: true, name: true, email: true } } } },
       protocol: { include: { medicines: { include: { medicine: true } } } },
       createdBy: { select: { id: true, name: true, email: true } },
-      testResults: {
-        include: { test: true },
-      },
+      testResults: { include: { test: true } },
     }
   }
 
+  /**
+   * Chuẩn hóa customMedications cho 1 điều trị
+   */
   private normalizePatientTreatment = (item: PatientTreatment): PatientTreatment => {
     item.customMedications = normalizeCustomMedicationsSchedule(item.customMedications)
     return item

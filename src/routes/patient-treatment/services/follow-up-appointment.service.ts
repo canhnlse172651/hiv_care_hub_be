@@ -23,73 +23,42 @@ export class FollowUpAppointmentService {
   async createFollowUpAppointment(
     treatmentId: number,
     followUpConfig: {
-      dayOffset: number // Số ngày sau treatment bắt đầu để hẹn tái khám
-      serviceId?: number // Service ID cho tái khám (mặc định sẽ tìm HIV follow-up service)
+      dayOffset: number
+      serviceId?: number
       notes?: string
-      appointmentTime?: Date // Thời gian cụ thể, nếu không có sẽ tự động tính
+      appointmentTime?: Date
     },
   ) {
     try {
-      // 1. Lấy thông tin treatment
       const treatment = await this.patientTreatmentRepository.findPatientTreatmentById(treatmentId)
-      if (!treatment) {
-        throw new Error(`Treatment với ID ${treatmentId} không tồn tại`)
-      }
+      if (!treatment) throw new Error(`Treatment với ID ${treatmentId} không tồn tại`)
 
-      // 2. Kiểm tra treatment đã có follow-up appointment chưa
-      const existingAppointments = await this.appointmentRepository.findAppointmentByUserId(treatment.patientId, {
-        page: 1,
-        limit: 1000,
-        sortOrder: 'asc',
-        // sortBy: 'appointmentTime',
-      })
-      const hasFollowUp = existingAppointments.data.some(
-        (apt) =>
-          apt.notes?.includes(`Follow-up for treatment ${treatmentId}`) ||
-          (apt.appointmentTime >= treatment.startDate && apt.notes?.includes('follow-up')),
-      )
-
-      if (hasFollowUp) {
+      if (await this.hasFollowUpAppointment(treatment, treatmentId)) {
         this.logger.warn(`Treatment ${treatmentId} đã có follow-up appointment`)
         return { success: false, message: 'Follow-up appointment đã tồn tại' }
       }
 
-      // 3. Tính toán ngày hẹn tái khám
       const followUpDate = this.calculateFollowUpDate(
         treatment,
         followUpConfig.dayOffset,
         followUpConfig.appointmentTime,
       )
-
-      // 4. Tìm service phù hợp (HIV follow-up hoặc general consultation)
       const serviceId = await this.findAppropriateService(followUpConfig.serviceId)
-      if (!serviceId) {
-        throw new Error('Không tìm thấy service phù hợp cho follow-up appointment')
-      }
-
-      // 5. Tìm doctor phù hợp (ưu tiên doctor hiện tại của treatment)
+      if (!serviceId) throw new Error('Không tìm thấy service phù hợp cho follow-up appointment')
       const doctorId = await this.findAppropriateDoctor(treatment.doctorId, followUpDate)
-
-      // 6. Tạo appointment data
       const appointmentData: CreateAppointmentDtoType = {
         userId: treatment.patientId,
-        doctorId: doctorId,
-        serviceId: serviceId,
+        doctorId,
+        serviceId,
         appointmentTime: followUpDate,
         type: 'OFFLINE',
         status: 'PENDING',
         isAnonymous: false,
         notes: `Follow-up for treatment ${treatmentId}. ${followUpConfig.notes || 'Routine HIV treatment follow-up'}`,
       }
-
-      // 7. Tạo appointment
       const appointment = await this.appointmentRepository.createAppointment(appointmentData)
-
-      // 8. Cập nhật treatment để liên kết với appointment
       await this.linkTreatmentWithAppointment(treatmentId, appointment.id)
-
       this.logger.log(`Created follow-up appointment ${appointment.id} for treatment ${treatmentId}`)
-
       return {
         success: true,
         appointment,
@@ -99,6 +68,22 @@ export class FollowUpAppointmentService {
       this.logger.error(`Error creating follow-up appointment for treatment ${treatmentId}:`, error)
       throw error
     }
+  }
+
+  /**
+   * Kiểm tra treatment đã có follow-up appointment chưa
+   */
+  private async hasFollowUpAppointment(treatment: PatientTreatment, treatmentId: number): Promise<boolean> {
+    const existingAppointments = await this.appointmentRepository.findAppointmentByUserId(treatment.patientId, {
+      page: 1,
+      limit: 1000,
+      sortOrder: 'asc',
+    })
+    return existingAppointments.data.some(
+      (apt) =>
+        apt.notes?.includes(`Follow-up for treatment ${treatmentId}`) ||
+        (apt.appointmentTime >= treatment.startDate && apt.notes?.includes('follow-up')),
+    )
   }
 
   /**
@@ -226,10 +211,7 @@ export class FollowUpAppointmentService {
 
       // Cập nhật status nếu có
       if (updates.status) {
-        await this.appointmentRepository.updateAppointmentStatus(
-          appointmentId,
-          updates.status as AppointmentStatus,
-        )
+        await this.appointmentRepository.updateAppointmentStatus(appointmentId, updates.status as AppointmentStatus)
       }
 
       return updatedAppointment

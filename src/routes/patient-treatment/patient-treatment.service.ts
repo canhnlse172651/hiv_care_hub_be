@@ -48,7 +48,13 @@ export class PatientTreatmentService {
     private readonly patientTreatmentCreateService: PatientTreatmentCreateService,
   ) {}
 
-  // Validation service usage
+  // ===============================
+  // PUBLIC API METHODS
+  // ===============================
+
+  /**
+   * Validate organ function for a protocol
+   */
   validateOrganFunction(
     liverFunction: { alt: number; ast: number; bilirubin: number },
     kidneyFunction: { creatinine: number; egfr: number },
@@ -57,6 +63,9 @@ export class PatientTreatmentService {
     return this.organFunctionService.validateOrganFunction(liverFunction, kidneyFunction, protocolId)
   }
 
+  /**
+   * Validate pregnancy safety for a protocol
+   */
   validatePregnancySafety(
     patientGender: 'male' | 'female' | 'other',
     isPregnant: boolean,
@@ -66,6 +75,9 @@ export class PatientTreatmentService {
     return this.pregnancySafetyService.validatePregnancySafety(patientGender, isPregnant, isBreastfeeding, protocolId)
   }
 
+  /**
+   * Validate resistance pattern for a protocol
+   */
   validateResistancePattern(
     resistanceData: {
       mutations: string[]
@@ -77,6 +89,9 @@ export class PatientTreatmentService {
     return this.resistancePatternService.validateResistancePattern(resistanceData, proposedProtocolId)
   }
 
+  /**
+   * Validate treatment adherence
+   */
   validateTreatmentAdherence(adherenceData: {
     pillsMissed: number
     totalPills: number
@@ -85,21 +100,23 @@ export class PatientTreatmentService {
     return this.treatmentAdherenceService.validateTreatmentAdherence(adherenceData)
   }
 
+  /**
+   * Validate viral load monitoring
+   */
   async validateViralLoadMonitoring(patientTreatmentId: number, treatmentStartDate: Date) {
-    return await this.viralLoadMonitoringService.validateViralLoadMonitoring(patientTreatmentId, treatmentStartDate)
+    return this.viralLoadMonitoringService.validateViralLoadMonitoring(patientTreatmentId, treatmentStartDate)
   }
 
-  // Get patient treatment by ID
+  /**
+   * Get patient treatment by ID
+   */
   async getPatientTreatmentById(id: number): Promise<PatientTreatment> {
     try {
       const validatedId = this.errorHandlingService.validateId(id)
       const treatment = await this.patientTreatmentRepository.findPatientTreatmentById(validatedId)
-      // Ensure schedule field is always present in customMedications in the response
       if (
-        treatment &&
-        treatment.customMedications &&
-        (Array.isArray(treatment.customMedications) ||
-          (typeof treatment.customMedications === 'object' && treatment.customMedications !== null))
+        treatment?.customMedications &&
+        (Array.isArray(treatment.customMedications) || typeof treatment.customMedications === 'object')
       ) {
         treatment.customMedications = this.normalizeCustomMedicationsSchedule(treatment.customMedications)
       }
@@ -109,55 +126,21 @@ export class PatientTreatmentService {
     }
   }
 
-  // Update patient treatment with business rule validation
+  /**
+   * Update patient treatment with business rule validation
+   */
   async updatePatientTreatment(id: number, data: UpdatePatientTreatment): Promise<PatientTreatment> {
     try {
-      // Check if treatment exists
       const existingTreatment = await this.getPatientTreatmentById(id)
-
-      // Validate notes length
       if (typeof data.notes === 'string' && data.notes.length > 2000) {
         throw new BadRequestException('Notes must be at most 2000 characters')
       }
-
-      // Validate business rules if updating dates
       if (data.startDate || data.endDate) {
-        const patientId = existingTreatment.patientId
-        const otherActiveTreatments = await this.patientTreatmentRepository.getActivePatientTreatments({ patientId })
-        const otherActiveExcludingCurrent = otherActiveTreatments.filter((t) => t.id !== id)
-
-        if (otherActiveExcludingCurrent.length > 0) {
-          const currentDate = new Date()
-          const newStartDate = data.startDate ? new Date(data.startDate) : new Date(existingTreatment.startDate)
-          const newEndDate = data.endDate
-            ? new Date(data.endDate)
-            : existingTreatment.endDate
-              ? new Date(existingTreatment.endDate)
-              : null
-          const wouldBeActive = !newEndDate || newEndDate > currentDate
-
-          if (wouldBeActive) {
-            for (const otherTreatment of otherActiveExcludingCurrent) {
-              const otherStart = new Date(otherTreatment.startDate)
-              const otherEnd = otherTreatment.endDate ? new Date(otherTreatment.endDate) : currentDate
-              const hasOverlap = newStartDate <= otherEnd && otherStart <= (newEndDate || currentDate)
-              if (hasOverlap) {
-                throw new ConflictException(
-                  `Business rule violation: Updated treatment would overlap with active treatment ID ${otherTreatment.id} (Protocol ${otherTreatment.protocolId}). Only 1 active protocol per patient is allowed.`,
-                )
-              }
-            }
-          }
-        }
+        await this.ensureNoActiveTreatmentOverlap(id, data, existingTreatment)
       }
-
-      // Audit log for treatment update
       this.logTreatmentOperation('update', { id, ...data })
-      // Đảm bảo truyền status khi cập nhật
       const updatePayload = { ...data }
-      if (typeof data.status === 'boolean') {
-        updatePayload.status = data.status
-      }
+      if (typeof data.status === 'boolean') updatePayload.status = data.status
       const updated = await this.patientTreatmentRepository.updatePatientTreatment(id, updatePayload)
       if (
         updated?.customMedications &&
@@ -168,6 +151,41 @@ export class PatientTreatmentService {
       return updated
     } catch (error) {
       return this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.PATIENT_TREATMENT)
+    }
+  }
+
+  /**
+   * Ensure no active treatment overlap for a patient (business rule)
+   */
+  private async ensureNoActiveTreatmentOverlap(
+    id: number,
+    data: UpdatePatientTreatment,
+    existingTreatment: PatientTreatment,
+  ) {
+    const patientId = existingTreatment.patientId
+    const otherActiveTreatments = await this.patientTreatmentRepository.getActivePatientTreatments({ patientId })
+    const otherActiveExcludingCurrent = otherActiveTreatments.filter((t) => t.id !== id)
+    if (otherActiveExcludingCurrent.length > 0) {
+      const currentDate = new Date()
+      const newStartDate = data.startDate ? new Date(data.startDate) : new Date(existingTreatment.startDate)
+      const newEndDate = data.endDate
+        ? new Date(data.endDate)
+        : existingTreatment.endDate
+          ? new Date(existingTreatment.endDate)
+          : null
+      const wouldBeActive = !newEndDate || newEndDate > currentDate
+      if (wouldBeActive) {
+        for (const otherTreatment of otherActiveExcludingCurrent) {
+          const otherStart = new Date(otherTreatment.startDate)
+          const otherEnd = otherTreatment.endDate ? new Date(otherTreatment.endDate) : currentDate
+          const hasOverlap = newStartDate <= otherEnd && otherStart <= (newEndDate || currentDate)
+          if (hasOverlap) {
+            throw new ConflictException(
+              `Business rule violation: Updated treatment would overlap with active treatment ID ${otherTreatment.id} (Protocol ${otherTreatment.protocolId}). Only 1 active protocol per patient is allowed.`,
+            )
+          }
+        }
+      }
     }
   }
 
@@ -960,50 +978,58 @@ export class PatientTreatmentService {
   }> {
     try {
       const validatedPatientId = this.errorHandlingService.validateId(patientId)
-      // Get all active treatments for the patient
       const activeTreatments = await this.patientTreatmentRepository.getActivePatientTreatments({
         patientId: validatedPatientId,
       })
-      const now = new Date()
-      let futureDatesDetected = false
-      let invalidDateRanges = false
-      // Check for future start dates and invalid date ranges
-      for (const t of activeTreatments) {
-        const start = new Date(t.startDate)
-        if (start > now) futureDatesDetected = true
-        if (t.endDate) {
-          const end = new Date(t.endDate)
-          if (end < start) invalidDateRanges = true
-        }
-      }
-      const multipleActiveTreatments = activeTreatments.length > 1
-      const hasActiveViolations = multipleActiveTreatments || futureDatesDetected || invalidDateRanges
-      const activeViolationsCount = [multipleActiveTreatments, futureDatesDetected, invalidDateRanges].filter(
-        Boolean,
-      ).length
-      // Recommendation logic
+      const quickChecks = this.getQuickBusinessRuleChecks(activeTreatments)
+      const hasActiveViolations = Object.values(quickChecks).some(Boolean)
+      const activeViolationsCount = Object.values(quickChecks).filter(Boolean).length
       let recommendation = 'No violations detected.'
       if (hasActiveViolations) {
         const recs: string[] = []
-        if (multipleActiveTreatments)
+        if (quickChecks.multipleActiveTreatments)
           recs.push('Patient has multiple active treatments. Only one active treatment per patient is allowed.')
-        if (futureDatesDetected) recs.push('Some treatments have a start date in the future. Please review.')
-        if (invalidDateRanges) recs.push('Some treatments have invalid date ranges (end date before start date).')
+        if (quickChecks.futureDatesDetected)
+          recs.push('Some treatments have a start date in the future. Please review.')
+        if (quickChecks.invalidDateRanges)
+          recs.push('Some treatments have invalid date ranges (end date before start date).')
         recommendation = recs.join(' ')
       }
       return {
         patientId: validatedPatientId,
         hasActiveViolations,
         activeViolationsCount,
-        quickChecks: {
-          multipleActiveTreatments,
-          futureDatesDetected,
-          invalidDateRanges,
-        },
+        quickChecks,
         recommendation,
       }
     } catch (error) {
       throw this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.PATIENT_TREATMENT)
+    }
+  }
+
+  /**
+   * Helper: quick business rule checks for a list of treatments
+   */
+  private getQuickBusinessRuleChecks(treatments: PatientTreatment[]): {
+    multipleActiveTreatments: boolean
+    futureDatesDetected: boolean
+    invalidDateRanges: boolean
+  } {
+    const now = new Date()
+    let futureDatesDetected = false
+    let invalidDateRanges = false
+    for (const t of treatments) {
+      const start = new Date(t.startDate)
+      if (start > now) futureDatesDetected = true
+      if (t.endDate) {
+        const end = new Date(t.endDate)
+        if (end < start) invalidDateRanges = true
+      }
+    }
+    return {
+      multipleActiveTreatments: treatments.length > 1,
+      futureDatesDetected,
+      invalidDateRanges,
     }
   }
 }

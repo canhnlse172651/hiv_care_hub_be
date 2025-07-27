@@ -42,6 +42,11 @@ export class PatientTreatmentRepository {
 
   private readonly detailedIncludes: Prisma.PatientTreatmentInclude = {
     ...this.defaultIncludes,
+    testResults: {
+      include: {
+        test: true,
+      },
+    },
   }
 
   protected validateId(id: number | string): number {
@@ -128,7 +133,7 @@ export class PatientTreatmentRepository {
       return await this.prismaService.patientTreatment.update({
         where: { id: validatedId },
         data: updateData,
-        include: this.defaultIncludes,
+        include: this.detailedIncludes,
       })
     } catch (error) {
       throw this.handlePrismaError(error)
@@ -322,20 +327,37 @@ export class PatientTreatmentRepository {
         orderBy: { startDate: 'desc' },
         include: this.detailedIncludes,
       })
-      return treatments.map((treatment) => {
-        const startDate = new Date(treatment.startDate)
-        const endDate = treatment.endDate ? new Date(treatment.endDate) : null
-        const isStarted = startDate <= currentDate
-        const isCurrent = isStarted && (!endDate || endDate > currentDate)
+
+      function getTreatmentStatus(
+        startDate: Date,
+        endDate: Date | null,
+        now: Date,
+      ): {
+        isStarted: boolean
+        isCurrent: boolean
+        daysRemaining: number | null
+        treatmentStatus: 'upcoming' | 'active' | 'ending_soon'
+      } {
+        const isStarted = startDate <= now
+        const isCurrent = isStarted && (!endDate || endDate > now)
         let daysRemaining: number | null = null
         if (endDate) {
-          const diffTime = endDate.getTime() - currentDate.getTime()
+          const diffTime = endDate.getTime() - now.getTime()
           daysRemaining = Math.ceil(diffTime / DAYS_IN_MS)
         }
         let treatmentStatus: 'upcoming' | 'active' | 'ending_soon'
         if (!isStarted) treatmentStatus = 'upcoming'
         else if (daysRemaining !== null && daysRemaining <= 7 && daysRemaining > 0) treatmentStatus = 'ending_soon'
         else treatmentStatus = 'active'
+        return { isStarted, isCurrent, daysRemaining, treatmentStatus }
+      }
+
+      return treatments.map((treatment) => {
+        const { isStarted, isCurrent, daysRemaining, treatmentStatus } = getTreatmentStatus(
+          new Date(treatment.startDate),
+          treatment.endDate ? new Date(treatment.endDate) : null,
+          currentDate,
+        )
         return { ...treatment, isCurrent, isStarted, daysRemaining, treatmentStatus }
       })
     } catch (error) {
