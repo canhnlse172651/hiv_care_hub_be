@@ -36,11 +36,9 @@ export class TestRepository {
   }
 
   async createTest(data: CreateTestDtoType): Promise<TestModel> {
-    console.log('Creating new test with data:', data)
     const result = await this.prisma.test.create({
       data,
     })
-    console.log('result', result)
     return result as TestModel
   }
 

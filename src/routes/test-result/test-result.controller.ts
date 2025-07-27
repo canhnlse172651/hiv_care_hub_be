@@ -112,6 +112,7 @@ Flow hoạt động:
     summary: 'Xóa kết quả xét nghiệm',
     description: 'Chỉ admin và nhân viên có thể xóa kết quả xét nghiệm',
   })
+  
   @ApiResponse({ status: 200, description: 'Xóa thành công' })
   @ApiResponse({ status: 404, description: 'Không tìm thấy' })
   async deleteTestResult(@Param('id', ParseIntPipe) id: number) {

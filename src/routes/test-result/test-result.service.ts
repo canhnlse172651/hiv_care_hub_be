@@ -72,7 +72,6 @@ export class TestResultService {
       createdByDoctorId: doctorId || null, // Set doctorId if provided
     }
 
-    console.log('Creating new test result with data service:', testResultData)
     return await this.testResultRepository.createTestResult(testResultData)
   }
 

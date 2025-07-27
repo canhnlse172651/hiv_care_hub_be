@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { BadRequestException, Injectable } from '@nestjs/common'
 import { TestResult, Prisma, TestInterpretation } from '@prisma/client'
 import { PrismaService } from '../shared/services/prisma.service'
 import { PaginationService } from '../shared/services/pagination.service'
@@ -27,7 +27,30 @@ export class TestResultRepository {
       interpretation: data.interpretation || TestInterpretation.NOT_DETECTED,
       // resultDate will be null on creation, set only during update
     }
-    console.log('Creating new test result with data repository:', createData)
+
+    // Validate testId
+    const testExists = await this.prisma.test.findUnique({ where: { id: data.testId } })
+    if (!testExists) {
+      throw new BadRequestException(`Không tìm thấy xét nghiệm.`)
+    }
+
+    // Validate userId
+    const userExists = await this.prisma.user.findUnique({ where: { id: data.userId } })
+    if (!userExists) {
+      throw new BadRequestException(`Không tìm thấy người dùng.`)
+    }
+
+    // Validate patientTreatmentId
+    const patientTreatmentExists = await this.prisma.patientTreatment.findUnique({
+      where: { id: data.patientTreatmentId },
+    })
+    if (!patientTreatmentExists) {
+      throw new BadRequestException(`Không tìm thấy điều trị bệnh nhân.`)
+    }
+    if (data.userId !== patientTreatmentExists.patientId) {
+      throw new BadRequestException(`Không khớp người dùng với điều trị bệnh nhân.`)
+    }
+
     try {
       return await this.prisma.testResult.create({
         data: createData,
@@ -41,7 +64,10 @@ export class TestResultRepository {
         },
       })
     } catch (error) {
-      console.error('Error creating test result:', error)
+      console.error('Error creating test result:', error.message, error.stack)
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        console.error('Prisma error code:', error.code)
+      }
       throw new Error('Failed to create test result')
     }
   }
