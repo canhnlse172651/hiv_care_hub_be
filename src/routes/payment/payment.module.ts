@@ -1,17 +1,19 @@
-import { Module } from '@nestjs/common'
-import { PaymentController } from './payment.controller'
-import { PaymentService } from './payment.service'
-import { PaymentRepo } from './payment.repo'
-import { PrismaService } from 'src/shared/services/prisma.service'
-import { PaymentConsumer } from 'src/queue/payment.consumer'
 import { BullModule } from '@nestjs/bull'
+import { Module } from '@nestjs/common'
+import { PaymentConsumer } from 'src/queue/payment.consumer'
 import { PAYMENT_QUEUE_NAME } from 'src/shared/constants/queue.constant'
+import { PrismaService } from 'src/shared/services/prisma.service'
+import { PatientTreatmentModule } from '../patient-treatment/patient-treatment.module'
+import { PaymentController } from './payment.controller'
+import { PaymentRepo } from './payment.repo'
+import { PaymentService } from './payment.service'
 
 @Module({
   imports: [
     BullModule.registerQueue({
       name: PAYMENT_QUEUE_NAME,
     }),
+    PatientTreatmentModule,
   ],
   providers: [PaymentService, PaymentRepo, PaymentConsumer, PrismaService],
   controllers: [PaymentController],
