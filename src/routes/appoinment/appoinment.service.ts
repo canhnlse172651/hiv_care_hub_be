@@ -361,14 +361,15 @@ export class AppoinmentService {
 
     const updated = await this.appoinmentRepository.updateAppointmentStatus(id, status)
     const refreshed = await this.appoinmentRepository.findAppointmentById(id)
-
-    // Không còn tự động tạo hồ sơ điều trị khi trạng thái là PAID, chỉ tạo nếu không phải ONLINE
+    // const existedPatientTreatment = await this.patientTreatmentService.getPatientTreatmentsByPatientId({
+    //   patientId: existed.user.id,
+    // })
     if (
       refreshed &&
       refreshed.status === 'PAID' &&
       existed.user.id &&
       existed.doctor.id &&
-      // existed.service.id &&
+      existed.service.id &&
       existed.type !== 'ONLINE'
     ) {
       try {
@@ -380,7 +381,7 @@ export class AppoinmentService {
           status: true,
           startDate: existed.appointmentTime || new Date(),
           endDate: undefined,
-          createdById: existed.user.id,
+          createdById: existed.doctor.id,
           total: 0,
           autoEndExisting,
         }

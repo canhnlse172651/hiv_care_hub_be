@@ -30,5 +30,14 @@ import { AppointmentHistoryService } from './appointment-history.service'
     AppointmentHistoryRepository,
     ReminderService,
   ],
+  exports: [
+    AppoinmentService,
+    AppointmentHistoryService,
+    ReminderService,
+    PrismaService,
+    AuthRepository,
+    ServiceRepository,
+    DoctorRepository,
+  ],
 })
 export class AppoinmentModule {}
