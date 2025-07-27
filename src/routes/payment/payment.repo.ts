@@ -110,26 +110,21 @@ export class PaymentRepo {
 
         // Cập nhật Appointment status nếu có
         if (payment.order.appointmentId) {
-          // Kiểm tra bệnh nhân đã có active treatment chưa, chỉ tạo mới nếu chưa có
-          const appointment = await tx.appointment.findUnique({
-            where: { id: payment.order.appointmentId },
-            include: { user: true },
-          })
-          if (appointment && appointment.user?.id) {
-            const activeTreatments = await tx.patientTreatment.findMany({
-              where: {
-                patientId: appointment.user.id,
-                OR: [{ endDate: null }, { endDate: { gt: new Date() } }],
+          // Kiểm tra đã có PatientTreatment nào liên kết với appointmentId này chưa
+          const existedTreatment = await tx.patientTreatment.findFirst({
+            where: {
+              orders: {
+                some: {
+                  appointmentId: payment.order.appointmentId,
+                },
               },
-            })
-            if (!activeTreatments || activeTreatments.length === 0) {
-              await this.appointmentService.updateAppointmentStatus(payment.order.appointmentId, 'PAID', true)
-            } else {
-              this.logger.warn(`Bệnh nhân id=${appointment.user.id} đã có active treatment, không tạo mới.`)
-              await this.appointmentService.updateAppointmentStatus(payment.order.appointmentId, 'PAID', false)
-            }
-          } else {
+            },
+          })
+          if (!existedTreatment) {
             await this.appointmentService.updateAppointmentStatus(payment.order.appointmentId, 'PAID', true)
+          } else {
+            this.logger.warn(`Đã có PatientTreatment cho appointmentId=${payment.order.appointmentId}, không tạo mới.`)
+            await this.appointmentService.updateAppointmentStatus(payment.order.appointmentId, 'PAID', false)
           }
         }
 
