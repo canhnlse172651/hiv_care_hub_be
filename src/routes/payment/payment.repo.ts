@@ -1,18 +1,21 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common'
+import { OrderStatus, PaymentStatus } from '@prisma/client'
 import { parse } from 'date-fns'
 import { WebhookPaymentBodyType } from 'src/routes/payment/payment.model'
 import { PrismaService } from 'src/shared/services/prisma.service'
-import { PaymentStatus, OrderStatus } from '@prisma/client'
-import { PREFIX_PAYMENT_CODE } from 'src/shared/constants/payment.constant'
+import { PatientTreatmentService } from '../patient-treatment/patient-treatment.service'
 
 @Injectable()
 export class PaymentRepo {
-  private readonly logger = new Logger(PaymentRepo.name);
+  private readonly logger = new Logger(PaymentRepo.name)
 
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly patientTreatmentService: PatientTreatmentService,
+  ) {}
 
   async receiver(body: WebhookPaymentBodyType): Promise<any> {
-    this.logger.log(`📥 Processing Sepay webhook: ${JSON.stringify(body, null, 2)}`);
+    this.logger.log(`📥 Processing Sepay webhook: ${JSON.stringify(body, null, 2)}`)
 
     try {
       // 1. Lưu thông tin giao dịch vào PaymentTransaction (audit log)
@@ -41,13 +44,13 @@ export class PaymentRepo {
       })
 
       // 2. Tìm Payment theo transactionCode từ webhook
-      this.logger.log(`🔍 [PAYMENT_REPO] Looking for payment with transactionCode: ${body.code}`);
-      
+      this.logger.log(`🔍 [PAYMENT_REPO] Looking for payment with transactionCode: ${body.code}`)
+
       if (!body.code) {
-        this.logger.error(`❌ [PAYMENT_REPO] No transaction code provided in webhook`);
+        this.logger.error(`❌ [PAYMENT_REPO] No transaction code provided in webhook`)
         throw new BadRequestException('No transaction code provided in webhook')
       }
-      
+
       const payment = await this.prismaService.payment.findUnique({
         where: {
           transactionCode: body.code,
@@ -61,23 +64,23 @@ export class PaymentRepo {
             },
           },
         },
-      });
+      })
 
       if (!payment) {
-        this.logger.error(`❌ [PAYMENT_REPO] Payment not found with transactionCode: ${body.code}`);
+        this.logger.error(`❌ [PAYMENT_REPO] Payment not found with transactionCode: ${body.code}`)
         throw new BadRequestException(`Payment not found with transactionCode ${body.code}`)
       }
 
-      this.logger.log(`✅ [PAYMENT_REPO] Found payment: PaymentID=${payment.id}, OrderID=${payment.orderId}`);
+      this.logger.log(`✅ [PAYMENT_REPO] Found payment: PaymentID=${payment.id}, OrderID=${payment.orderId}`)
 
       // 3. Kiểm tra amount có khớp không
       const expectedAmount = Number(payment.amount)
       const receivedAmount = body.transferAmount
 
-      this.logger.log(`💰 [PAYMENT_REPO] Amount check: Expected=${expectedAmount}, Received=${receivedAmount}`);
+      this.logger.log(`💰 [PAYMENT_REPO] Amount check: Expected=${expectedAmount}, Received=${receivedAmount}`)
 
       if (expectedAmount !== receivedAmount) {
-        this.logger.error(`❌ [PAYMENT_REPO] Amount mismatch: expected ${expectedAmount} but got ${receivedAmount}`);
+        this.logger.error(`❌ [PAYMENT_REPO] Amount mismatch: expected ${expectedAmount} but got ${receivedAmount}`)
         throw new BadRequestException(`Amount mismatch: expected ${expectedAmount} but got ${receivedAmount}`)
       }
 
@@ -107,14 +110,47 @@ export class PaymentRepo {
 
         // Cập nhật Appointment status nếu có
         if (payment.order.appointmentId) {
-          await tx.appointment.update({
+          const updatedAppt = await tx.appointment.update({
             where: {
               id: payment.order.appointmentId,
             },
             data: {
               status: 'PAID',
             },
+            include: {
+              user: true,
+              doctor: true,
+              service: true,
+            },
           })
+          // Tạo PatientTreatment nếu đủ điều kiện (type !== 'ONLINE', có userId, doctorId, serviceId)
+          if (
+            updatedAppt &&
+            updatedAppt.status === 'PAID' &&
+            updatedAppt.type !== 'ONLINE' &&
+            updatedAppt.user?.id &&
+            updatedAppt.doctor?.id &&
+            updatedAppt.service?.id
+          ) {
+            this.logger.log(
+              `[PAYMENT_REPO] Auto-creating PatientTreatment for appointmentId=${updatedAppt.id}, patientId=${updatedAppt.user.id}, doctorId=${updatedAppt.doctor.id}`,
+            )
+            await this.patientTreatmentService.createPatientTreatment(
+              {
+                patientId: updatedAppt.user.id,
+                doctorId: updatedAppt.doctor.id,
+                protocolId: undefined,
+                notes: updatedAppt.notes || '',
+                status: true,
+                startDate: updatedAppt.appointmentTime || new Date(),
+                endDate: undefined,
+                createdById: updatedAppt.user.id,
+                total: 0,
+                autoEndExisting: true,
+              },
+              updatedAppt.user.id,
+            )
+          }
         }
 
         // Cập nhật PatientTreatment status nếu có
@@ -130,7 +166,9 @@ export class PaymentRepo {
         }
       })
 
-      this.logger.log(`✅ Payment processed successfully: PaymentID=${payment.id}, OrderID=${payment.orderId}, Amount=${receivedAmount}`);
+      this.logger.log(
+        `✅ Payment processed successfully: PaymentID=${payment.id}, OrderID=${payment.orderId}, Amount=${receivedAmount}`,
+      )
 
       return {
         message: 'Payment processed successfully',
@@ -142,48 +180,48 @@ export class PaymentRepo {
         },
       }
     } catch (error) {
-      this.logger.error(`❌ Payment processing failed: ${error.message}`);
-      throw error;
+      this.logger.error(`❌ Payment processing failed: ${error.message}`)
+      throw error
     }
   }
 
   async cancelPaymentAndOrder(paymentId: number): Promise<void> {
-    this.logger.log(`🔄 Cancelling payment and order: PaymentID=${paymentId}`);
+    this.logger.log(`🔄 Cancelling payment and order: PaymentID=${paymentId}`)
 
     try {
       const payment = await this.prismaService.payment.findUnique({
         where: { id: paymentId },
         include: { order: true },
-      });
+      })
 
       if (!payment) {
-        this.logger.warn(`Payment not found: PaymentID=${paymentId}`);
-        return;
+        this.logger.warn(`Payment not found: PaymentID=${paymentId}`)
+        return
       }
 
       await this.prismaService.$transaction(async (tx) => {
         // Update payment status
         await tx.payment.update({
           where: { id: paymentId },
-          data: { 
+          data: {
             status: PaymentStatus.FAILED,
           },
-        });
+        })
 
         // Update order status
         await tx.order.update({
           where: { id: payment.orderId },
-          data: { 
+          data: {
             orderStatus: OrderStatus.PENDING,
-            notes: 'Order payment expired automatically'
+            notes: 'Order payment expired automatically',
           },
-        });
-      });
+        })
+      })
 
-      this.logger.log(`✅ Payment and order cancelled successfully: PaymentID=${paymentId}, OrderID=${payment.orderId}`);
+      this.logger.log(`✅ Payment and order cancelled successfully: PaymentID=${paymentId}, OrderID=${payment.orderId}`)
     } catch (error) {
-      this.logger.error(`❌ Failed to cancel payment and order: ${error.message}`);
-      throw error;
+      this.logger.error(`❌ Failed to cancel payment and order: ${error.message}`)
+      throw error
     }
   }
 
