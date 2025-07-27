@@ -7,6 +7,7 @@ import { PatientTreatmentModule } from '../patient-treatment/patient-treatment.m
 import { PaymentController } from './payment.controller'
 import { PaymentRepo } from './payment.repo'
 import { PaymentService } from './payment.service'
+import { AppoinmentModule } from '../appoinment/appoinment.module'
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { PaymentService } from './payment.service'
       name: PAYMENT_QUEUE_NAME,
     }),
     PatientTreatmentModule,
+    AppoinmentModule,
   ],
   providers: [PaymentService, PaymentRepo, PaymentConsumer, PrismaService],
   controllers: [PaymentController],
