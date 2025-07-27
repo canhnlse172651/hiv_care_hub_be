@@ -3,7 +3,7 @@ import { OrderStatus, PaymentStatus } from '@prisma/client'
 import { parse } from 'date-fns'
 import { WebhookPaymentBodyType } from 'src/routes/payment/payment.model'
 import { PrismaService } from 'src/shared/services/prisma.service'
-import { PatientTreatmentService } from '../patient-treatment/patient-treatment.service'
+import { AppoinmentService } from '../appoinment/appoinment.service'
 
 @Injectable()
 export class PaymentRepo {
@@ -11,7 +11,7 @@ export class PaymentRepo {
 
   constructor(
     private readonly prismaService: PrismaService,
-    private readonly patientTreatmentService: PatientTreatmentService,
+    private readonly appointmentService: AppoinmentService,
   ) {}
 
   async receiver(body: WebhookPaymentBodyType): Promise<any> {
@@ -110,47 +110,7 @@ export class PaymentRepo {
 
         // Cập nhật Appointment status nếu có
         if (payment.order.appointmentId) {
-          const updatedAppt = await tx.appointment.update({
-            where: {
-              id: payment.order.appointmentId,
-            },
-            data: {
-              status: 'PAID',
-            },
-            include: {
-              user: true,
-              doctor: true,
-              service: true,
-            },
-          })
-          // Tạo PatientTreatment nếu đủ điều kiện (type !== 'ONLINE', có userId, doctorId, serviceId)
-          if (
-            updatedAppt &&
-            updatedAppt.status === 'PAID' &&
-            updatedAppt.type !== 'ONLINE' &&
-            updatedAppt.user?.id &&
-            updatedAppt.doctor?.id &&
-            updatedAppt.service?.id
-          ) {
-            this.logger.log(
-              `[PAYMENT_REPO] Auto-creating PatientTreatment for appointmentId=${updatedAppt.id}, patientId=${updatedAppt.user.id}, doctorId=${updatedAppt.doctor.id}`,
-            )
-            await this.patientTreatmentService.createPatientTreatment(
-              {
-                patientId: updatedAppt.user.id,
-                doctorId: updatedAppt.doctor.id,
-                protocolId: undefined,
-                notes: updatedAppt.notes || '',
-                status: true,
-                startDate: updatedAppt.appointmentTime || new Date(),
-                endDate: undefined,
-                createdById: updatedAppt.user.id,
-                total: 0,
-                autoEndExisting: true,
-              },
-              updatedAppt.user.id,
-            )
-          }
+          await this.appointmentService.updateAppointmentStatus(payment.order.appointmentId, 'PAID', true)
         }
 
         // Cập nhật PatientTreatment status nếu có
@@ -160,7 +120,7 @@ export class PaymentRepo {
               id: payment.order.patientTreatmentId,
             },
             data: {
-              status: true, // Active treatment
+              status: true,
             },
           })
         }
