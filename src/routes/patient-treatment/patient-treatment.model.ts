@@ -1,6 +1,8 @@
 import { z } from 'zod'
 
-// Helper functions for explicit validation (no dependencies on flexible.schema)
+// ===============================
+// Helper Zod transforms
+// ===============================
 const stringToNumber = z.union([z.string(), z.number()]).transform((val) => {
   if (typeof val === 'number') return val
   const parsed = parseFloat(val)
@@ -54,6 +56,10 @@ const booleanValue = z
     return false
   })
   .optional()
+
+// ===============================
+// Zod Schemas
+// ===============================
 
 export const CustomMedicationSchema = z.object({
   medicineId: z.number().min(1, 'Medicine ID is required').optional(),

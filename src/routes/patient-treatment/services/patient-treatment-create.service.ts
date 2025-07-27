@@ -29,6 +29,9 @@ export class PatientTreatmentCreateService {
     private readonly errorHandlingService: SharedErrorHandlingService,
   ) {}
 
+  /**
+   * Tạo mới điều trị cho bệnh nhân, kiểm tra business rule và chuẩn hóa dữ liệu
+   */
   async createPatientTreatment(
     data: CreatePatientTreatmentInput,
     userId: number,
@@ -44,16 +47,7 @@ export class PatientTreatmentCreateService {
 
       // 2. Business rule: Only one active treatment per patient
       if (autoEndExisting) {
-        // Tự động kết thúc các điều trị active
-        const activeTreatments = await this.patientTreatmentRepository.getActivePatientTreatments({ patientId })
-        if (activeTreatments?.length) {
-          const now = new Date()
-          for (const treatment of activeTreatments) {
-            await this.patientTreatmentRepository.updatePatientTreatment(treatment.id, {
-              endDate: now,
-            })
-          }
-        }
+        await this.autoEndActiveTreatments(patientId)
       } else {
         await this.ensureNoExistingActiveTreatment(patientId)
       }
@@ -96,6 +90,19 @@ export class PatientTreatmentCreateService {
     } catch (error) {
       if (error instanceof HttpException) throw error
       return this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.PATIENT_TREATMENT)
+    }
+  }
+
+  /**
+   * Tự động kết thúc các điều trị active hiện tại của bệnh nhân
+   */
+  private async autoEndActiveTreatments(patientId: number) {
+    const activeTreatments = await this.patientTreatmentRepository.getActivePatientTreatments({ patientId })
+    if (activeTreatments?.length) {
+      const now = new Date()
+      for (const treatment of activeTreatments) {
+        await this.patientTreatmentRepository.updatePatientTreatment(treatment.id, { endDate: now })
+      }
     }
   }
 

@@ -10,6 +10,9 @@ export class PatientTreatmentStatsService {
     private readonly errorHandlingService: SharedErrorHandlingService,
   ) {}
 
+  /**
+   * Thống kê tổng quan điều trị của bệnh nhân
+   */
   async getPatientTreatmentStats(patientId: number): Promise<{
     patientId: number
     totalTreatments: number
@@ -25,15 +28,13 @@ export class PatientTreatmentStatsService {
         page: 1,
         limit: 1000,
       })
-      const activeTreatments = await this.patientTreatmentRepository.getActivePatientTreatments({
-        patientId: validatedPatientId,
-      })
+      const activeTreatments = await this.patientTreatmentRepository.getActivePatientTreatments({ patientId: pid })
       const totalTreatments = allTreatments.length
       const activeTreatmentsCount = activeTreatments.length
       const completedTreatments = totalTreatments - activeTreatmentsCount
       const totalCost = allTreatments.reduce((sum, t) => sum + (t.total || 0), 0)
       return {
-        patientId: Number(validatedPatientId),
+        patientId: pid,
         totalTreatments,
         activeTreatments: activeTreatmentsCount,
         completedTreatments,
@@ -41,10 +42,13 @@ export class PatientTreatmentStatsService {
         averageCost: totalTreatments > 0 ? totalCost / totalTreatments : 0,
       }
     } catch (error) {
-      throw this.errorHandlingService.handlePrismaError(error, 'PATIENT_TREATMENT')
+      throw this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.PATIENT_TREATMENT)
     }
   }
 
+  /**
+   * Thống kê khối lượng công việc của bác sĩ
+   */
   async getDoctorWorkloadStats(doctorId: number): Promise<{
     doctorId: number
     totalTreatments: number
@@ -58,8 +62,9 @@ export class PatientTreatmentStatsService {
         page: 1,
         limit: 1000,
       })
-      const activeTreatments = await this.patientTreatmentRepository.getActivePatientTreatments({})
-      const doctorActiveTreatments = activeTreatments.filter((t) => t.doctorId === validatedDoctorId)
+      const doctorActiveTreatments = (await this.patientTreatmentRepository.getActivePatientTreatments({})).filter(
+        (t) => t.doctorId === validatedDoctorId,
+      )
       const totalTreatments = allTreatments.length
       const activeTreatmentsCount = doctorActiveTreatments.length
       const uniquePatients = new Set(allTreatments.map((t) => t.patientId)).size
@@ -71,10 +76,13 @@ export class PatientTreatmentStatsService {
         averageTreatmentsPerPatient: uniquePatients > 0 ? totalTreatments / uniquePatients : 0,
       }
     } catch (error) {
-      throw this.errorHandlingService.handlePrismaError(error, 'PATIENT_TREATMENT')
+      throw this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.PATIENT_TREATMENT)
     }
   }
 
+  /**
+   * Thống kê sử dụng thuốc custom
+   */
   async getCustomMedicationStats(): Promise<{
     totalTreatments: number
     treatmentsWithCustomMeds: number
@@ -86,27 +94,23 @@ export class PatientTreatmentStatsService {
     }>
   }> {
     try {
-      const allTreatments = await this.patientTreatmentRepository.findPatientTreatments({
-        page: 1,
-        limit: 10000,
-      })
+      const allTreatments = await this.patientTreatmentRepository.findPatientTreatments({ page: 1, limit: 10000 })
       const treatmentsWithCustomMeds = allTreatments.filter((t) => t.customMedications && t.customMedications !== null)
       const totalTreatments = allTreatments.length
       const treatmentsWithCustomMedsCount = treatmentsWithCustomMeds.length
       const customMedicationUsageRate =
         totalTreatments > 0 ? (treatmentsWithCustomMedsCount / totalTreatments) * 100 : 0
       const medicationUsage = new Map<string, number>()
-      for (const treatment of treatmentsWithCustomMeds) {
+      treatmentsWithCustomMeds.forEach((treatment) => {
         if (Array.isArray(treatment.customMedications)) {
-          for (const med of treatment.customMedications) {
+          treatment.customMedications.forEach((med) => {
             if (med && typeof med === 'object' && 'name' in med && typeof (med as any).name === 'string') {
               const medName = (med as any).name as string
-              const currentCount = medicationUsage.get(medName) || 0
-              medicationUsage.set(medName, currentCount + 1)
+              medicationUsage.set(medName, (medicationUsage.get(medName) || 0) + 1)
             }
-          }
+          })
         }
-      }
+      })
       const topCustomMedicines = Array.from(medicationUsage.entries())
         .map(([name, count], index) => ({
           medicineId: index + 1000,
@@ -122,7 +126,7 @@ export class PatientTreatmentStatsService {
         topCustomMedicines,
       }
     } catch (error) {
-      throw this.errorHandlingService.handlePrismaError(error, 'PATIENT_TREATMENT')
+      throw this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.PATIENT_TREATMENT)
     }
   }
 
