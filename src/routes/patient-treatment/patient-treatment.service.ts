@@ -810,7 +810,19 @@ export class PatientTreatmentService {
       treatmentStatus: 'upcoming' | 'active' | 'ending_soon'
     })[]
   > {
-    return this.patientTreatmentRepository.getActivePatientTreatmentsByPatientId(patientId)
+    const treatments = await this.patientTreatmentRepository.getActivePatientTreatmentsByPatientId(patientId)
+    // Đảm bảo chỉ 1 treatment có isCurrent: true
+    const currentTreatments = treatments.filter((t) => t.isCurrent)
+    if (currentTreatments.length > 1) {
+      // Chọn treatment mới nhất (startDate lớn nhất) là isCurrent: true, các treatment còn lại set isCurrent: false
+      const sorted = currentTreatments.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime())
+      const latestId = sorted[0].id
+      return treatments.map((t) => ({
+        ...t,
+        isCurrent: t.id === latestId,
+      }))
+    }
+    return treatments
   }
 
   async getTreatmentComplianceStats(patientId: number): Promise<any> {

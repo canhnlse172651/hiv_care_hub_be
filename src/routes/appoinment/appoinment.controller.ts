@@ -74,7 +74,7 @@ export class AppoinmentController {
   }
 
   @ApiFindAppointmentByUserId()
-  @Roles(Role.Patient, Role.Admin)
+  @Roles(Role.Patient, Role.Admin, Role.Staff)
   @Get('user/:id')
   findAppointmentByUserId(
     @Param('id', ParseIntPipe) id: number,
