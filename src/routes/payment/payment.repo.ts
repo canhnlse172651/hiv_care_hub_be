@@ -110,7 +110,27 @@ export class PaymentRepo {
 
         // Cập nhật Appointment status nếu có
         if (payment.order.appointmentId) {
-          await this.appointmentService.updateAppointmentStatus(payment.order.appointmentId, 'PAID', true)
+          // Kiểm tra bệnh nhân đã có active treatment chưa, chỉ tạo mới nếu chưa có
+          const appointment = await tx.appointment.findUnique({
+            where: { id: payment.order.appointmentId },
+            include: { user: true },
+          })
+          if (appointment && appointment.user?.id) {
+            const activeTreatments = await tx.patientTreatment.findMany({
+              where: {
+                patientId: appointment.user.id,
+                OR: [{ endDate: null }, { endDate: { gt: new Date() } }],
+              },
+            })
+            if (!activeTreatments || activeTreatments.length === 0) {
+              await this.appointmentService.updateAppointmentStatus(payment.order.appointmentId, 'PAID', true)
+            } else {
+              this.logger.warn(`Bệnh nhân id=${appointment.user.id} đã có active treatment, không tạo mới.`)
+              await this.appointmentService.updateAppointmentStatus(payment.order.appointmentId, 'PAID', false)
+            }
+          } else {
+            await this.appointmentService.updateAppointmentStatus(payment.order.appointmentId, 'PAID', true)
+          }
         }
 
         // Cập nhật PatientTreatment status nếu có
