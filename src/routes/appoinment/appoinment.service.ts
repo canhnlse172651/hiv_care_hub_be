@@ -49,7 +49,6 @@ export class AppoinmentService {
   async createAppointment(data: CreateAppointmentDtoType): Promise<AppointmentResponseType> {
     const user = await this.userRepository.findUserById(data.userId)
     if (!user) throw new BadRequestException('User not found')
-    console.log('data.appointmentTime', data.appointmentTime)
 
     if (data.appointmentTime < new Date()) throw new BadRequestException('Appointment time cannot be in the past')
 
@@ -69,7 +68,6 @@ export class AppoinmentService {
     if (service.type === 'CONSULT' && data.type === 'ONLINE') {
       if (data.doctorId) throw new BadRequestException('It is not possible to choose your own doctor for this service.')
       // Tìm slot
-      console.log('data.appointmentTime', data.appointmentTime)
       const appointmentTimeFormatted = formatTimeHHMM(data.appointmentTime)
       const slot = slots.find((s) => s.start === appointmentTimeFormatted)
       if (!slot) throw new BadRequestException('This slot is not available for appointment')
@@ -112,7 +110,6 @@ export class AppoinmentService {
       if (!foundDoctorId) throw new BadRequestException('No available doctor for this slot')
       // Gán doctorId vào data
       data.doctorId = foundDoctorId
-      console.log('data', data)
 
       // Tạo phòng meeting VideoSDK
       const roomId = `appointment-${Date.now()}-${data.userId}`
@@ -128,14 +125,9 @@ export class AppoinmentService {
       if (!doctor) throw new BadRequestException('Doctor not found')
     }
 
-    console.log('data.appointmentTime', data.appointmentTime)
-
     // Format the appointment time to HH:MM format for comparison with service hours
     const appointmentTimeFormatted = formatTimeHHMM(data.appointmentTime)
-    console.log('appointmentTimeFormatted: ', appointmentTimeFormatted)
-    console.log('slots: ', slots)
     const slot = slots.find((s) => s.start === appointmentTimeFormatted)
-    console.log('slot', slot)
 
     if (!slot) {
       throw new BadRequestException('This slot is not available for appointment')
@@ -327,7 +319,6 @@ export class AppoinmentService {
     if (existingAppointment && existingAppointment.id !== id) {
       throw new BadRequestException('This slot is already booked')
     }
-    //
 
     // Gán lại doctorId vào data update
     const updatedAppointment = await this.appoinmentRepository.updateAppointment(id, {
