@@ -92,10 +92,9 @@ export class AppoinmentRepository {
 
   async updateAppointment(id: number, data: UpdateAppointmentDtoType): Promise<AppointmentResponseType> {
     // Omit id fields from update data
-    const { userId, doctorId, serviceId, ...updateData } = data as any
+    const { userId, ...updateData } = data as any
     const appointment = await this.prisma.appointment.update({
       where: { id },
-
       data: updateData,
       include: this.includeRelations,
     })
@@ -240,7 +239,9 @@ export class AppoinmentRepository {
         }
         if (dateTo) {
           // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-          where.appointmentTime.lte = new Date(dateTo)
+          const toDate = new Date(dateTo)
+          toDate.setHours(23, 59, 59, 999)
+          where.appointmentTime.lte = toDate
         }
       }
     }
@@ -304,7 +305,9 @@ export class AppoinmentRepository {
         }
         if (dateTo) {
           // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-          where.appointmentTime.lte = new Date(dateTo)
+          const toDate = new Date(dateTo)
+          toDate.setHours(23, 59, 59, 999)
+          where.appointmentTime.lte = toDate
         }
       }
     }
@@ -365,7 +368,9 @@ export class AppoinmentRepository {
         }
         if (dateTo) {
           // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-          where.appointmentTime.lte = new Date(dateTo)
+          const toDate = new Date(dateTo)
+          toDate.setHours(23, 59, 59, 999)
+          where.appointmentTime.lte = toDate
         }
       }
     }
