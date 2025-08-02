@@ -11,12 +11,14 @@ import {
 } from '../../shared/interfaces/test-result.interface'
 import { PaginatedResponse } from 'src/shared/schemas/pagination.schema'
 import { PaginationQuery } from 'src/shared/interfaces/query.interface'
+import { DoctorService } from '../doctor/doctor.service'
 
 @Injectable()
 export class TestResultService {
   constructor(
     private readonly testResultRepository: TestResultRepository,
     private readonly testRepository: TestRepository,
+    private readonly doctorService: DoctorService,
   ) {}
 
   /**
@@ -56,6 +58,12 @@ export class TestResultService {
       throw new NotFoundException(`Không tìm thấy xét nghiệm với ID ${data.testId}`)
     }
 
+    // Kiểm tra Doctor có tồn tại không
+    const doctor = await this.doctorService.findDoctorByUserId(doctorId)
+    if (!doctor) {
+      throw new NotFoundException(`Không tìm thấy bác sĩ với User ID ${doctorId}`)
+    }
+
     // Tạo TestResult với status "Processing"
     const testResultData: TestResultCreateData = {
       testId: data.testId,
@@ -66,12 +74,11 @@ export class TestResultService {
       cutOffValueUsed: null,
       unit: test.unit || null, // Sử dụng unit từ Test
       labTechId: null,
-      resultDate: null, // Explicitly set to null on creation
+      resultDate: null, // Explicitly set to null on creations
       notes: data.notes || null,
       status: 'Processing',
-      createdByDoctorId: doctorId || null, // Set doctorId if provided
+      createdByDoctorId: doctor.id || null, // Set doctorId if provided
     }
-
     return await this.testResultRepository.createTestResult(testResultData)
   }
 

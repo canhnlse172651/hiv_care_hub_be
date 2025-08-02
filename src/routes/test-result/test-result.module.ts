@@ -4,9 +4,10 @@ import { TestResultService } from './test-result.service'
 import { TestResultRepository } from '../../repositories/test-result.repository'
 import { TestRepository } from '../../repositories/test.repository'
 import { SharedModule } from '../../shared/shared.module'
+import { DoctorModule } from '../doctor/doctor.module'
 
 @Module({
-  imports: [SharedModule],
+  imports: [SharedModule, DoctorModule],
   controllers: [TestResultController],
   providers: [TestResultService, TestResultRepository, TestRepository],
   exports: [TestResultService, TestResultRepository],
