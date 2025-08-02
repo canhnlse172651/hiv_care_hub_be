@@ -331,11 +331,15 @@ export class AppoinmentService {
     return updatedAppointment
   }
 
-  async updateAppointmentStatus(
-    id: number,
-    status: AppointmentStatus,
-    autoEndExisting?: boolean,
-  ): Promise<AppointmentResponseType> {
+  async updateAppointmentStatus({
+    id,
+    status,
+    autoEndExisting = true,
+  }: {
+    id: number
+    status: AppointmentStatus
+    autoEndExisting?: boolean
+  }): Promise<AppointmentResponseType> {
     const existed = await this.appoinmentRepository.findAppointmentById(id)
     if (!existed) throw new BadRequestException('Appointment not found')
     // Ghi log lịch sử thay đổi trạng thái
@@ -380,8 +384,9 @@ export class AppoinmentService {
           startDate: appointmentDateStr,
         })
         console.log('[AutoCreatePatientTreatment] existedPatientTreatment.data:', existedPatientTreatment?.data)
-        if (!existedPatientTreatment || existedPatientTreatment.data.length === 0) {
-          console.log('[AutoCreatePatientTreatment] Không tìm thấy hồ sơ điều trị, tiến hành tạo mới.')
+        if (autoEndExisting === true) {
+          // Chỉ tạo mới nếu autoEndExisting là true
+          console.log('[AutoCreatePatientTreatment] autoEndExisting=true, tiến hành tạo mới.')
           const treatmentPayload: any = {
             patientId: existed.user.id,
             doctorId: existed.doctor.id,
@@ -398,7 +403,8 @@ export class AppoinmentService {
           await this.patientTreatmentService.createPatientTreatment(treatmentPayload, existed.user.id)
           console.log('[AutoCreatePatientTreatment] Đã tạo hồ sơ điều trị thành công:', treatmentPayload)
         } else {
-          console.log('[AutoCreatePatientTreatment] Đã tồn tại hồ sơ điều trị:', existedPatientTreatment.data)
+          // Nếu không, giữ lại existedPatientTreatment
+          console.log('[AutoCreatePatientTreatment] Giữ lại existedPatientTreatment:', existedPatientTreatment.data)
         }
       } catch (e) {
         console.error('[AutoCreatePatientTreatment] Auto create PatientTreatment failed:', e)
