@@ -66,7 +66,7 @@ export class AppoinmentController {
     return this.appoinmentService.updateAppointmentStatus({
       id,
       status: status as AppointmentStatus,
-      autoEndExisting: autoEndExisting === 'true',
+      autoEndExisting: autoEndExisting === undefined ? true : autoEndExisting === 'true',
     })
   }
 
