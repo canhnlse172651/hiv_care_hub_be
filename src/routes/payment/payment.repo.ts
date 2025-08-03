@@ -128,7 +128,7 @@ export class PaymentRepo {
             console.log('[PAYMENT_REPO] Calling updateAppointmentStatus for appointmentId:', appointmentId)
             await this.appointmentService.updateAppointmentStatus({
               id: appointmentId,
-              status: 'PAID',
+              status: OrderStatus.PAID,
               autoEndExisting: true,
             })
             console.log('[PAYMENT_REPO] updateAppointmentStatus called for appointmentId:', appointmentId)
