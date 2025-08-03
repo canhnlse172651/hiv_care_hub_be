@@ -124,7 +124,11 @@ export class PaymentRepo {
 
           if (!existedTreatment) {
             // An toàn: gọi update với flag không tự tạo treatment
-            await this.appointmentService.updateAppointmentStatus(appointmentId, 'PAID', false)
+            await this.appointmentService.updateAppointmentStatus({
+              id: appointmentId,
+              status: 'PAID',
+              autoEndExisting: false,
+            })
           } else {
             this.logger.warn(`⚠️ AppointmentID=${appointmentId} đã có patientTreatment, không cập nhật thêm.`)
           }
