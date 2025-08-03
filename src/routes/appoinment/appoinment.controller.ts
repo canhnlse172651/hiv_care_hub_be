@@ -63,7 +63,11 @@ export class AppoinmentController {
     @Body('status') status: string,
     @Query('autoEndExisting') autoEndExisting?: string,
   ): Promise<AppointmentResponseType> {
-    return this.appoinmentService.updateAppointmentStatus(id, status as AppointmentStatus, autoEndExisting === 'true')
+    return this.appoinmentService.updateAppointmentStatus({
+      id,
+      status: status as AppointmentStatus,
+      autoEndExisting: autoEndExisting === 'true',
+    })
   }
 
   @ApiDeleteAppointment()
