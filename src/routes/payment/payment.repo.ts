@@ -111,7 +111,7 @@ export class PaymentRepo {
         // Cập nhật trạng thái Appointment nếu có
         const appointmentId = payment.order.appointmentId
         if (appointmentId) {
-          // Kiểm tra nếu đã có PatientTreatment liên kết appointment này chưa
+          console.log('[PAYMENT_REPO] appointmentId:', appointmentId)
           const existedTreatment = await tx.patientTreatment.findFirst({
             where: {
               orders: {
@@ -121,16 +121,25 @@ export class PaymentRepo {
               },
             },
           })
+          console.log('[PAYMENT_REPO] existedTreatment:', existedTreatment)
 
           if (!existedTreatment) {
             // An toàn: gọi update với flag không tự tạo treatment
+            console.log('[PAYMENT_REPO] Calling updateAppointmentStatus for appointmentId:', appointmentId)
+            await this.appointmentService.updateAppointmentStatus({
+              id: appointmentId,
+              status: OrderStatus.PAID,
+              autoEndExisting: true,
+            })
+            console.log('[PAYMENT_REPO] updateAppointmentStatus called for appointmentId:', appointmentId)
+          } else {
+            this.logger.warn(`⚠️ AppointmentID=${appointmentId} đã có patientTreatment, không cập nhật thêm.`)
+            console.log('[PAYMENT_REPO] Appointment already has patientTreatment, skipping update.')
             await this.appointmentService.updateAppointmentStatus({
               id: appointmentId,
               status: 'PAID',
               autoEndExisting: false,
             })
-          } else {
-            this.logger.warn(`⚠️ AppointmentID=${appointmentId} đã có patientTreatment, không cập nhật thêm.`)
           }
         }
 

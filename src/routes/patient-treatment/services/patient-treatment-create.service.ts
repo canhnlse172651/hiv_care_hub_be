@@ -35,10 +35,11 @@ export class PatientTreatmentCreateService {
   async createPatientTreatment(
     data: CreatePatientTreatmentInput,
     userId: number,
-    autoEndExisting = false,
+    autoEndExisting = true,
     validate = true,
   ): Promise<PatientTreatment> {
     try {
+      console.log('[createPatientTreatment] input data:', data)
       // 1. Parse & validate input
       const { patientId, doctorId, protocolId, startDate, endDate, notes, rawCustomMeds } = this.parseAndValidateInput(
         data,
@@ -47,13 +48,15 @@ export class PatientTreatmentCreateService {
 
       // 2. Business rule: Only one active treatment per patient
       if (autoEndExisting) {
-        await this.autoEndActiveTreatments(patientId)
+        const autoEndResult = await this.autoEndActiveTreatments(patientId)
+        console.log('[createPatientTreatment] autoEndActiveTreatments result:', autoEndResult)
       } else {
         await this.ensureNoExistingActiveTreatment(patientId)
       }
 
       // 3. Normalize custom medications
       const customMedications = PatientTreatmentCreateService.normalizeCustomMedicationsSchedule(rawCustomMeds)
+      console.log('[createPatientTreatment] normalized customMedications:', customMedications)
 
       // 4. Business rule: if custom meds provided, protocolId is required
       if (customMedications.length > 0 && !protocolId) {
@@ -64,6 +67,7 @@ export class PatientTreatmentCreateService {
 
       // 5. Calculate total cost
       const total = await this.calculateTotal(protocolId, customMedications)
+      console.log('[createPatientTreatment] calculated total:', total)
 
       // 6. Create record
       const created = await this.patientTreatmentRepository.createPatientTreatment({
@@ -78,6 +82,7 @@ export class PatientTreatmentCreateService {
         createdById: userId,
         status: data.status ?? false,
       })
+      console.log('[createPatientTreatment] created patientTreatment:', created)
 
       // 7. Normalize in response
       if (created.customMedications) {
@@ -98,12 +103,21 @@ export class PatientTreatmentCreateService {
    */
   private async autoEndActiveTreatments(patientId: number) {
     const activeTreatments = await this.patientTreatmentRepository.getActivePatientTreatments({ patientId })
+    console.log('[autoEndActiveTreatments] activeTreatments:', activeTreatments)
+    let deactivatedCount = 0
     if (activeTreatments?.length) {
       const now = new Date()
       for (const treatment of activeTreatments) {
-        await this.patientTreatmentRepository.updatePatientTreatment(treatment.id, { endDate: now })
+        console.log('[autoEndActiveTreatments] before update:', treatment)
+        const updated = await this.patientTreatmentRepository.updatePatientTreatment(treatment.id, {
+          endDate: now,
+          status: false,
+        })
+        console.log('[autoEndActiveTreatments] after update:', updated)
+        deactivatedCount++
       }
     }
+    return { deactivatedCount, activeTreatments }
   }
 
   private parseAndValidateInput(

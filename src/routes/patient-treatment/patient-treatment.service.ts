@@ -517,9 +517,22 @@ export class PatientTreatmentService {
     return null
   }
 
-  async createPatientTreatment(data: any, userId: number, validate: boolean = true): Promise<any> {
+  async createPatientTreatment(
+    data: any,
+    userId: number,
+    autoEndExisting: boolean = true,
+    validate: boolean = true,
+  ): Promise<any> {
     try {
-      return await this.patientTreatmentCreateService.createPatientTreatment(data, userId, validate)
+      console.log('[createPatientTreatment] before create:', { data, userId, autoEndExisting, validate })
+      const created = await this.patientTreatmentCreateService.createPatientTreatment(
+        data,
+        userId,
+        autoEndExisting,
+        validate,
+      )
+      console.log('[createPatientTreatment] after create:', created)
+      return created
     } catch (error) {
       return this.errorHandlingService.handlePrismaError(error, ENTITY_NAMES.PATIENT_TREATMENT)
     }
@@ -766,23 +779,6 @@ export class PatientTreatmentService {
     }
   }
 
-  // Enhanced error handling for better debugging and monitoring
-  private handleServiceError(error: any, operation: string, context?: any): never {
-    const errorMessage = error.message || 'Unknown error occurred'
-    const errorContext = {
-      operation,
-      timestamp: new Date().toISOString(),
-      context: context || {},
-      stackTrace: error.stack,
-    }
-
-    // Log error for monitoring
-    console.error(`PatientTreatmentService Error [${operation}]:`, errorContext)
-
-    // Return standardized error
-    throw new Error(`${operation} failed: ${errorMessage}`)
-  }
-
   /**
    * Audit logging for treatment operations
    */
@@ -892,7 +888,12 @@ export class PatientTreatmentService {
     const now = new Date()
     let deactivatedCount = 0
     for (const t of activeTreatments) {
-      await this.patientTreatmentRepository.updatePatientTreatment(t.id, { endDate: now })
+      console.log('[endActivePatientTreatments] before update:', t)
+      const updated = await this.patientTreatmentRepository.updatePatientTreatment(t.id, {
+        endDate: now,
+        status: false,
+      })
+      console.log('[endActivePatientTreatments] after update:', updated)
       deactivatedCount++
     }
     return {
@@ -900,7 +901,7 @@ export class PatientTreatmentService {
       message: `Ended ${deactivatedCount} active treatment(s)`,
       deactivatedCount,
       endDate: now,
-      activeTreatments: activeTreatments.map((t) => ({ ...t, endDate: now })),
+      activeTreatments: activeTreatments.map((t) => ({ ...t, endDate: now, status: false })),
     }
   }
 
