@@ -119,6 +119,7 @@ export class PatientTreatmentRepository {
       startDate?: Date
       endDate?: Date
       total?: number
+      status?: boolean
     },
   ): Promise<PatientTreatment> {
     const validatedId = this.validateId(id)
@@ -314,52 +315,49 @@ export class PatientTreatmentRepository {
     const validatedPatientId = this.validateId(patientId)
     const currentDate = new Date()
     try {
-      const where: Prisma.PatientTreatmentWhereInput = {
-        patientId: validatedPatientId,
-        OR: [{ endDate: null }, { endDate: { gt: currentDate } }],
-      }
-      if (includeHistory) {
-        const thirtyDaysAgo = new Date(currentDate.getTime() - 30 * DAYS_IN_MS)
-        where.OR!.push({ endDate: { gte: thirtyDaysAgo, lte: currentDate } })
-      }
-      const treatments = await this.prismaService.patientTreatment.findMany({
-        where,
+      // Lấy tất cả hồ sơ active (status=true, endDate=null hoặc endDate>now)
+      let activeTreatments = await this.prismaService.patientTreatment.findMany({
+        where: {
+          patientId: validatedPatientId,
+          status: true,
+          OR: [{ endDate: null }, { endDate: { gt: currentDate } }],
+        },
         orderBy: { startDate: 'desc' },
         include: this.detailedIncludes,
       })
-
-      function getTreatmentStatus(
-        startDate: Date,
-        endDate: Date | null,
-        now: Date,
-      ): {
-        isStarted: boolean
-        isCurrent: boolean
-        daysRemaining: number | null
-        treatmentStatus: 'upcoming' | 'active' | 'ending_soon'
-      } {
-        const isStarted = startDate <= now
-        const isCurrent = isStarted && (!endDate || endDate > now)
-        let daysRemaining: number | null = null
-        if (endDate) {
-          const diffTime = endDate.getTime() - now.getTime()
-          daysRemaining = Math.ceil(diffTime / DAYS_IN_MS)
-        }
-        let treatmentStatus: 'upcoming' | 'active' | 'ending_soon'
-        if (!isStarted) treatmentStatus = 'upcoming'
-        else if (daysRemaining !== null && daysRemaining <= 7 && daysRemaining > 0) treatmentStatus = 'ending_soon'
-        else treatmentStatus = 'active'
-        return { isStarted, isCurrent, daysRemaining, treatmentStatus }
-      }
-
-      return treatments.map((treatment) => {
-        const { isStarted, isCurrent, daysRemaining, treatmentStatus } = getTreatmentStatus(
-          new Date(treatment.startDate),
-          treatment.endDate ? new Date(treatment.endDate) : null,
-          currentDate,
-        )
-        return { ...treatment, isCurrent, isStarted, daysRemaining, treatmentStatus }
+      console.log('[getActivePatientTreatmentsByPatientId] Raw activeTreatments:', activeTreatments)
+      // Loại bỏ các bản ghi có endDate < startDate
+      activeTreatments = activeTreatments.filter((t) => {
+        if (!t.endDate) return true
+        return new Date(t.endDate) >= new Date(t.startDate)
       })
+      console.log('[getActivePatientTreatmentsByPatientId] Filtered activeTreatments:', activeTreatments)
+      if (activeTreatments.length === 0) return []
+      // Chọn hồ sơ active mới nhất
+      const [latestActive, ...others] = activeTreatments
+      // Set status=false cho các hồ sơ còn lại
+      if (others.length > 0) {
+        await this.prismaService.patientTreatment.updateMany({
+          where: {
+            id: { in: others.map((t) => t.id) },
+            status: true,
+          },
+          data: { status: false },
+        })
+      }
+      // Đánh dấu trạng thái cho hồ sơ active mới nhất
+      const isStarted = new Date(latestActive.startDate) <= currentDate
+      const isCurrent = isStarted && (!latestActive.endDate || new Date(latestActive.endDate) > currentDate)
+      let daysRemaining: number | null = null
+      if (latestActive.endDate) {
+        const diffTime = new Date(latestActive.endDate).getTime() - currentDate.getTime()
+        daysRemaining = Math.ceil(diffTime / DAYS_IN_MS)
+      }
+      let treatmentStatus: 'upcoming' | 'active' | 'ending_soon'
+      if (!isStarted) treatmentStatus = 'upcoming'
+      else if (daysRemaining !== null && daysRemaining <= 7 && daysRemaining > 0) treatmentStatus = 'ending_soon'
+      else treatmentStatus = 'active'
+      return [{ ...latestActive, isCurrent, isStarted, daysRemaining, treatmentStatus }]
     } catch (error) {
       throw this.handlePrismaError(error)
     }

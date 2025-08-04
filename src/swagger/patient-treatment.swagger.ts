@@ -166,13 +166,13 @@ export const ApiCreatePatientTreatment = () =>
     ApiOperation({
       summary: 'Create new patient treatment',
       description:
-        'Create a new patient treatment entry. Use autoEndExisting=true to automatically end any existing active treatments for the patient.',
+        'Create a new patient treatment entry. Business rule: Only 1 active protocol per patient is allowed. Use autoEndExisting=true to automatically end all existing active treatments before creating a new one. If autoEndExisting=false, API will throw error if patient already has active treatment.',
     }),
     ApiQuery({
       name: 'autoEndExisting',
       required: false,
       description:
-        'Automatically end all existing active treatments for the patient before creating a new one. If true, the system will set endDate for all active treatments before creating the new treatment. Business rule: Only 1 active protocol per patient is allowed.',
+        'If true, system will set endDate for all active treatments before creating the new treatment. If false, API will throw error if patient already has active treatment.',
       type: Boolean,
       example: true,
     }),
@@ -197,16 +197,31 @@ export const ApiCreatePatientTreatment = () =>
             example: 1,
           },
           customMedications: {
-            type: 'object',
-            description: 'Custom medications (JSON)',
-            example: {
-              additionalMeds: [
-                {
-                  name: 'Vitamin D',
-                  dosage: '1000 IU daily',
-                },
-              ],
+            type: 'array',
+            description: 'Custom medications (array of objects)',
+            items: {
+              type: 'object',
+              properties: {
+                medicineName: { type: 'string', example: 'Vitamin D' },
+                dosage: { type: 'string', example: '1000 IU daily' },
+                frequency: { type: 'string', example: 'daily' },
+                durationValue: { type: 'number', example: 30 },
+                durationUnit: { type: 'string', example: 'DAY', enum: ['DAY', 'WEEK', 'MONTH', 'YEAR'] },
+                schedule: { type: 'string', example: 'MORNING', enum: ['MORNING', 'AFTERNOON', 'NIGHT'] },
+                price: { type: 'number', example: 10000 },
+              },
             },
+            example: [
+              {
+                medicineName: 'Vitamin D',
+                dosage: '1000 IU daily',
+                frequency: 'daily',
+                durationValue: 30,
+                durationUnit: 'DAY',
+                schedule: 'MORNING',
+                price: 10000,
+              },
+            ],
           },
           notes: {
             type: 'string',
@@ -240,14 +255,17 @@ export const ApiCreatePatientTreatment = () =>
             patientId: 1,
             protocolId: 1,
             doctorId: 1,
-            customMedications: {
-              additionalMeds: [
-                {
-                  name: 'Vitamin D',
-                  dosage: '1000 IU daily',
-                },
-              ],
-            },
+            customMedications: [
+              {
+                medicineName: 'Vitamin D',
+                dosage: '1000 IU daily',
+                frequency: 'daily',
+                durationValue: 30,
+                durationUnit: 'DAY',
+                schedule: 'MORNING',
+                price: 10000,
+              },
+            ],
             notes: 'Patient responds well to treatment',
             startDate: '2024-01-01T00:00:00Z',
             endDate: '2024-12-31T23:59:59Z',

@@ -342,6 +342,7 @@ export class AppoinmentService {
   }): Promise<AppointmentResponseType> {
     const existed = await this.appoinmentRepository.findAppointmentById(id)
     if (!existed) throw new BadRequestException('Appointment not found')
+    console.log('[AutoCreatePatientTreatment] existed appointment:', existed)
     // Ghi log lịch sử thay đổi trạng thái
     try {
       await this.appointmentHistoryService.logStatusChange({
@@ -356,9 +357,7 @@ export class AppoinmentService {
 
     const updated = await this.appoinmentRepository.updateAppointmentStatus(id, status)
     const refreshed = await this.appoinmentRepository.findAppointmentById(id)
-    // const existedPatientTreatment = await this.patientTreatmentService.getPatientTreatmentsByPatientId({
-    //   patientId: existed.user.id,
-    // })
+    console.log('[AutoCreatePatientTreatment] refreshed appointment:', refreshed)
     if (
       refreshed &&
       refreshed.status === 'PAID' &&
@@ -373,39 +372,24 @@ export class AppoinmentService {
           existed.appointmentTime instanceof Date
             ? existed.appointmentTime.toISOString().slice(0, 10)
             : new Date(existed.appointmentTime).toISOString().slice(0, 10)
-        console.log('[AutoCreatePatientTreatment] Kiểm tra hồ sơ điều trị cho:', {
+        // Trước khi tạo mới, kết thúc tất cả active treatment (bao gồm trường hợp endDate < startDate)
+        const endResult = await this.patientTreatmentService.endActivePatientTreatments(existed.user.id)
+        console.log('[AutoCreatePatientTreatment] endActivePatientTreatments result:', endResult)
+        console.log('[AutoCreatePatientTreatment] Đã kết thúc tất cả active treatment trước khi tạo mới.')
+        const treatmentPayload: any = {
           patientId: existed.user.id,
           doctorId: existed.doctor.id,
+          protocolId: undefined,
+          notes: existed.notes || '',
+          status: true,
           startDate: appointmentDateStr,
-        })
-        const existedPatientTreatment = await this.patientTreatmentService.getPatientTreatmentsByPatientId({
-          patientId: existed.user.id,
-          doctorId: existed.doctor.id,
-          startDate: appointmentDateStr,
-        })
-        console.log('[AutoCreatePatientTreatment] existedPatientTreatment.data:', existedPatientTreatment?.data)
-        if (autoEndExisting === true) {
-          // Chỉ tạo mới nếu autoEndExisting là true
-          console.log('[AutoCreatePatientTreatment] autoEndExisting=true, tiến hành tạo mới.')
-          const treatmentPayload: any = {
-            patientId: existed.user.id,
-            doctorId: existed.doctor.id,
-            protocolId: undefined,
-            notes: existed.notes || '',
-            status: true,
-            startDate: appointmentDateStr,
-            endDate: undefined,
-            createdById: existed.doctor.id,
-            total: 0,
-            autoEndExisting,
-          }
-          console.log('[AutoCreatePatientTreatment] treatmentPayload:', treatmentPayload)
-          await this.patientTreatmentService.createPatientTreatment(treatmentPayload, existed.user.id)
-          console.log('[AutoCreatePatientTreatment] Đã tạo hồ sơ điều trị thành công:', treatmentPayload)
-        } else {
-          // Nếu không, giữ lại existedPatientTreatment
-          console.log('[AutoCreatePatientTreatment] Giữ lại existedPatientTreatment:', existedPatientTreatment.data)
+          endDate: undefined,
+          createdById: existed.doctor.id,
+          autoEndExisting,
         }
+        console.log('[AutoCreatePatientTreatment] treatmentPayload:', treatmentPayload)
+        await this.patientTreatmentService.createPatientTreatment(treatmentPayload, existed.user.id, autoEndExisting)
+        console.log('[AutoCreatePatientTreatment] Đã tạo hồ sơ điều trị thành công:', treatmentPayload)
       } catch (e) {
         console.error('[AutoCreatePatientTreatment] Auto create PatientTreatment failed:', e)
       }
