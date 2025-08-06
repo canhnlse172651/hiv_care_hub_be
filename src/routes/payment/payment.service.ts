@@ -3,11 +3,51 @@ import { WebhookPaymentBodyType } from 'src/routes/payment/payment.model'
 import { PaymentRepo } from './payment.repo'
 import { parseSepayTransferContent } from 'src/shared/utils/payment.utils'
 
+interface DashboardPaymentFilters {
+  startDate?: string
+  endDate?: string
+  status?: string
+  page: number
+  limit: number
+}
+
+interface RevenueStatsFilters {
+  period: string
+  startDate?: string
+  endDate?: string
+}
+
 @Injectable()
 export class PaymentService {
   private readonly logger = new Logger(PaymentService.name);
   
   constructor(private readonly paymentRepo: PaymentRepo) {}
+
+  async getDashboardPayments(filters: DashboardPaymentFilters) {
+    this.logger.log(`📊 [PAYMENT_SERVICE] Getting dashboard payments with filters: ${JSON.stringify(filters)}`);
+    
+    try {
+      const result = await this.paymentRepo.getDashboardPayments(filters);
+      this.logger.log(`✅ [PAYMENT_SERVICE] Dashboard payments retrieved successfully`);
+      return result;
+    } catch (error) {
+      this.logger.error(`❌ [PAYMENT_SERVICE] Error getting dashboard payments: ${error.message}`);
+      throw error;
+    }
+  }
+
+  async getRevenueStats(filters: RevenueStatsFilters) {
+    this.logger.log(`📈 [PAYMENT_SERVICE] Getting revenue statistics with filters: ${JSON.stringify(filters)}`);
+    
+    try {
+      const result = await this.paymentRepo.getRevenueStats(filters);
+      this.logger.log(`✅ [PAYMENT_SERVICE] Revenue statistics retrieved successfully`);
+      return result;
+    } catch (error) {
+      this.logger.error(`❌ [PAYMENT_SERVICE] Error getting revenue statistics: ${error.message}`);
+      throw error;
+    }
+  }
 
   receiver(body: WebhookPaymentBodyType) {
     this.logger.log(`🔄 [PAYMENT_SERVICE] Processing payment webhook`);

@@ -57,7 +57,7 @@ async function bootstrap() {
     customfavIcon: '/favicon.ico',
   })
 
-  const port = process.env.PORT || 3001 // Đổi từ 3000 sang 3001
+  const port = 3001 // Đổi từ 3000 sang 3001
   await app.listen(port, '0.0.0.0') // Listen on all interfaces for production
 
   console.log('🚀 Application is running on port:', port)

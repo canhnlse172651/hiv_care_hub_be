@@ -602,5 +602,404 @@ export const PaymentSwaggerDecorators = {
   }
 };
 
+// Dashboard Payment DTOs
+export class PaymentUserSwaggerDto {
+  @ApiProperty({ 
+    example: 1,
+    description: 'User ID'
+  })
+  id: number;
+
+  @ApiProperty({ 
+    example: 'Nguyễn Văn A',
+    description: 'User name'
+  })
+  name: string;
+
+  @ApiProperty({ 
+    example: 'user@example.com',
+    description: 'User email'
+  })
+  email: string;
+
+  @ApiProperty({ 
+    example: '0123456789',
+    required: false,
+    description: 'User phone number'
+  })
+  phoneNumber?: string;
+}
+
+export class PaymentServiceSwaggerDto {
+  @ApiProperty({ 
+    example: 1,
+    description: 'Service ID'
+  })
+  id: number;
+
+  @ApiProperty({ 
+    example: 'Tư vấn HIV',
+    description: 'Service name'
+  })
+  name: string;
+
+  @ApiProperty({ 
+    example: 200000,
+    description: 'Service price in VND'
+  })
+  price: number;
+}
+
+export class PaymentDoctorSwaggerDto {
+  @ApiProperty({ 
+    example: 1,
+    description: 'Doctor ID'
+  })
+  id: number;
+
+  @ApiProperty({ 
+    type: PaymentUserSwaggerDto,
+    description: 'Doctor user information'
+  })
+  user: PaymentUserSwaggerDto;
+}
+
+export class PaymentAppointmentSwaggerDto {
+  @ApiProperty({ 
+    example: 1,
+    description: 'Appointment ID'
+  })
+  id: number;
+
+  @ApiProperty({ 
+    example: '2024-01-20T14:00:00Z',
+    description: 'Appointment time'
+  })
+  appointmentTime: string;
+
+  @ApiProperty({ 
+    example: 'CONFIRMED',
+    description: 'Appointment status'
+  })
+  status: string;
+
+  @ApiProperty({ 
+    type: PaymentServiceSwaggerDto,
+    description: 'Service information'
+  })
+  service: PaymentServiceSwaggerDto;
+
+  @ApiProperty({ 
+    type: PaymentDoctorSwaggerDto,
+    description: 'Doctor information'
+  })
+  doctor: PaymentDoctorSwaggerDto;
+}
+
+export class PaymentPatientTreatmentSwaggerDto {
+  @ApiProperty({ 
+    example: 1,
+    description: 'Patient treatment ID'
+  })
+  id: number;
+
+  @ApiProperty({ 
+    example: '2024-01-15T00:00:00Z',
+    description: 'Treatment start date'
+  })
+  startDate: string;
+
+  @ApiProperty({ 
+    example: '2024-03-15T00:00:00Z',
+    required: false,
+    description: 'Treatment end date'
+  })
+  endDate?: string;
+
+  @ApiProperty({ 
+    example: true,
+    description: 'Treatment status'
+  })
+  status: boolean;
+}
+
+export class PaymentOrderDetailSwaggerDto {
+  @ApiProperty({ 
+    example: 1,
+    description: 'Order detail ID'
+  })
+  id: number;
+
+  @ApiProperty({ 
+    example: 'APPOINTMENT_FEE',
+    enum: ['APPOINTMENT_FEE', 'MEDICINE', 'TEST', 'CONSULTATION', 'TREATMENT'],
+    description: 'Order item type'
+  })
+  type: string;
+
+  @ApiProperty({ 
+    example: 1,
+    required: false,
+    description: 'Reference ID'
+  })
+  referenceId?: number;
+
+  @ApiProperty({ 
+    example: 'Phí tư vấn khám bệnh HIV',
+    description: 'Item name'
+  })
+  name: string;
+
+  @ApiProperty({ 
+    example: 1,
+    description: 'Quantity'
+  })
+  quantity: number;
+
+  @ApiProperty({ 
+    example: 200000,
+    description: 'Unit price in VND'
+  })
+  unitPrice: number;
+
+  @ApiProperty({ 
+    example: 200000,
+    description: 'Total price in VND'
+  })
+  totalPrice: number;
+}
+
+export class PaymentOrderSwaggerDto {
+  @ApiProperty({ 
+    example: 1,
+    description: 'Order ID'
+  })
+  id: number;
+
+  @ApiProperty({ 
+    example: 'PAID',
+    enum: ['PENDING', 'PAID', 'CANCELLED'],
+    description: 'Order status'
+  })
+  orderStatus: string;
+
+  @ApiProperty({ 
+    type: PaymentUserSwaggerDto,
+    description: 'Customer information'
+  })
+  user: PaymentUserSwaggerDto;
+
+  @ApiProperty({ 
+    type: PaymentAppointmentSwaggerDto,
+    required: false,
+    description: 'Appointment information'
+  })
+  appointment?: PaymentAppointmentSwaggerDto;
+
+  @ApiProperty({ 
+    type: PaymentPatientTreatmentSwaggerDto,
+    required: false,
+    description: 'Patient treatment information'
+  })
+  patientTreatment?: PaymentPatientTreatmentSwaggerDto;
+
+  @ApiProperty({ 
+    type: [PaymentOrderDetailSwaggerDto],
+    description: 'Order details'
+  })
+  orderDetails: PaymentOrderDetailSwaggerDto[];
+}
+
+export class DashboardPaymentSwaggerDto {
+  @ApiProperty({ 
+    example: 1,
+    description: 'Payment ID'
+  })
+  id: number;
+
+  @ApiProperty({ 
+    example: 500000,
+    description: 'Payment amount in VND'
+  })
+  amount: number;
+
+  @ApiProperty({ 
+    example: 'SUCCESS',
+    enum: ['PENDING', 'SUCCESS', 'FAILED'],
+    description: 'Payment status'
+  })
+  status: string;
+
+  @ApiProperty({ 
+    example: 'BANK_TRANSFER',
+    enum: ['BANK_TRANSFER', 'CASH', 'CARD'],
+    description: 'Payment method'
+  })
+  method: string;
+
+  @ApiProperty({ 
+    example: 'PAY_123456',
+    description: 'Transaction code'
+  })
+  transactionCode: string;
+
+  @ApiProperty({ 
+    example: '2024-01-15T10:30:00Z',
+    description: 'Payment creation time'
+  })
+  createdAt: string;
+
+  @ApiProperty({ 
+    example: '2024-01-15T10:35:00Z',
+    required: false,
+    description: 'Payment completion time'
+  })
+  paidAt?: string;
+
+  @ApiProperty({ 
+    type: PaymentOrderSwaggerDto,
+    description: 'Order information'
+  })
+  order: PaymentOrderSwaggerDto;
+}
+
+export class PaginationSwaggerDto {
+  @ApiProperty({ 
+    example: 150,
+    description: 'Total number of items'
+  })
+  total: number;
+
+  @ApiProperty({ 
+    example: 1,
+    description: 'Current page number'
+  })
+  page: number;
+
+  @ApiProperty({ 
+    example: 20,
+    description: 'Number of items per page'
+  })
+  limit: number;
+
+  @ApiProperty({ 
+    example: 8,
+    description: 'Total number of pages'
+  })
+  totalPages: number;
+}
+
+export class PaymentSummarySwaggerDto {
+  @ApiProperty({ 
+    example: 45000000,
+    description: 'Total revenue in VND'
+  })
+  totalRevenue: number;
+
+  @ApiProperty({ 
+    example: 120,
+    description: 'Number of successful payments'
+  })
+  successfulPayments: number;
+
+  @ApiProperty({ 
+    example: 25,
+    description: 'Number of pending payments'
+  })
+  pendingPayments: number;
+
+  @ApiProperty({ 
+    example: 5,
+    description: 'Number of failed payments'
+  })
+  failedPayments: number;
+
+  @ApiProperty({ 
+    example: 150,
+    description: 'Total number of payments'
+  })
+  totalPayments: number;
+}
+
+export class DashboardPaymentsResponseSwaggerDto {
+  @ApiProperty({ 
+    type: [DashboardPaymentSwaggerDto],
+    description: 'List of payments'
+  })
+  payments: DashboardPaymentSwaggerDto[];
+
+  @ApiProperty({ 
+    type: PaginationSwaggerDto,
+    description: 'Pagination information'
+  })
+  pagination: PaginationSwaggerDto;
+
+  @ApiProperty({ 
+    type: PaymentSummarySwaggerDto,
+    description: 'Payment summary statistics'
+  })
+  summary: PaymentSummarySwaggerDto;
+}
+
+export class RevenueStatSwaggerDto {
+  @ApiProperty({ 
+    example: '2024-01',
+    description: 'Time period (format depends on period type)'
+  })
+  period: string;
+
+  @ApiProperty({ 
+    example: 12500000,
+    description: 'Revenue for this period in VND'
+  })
+  revenue: number;
+
+  @ApiProperty({ 
+    example: 45,
+    description: 'Number of payments in this period'
+  })
+  paymentCount: number;
+
+  @ApiProperty({ 
+    example: 45,
+    description: 'Number of successful payments in this period'
+  })
+  successfulPayments: number;
+}
+
+export class RevenueSummarySwaggerDto {
+  @ApiProperty({ 
+    example: 46450000,
+    description: 'Total revenue in VND'
+  })
+  totalRevenue: number;
+
+  @ApiProperty({ 
+    example: 160,
+    description: 'Total number of payments'
+  })
+  totalPayments: number;
+
+  @ApiProperty({ 
+    example: 290312.5,
+    description: 'Average revenue per payment'
+  })
+  averageRevenue: number;
+}
+
+export class RevenueStatsResponseSwaggerDto {
+  @ApiProperty({ 
+    type: [RevenueStatSwaggerDto],
+    description: 'Revenue statistics by time period'
+  })
+  stats: RevenueStatSwaggerDto[];
+
+  @ApiProperty({ 
+    type: RevenueSummarySwaggerDto,
+    description: 'Overall revenue summary'
+  })
+  summary: RevenueSummarySwaggerDto;
+}
+
 // Tags for Swagger
 export const PaymentSwaggerTags = ApiTags('Orders & Payments'); 
