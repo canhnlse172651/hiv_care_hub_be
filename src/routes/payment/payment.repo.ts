@@ -317,4 +317,277 @@ export class PaymentRepo {
       },
     })
   }
+
+  async getDashboardPayments(filters: {
+    startDate?: string
+    endDate?: string
+    status?: string
+    page: number
+    limit: number
+  }) {
+    this.logger.log(`📊 [PAYMENT_REPO] Getting dashboard payments with filters: ${JSON.stringify(filters)}`)
+
+    try {
+      // Build where clause
+      const whereClause: any = {}
+
+      // Date filtering
+      if (filters.startDate || filters.endDate) {
+        whereClause.createdAt = {}
+        if (filters.startDate) {
+          whereClause.createdAt.gte = new Date(filters.startDate)
+        }
+        if (filters.endDate) {
+          const endDate = new Date(filters.endDate)
+          endDate.setHours(23, 59, 59, 999) // End of day
+          whereClause.createdAt.lte = endDate
+        }
+      }
+
+      // Status filtering
+      if (filters.status) {
+        whereClause.status = filters.status
+      }
+
+      // Calculate pagination
+      const skip = (filters.page - 1) * filters.limit
+      const take = filters.limit
+
+      // Get payments with pagination
+      const [payments, totalCount] = await Promise.all([
+        this.prismaService.payment.findMany({
+          where: whereClause,
+          skip,
+          take,
+          include: {
+            order: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    phoneNumber: true,
+                  },
+                },
+                appointment: {
+                  select: {
+                    id: true,
+                    appointmentTime: true,
+                    status: true,
+                    service: {
+                      select: {
+                        id: true,
+                        name: true,
+                        price: true,
+                      },
+                    },
+                    doctor: {
+                      select: {
+                        id: true,
+                        user: {
+                          select: {
+                            name: true,
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+                patientTreatment: {
+                  select: {
+                    id: true,
+                    startDate: true,
+                    endDate: true,
+                    status: true,
+                  },
+                },
+                orderDetails: {
+                  select: {
+                    id: true,
+                    type: true,
+                    referenceId: true,
+                    name: true,
+                    quantity: true,
+                    unitPrice: true,
+                    totalPrice: true,
+                  },
+                },
+              },
+            },
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+        }),
+        this.prismaService.payment.count({
+          where: whereClause,
+        }),
+      ])
+
+      // Calculate summary statistics
+      const summaryStats = await this.prismaService.payment.groupBy({
+        by: ['status'],
+        where: whereClause,
+        _sum: {
+          amount: true,
+        },
+        _count: {
+          id: true,
+        },
+      })
+
+      // Process summary data
+      let totalRevenue = 0
+      let successfulPayments = 0
+      let pendingPayments = 0
+      let failedPayments = 0
+
+      summaryStats.forEach((stat) => {
+        const amount = Number(stat._sum.amount) || 0
+        const count = stat._count.id
+
+        switch (stat.status) {
+          case 'SUCCESS':
+            totalRevenue += amount
+            successfulPayments += count
+            break
+          case 'PENDING':
+            pendingPayments += count
+            break
+          case 'FAILED':
+            failedPayments += count
+            break
+        }
+      })
+
+      // Calculate pagination info
+      const totalPages = Math.ceil(totalCount / filters.limit)
+
+      const result = {
+        payments,
+        pagination: {
+          total: totalCount,
+          page: filters.page,
+          limit: filters.limit,
+          totalPages,
+        },
+        summary: {
+          totalRevenue,
+          successfulPayments,
+          pendingPayments,
+          failedPayments,
+          totalPayments: totalCount,
+        },
+      }
+
+      this.logger.log(`✅ [PAYMENT_REPO] Dashboard payments retrieved: ${payments.length} items, Total: ${totalCount}`)
+      this.logger.log(`💰 [PAYMENT_REPO] Revenue summary: Total=${totalRevenue}, Success=${successfulPayments}`)
+
+      return result
+    } catch (error) {
+      this.logger.error(`❌ [PAYMENT_REPO] Error getting dashboard payments: ${error.message}`)
+      throw error
+    }
+  }
+
+  async getRevenueStats(filters: {
+    period: string
+    startDate?: string
+    endDate?: string
+  }) {
+    this.logger.log(`📈 [PAYMENT_REPO] Getting revenue statistics with filters: ${JSON.stringify(filters)}`)
+
+    try {
+      // Build where clause
+      const whereClause: any = {
+        status: 'SUCCESS', // Only count successful payments for revenue
+      }
+
+      // Date filtering
+      if (filters.startDate || filters.endDate) {
+        whereClause.paidAt = {}
+        if (filters.startDate) {
+          whereClause.paidAt.gte = new Date(filters.startDate)
+        }
+        if (filters.endDate) {
+          const endDate = new Date(filters.endDate)
+          endDate.setHours(23, 59, 59, 999) // End of day
+          whereClause.paidAt.lte = endDate
+        }
+      }
+
+      // Get all successful payments in the date range
+      const payments = await this.prismaService.payment.findMany({
+        where: whereClause,
+        select: {
+          amount: true,
+          paidAt: true,
+          createdAt: true,
+        },
+        orderBy: {
+          paidAt: 'asc',
+        },
+      })
+
+      // Group payments by period
+      const groupedStats = new Map<string, { revenue: number; count: number }>()
+
+      payments.forEach((payment) => {
+        const paymentDate = payment.paidAt || payment.createdAt
+        let periodKey: string
+
+        switch (filters.period) {
+          case 'day':
+            periodKey = paymentDate.toISOString().split('T')[0] // YYYY-MM-DD
+            break
+          case 'month':
+            periodKey = `${paymentDate.getFullYear()}-${String(paymentDate.getMonth() + 1).padStart(2, '0')}` // YYYY-MM
+            break
+          case 'year':
+            periodKey = paymentDate.getFullYear().toString() // YYYY
+            break
+          default:
+            periodKey = `${paymentDate.getFullYear()}-${String(paymentDate.getMonth() + 1).padStart(2, '0')}` // Default to month
+        }
+
+        const existing = groupedStats.get(periodKey) || { revenue: 0, count: 0 }
+        existing.revenue += Number(payment.amount)
+        existing.count += 1
+        groupedStats.set(periodKey, existing)
+      })
+
+      // Convert to array and sort
+      const stats = Array.from(groupedStats.entries())
+        .map(([period, data]) => ({
+          period,
+          revenue: data.revenue,
+          paymentCount: data.count,
+          successfulPayments: data.count,
+        }))
+        .sort((a, b) => a.period.localeCompare(b.period))
+
+      // Calculate summary
+      const totalRevenue = payments.reduce((sum, payment) => sum + Number(payment.amount), 0)
+      const totalPayments = payments.length
+      const averageRevenue = totalPayments > 0 ? totalRevenue / totalPayments : 0
+
+      const result = {
+        stats,
+        summary: {
+          totalRevenue,
+          totalPayments,
+          averageRevenue: Math.round(averageRevenue * 100) / 100, // Round to 2 decimal places
+        },
+      }
+
+      this.logger.log(`✅ [PAYMENT_REPO] Revenue statistics retrieved: ${stats.length} periods`)
+      this.logger.log(`💰 [PAYMENT_REPO] Total revenue: ${totalRevenue}, Total payments: ${totalPayments}`)
+
+      return result
+    } catch (error) {
+      this.logger.error(`❌ [PAYMENT_REPO] Error getting revenue statistics: ${error.message}`)
+      throw error
+    }
+  }
 }
